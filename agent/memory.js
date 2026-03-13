@@ -5,7 +5,7 @@
 //   L3: Session transcripts (JSONL per session)
 //   L4: Skills (agentskills.io format — handled in skills.js)
 
-import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync, readdirSync, unlinkSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -368,4 +368,23 @@ export function periodicSave() {
   stats.totalPlayTimeMs = (stats.totalPlayTimeMs || 0) + (now - lastSaveTime);
   lastSaveTime = now;
   saveStats();
+  saveMemory();  // Persist lessons/strategies so OOM kills don't lose progress
+  pruneSessionLogs();
+}
+
+// Keep only the last 10 session log files to prevent disk exhaustion on multi-day runs
+function pruneSessionLogs() {
+  try {
+    const sessionsDir = join(DATA_DIR, 'sessions');
+    if (!existsSync(sessionsDir)) return;
+    const files = readdirSync(sessionsDir)
+      .filter(f => f.startsWith('session-') && f.endsWith('.jsonl'))
+      .sort();
+    const MAX_SESSION_FILES = 10;
+    if (files.length > MAX_SESSION_FILES) {
+      for (const old of files.slice(0, files.length - MAX_SESSION_FILES)) {
+        try { unlinkSync(join(sessionsDir, old)); } catch {}
+      }
+    }
+  } catch {}
 }
