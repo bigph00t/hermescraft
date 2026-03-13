@@ -25,7 +25,7 @@ const PHASES = [
     description: 'Survive the first night. Get wood, make tools, build shelter.',
     objectives: [
       'Punch a tree to get wood logs',
-      'Craft planks and sticks',
+      'Craft oak_planks (or matching wood type) and sticks',
       'Craft a crafting table',
       'Craft a wooden pickaxe',
       'Craft a wooden sword',
@@ -38,7 +38,7 @@ const PHASES = [
     tips: [
       'Start by looking around — find the nearest tree',
       'Use break_block to punch trees — look at a log block first with look action, then break it',
-      'Craft planks first: 1 log = 4 planks',
+      'Craft oak_planks first: 1 oak_log = 4 oak_planks (use the exact wood type)',
       'Upgrade to stone tools ASAP — they are much faster',
       'If it is getting dark, dig into a hillside for quick shelter',
       'Coal ore appears at the surface — mine it for torches',
@@ -88,7 +88,7 @@ const PHASES = [
       'Iron spawns between Y=0 and Y=64, most common around Y=16',
       'You need a stone pickaxe or better to mine iron ore',
       'Smelt raw iron in the furnace with coal/charcoal',
-      'Shield requires 1 iron + 6 planks — blocks skeleton arrows',
+      'Shield requires 1 iron + 6 oak_planks (any wood type) — blocks skeleton arrows',
       'A bucket of water is essential for nether portal building',
       'Bring torches when mining — mark your path',
     ],

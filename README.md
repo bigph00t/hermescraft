@@ -42,7 +42,7 @@ An autonomous AI agent that plays Minecraft survival mode, powered by Nous Herme
 #    Use the "RunPod Desktop" template for noVNC access
 
 # 2. Clone and setup
-git clone https://github.com/bigphoot/hermescraft.git /opt/hermescraft
+git clone https://github.com/hermescraft/hermescraft.git /opt/hermescraft
 cd /opt/hermescraft
 bash runpod/setup.sh
 
@@ -85,7 +85,7 @@ A Fabric 1.21.1 mod that exposes the game state and accepts commands over HTTP (
 
 Endpoints:
 - `GET /health` -- Mod status
-- `GET /observe` -- Full game state snapshot (position, health, inventory, nearby blocks/entities)
+- `GET /state` -- Full game state snapshot (position, health, inventory, nearby blocks/entities)
 - `POST /action` -- Execute a game action (move, mine, place, craft, attack, use, look, chat)
 
 The mod also integrates with Baritone for pathfinding -- the agent can issue high-level navigation commands like "go to coordinates" or "mine 10 iron ore" and Baritone handles the pathing.
