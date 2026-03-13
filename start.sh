@@ -12,7 +12,7 @@ cd "$(dirname "$0")"
 
 VLLM_URL="${VLLM_URL:-http://localhost:8000/v1}"
 MOD_URL="${MOD_URL:-http://localhost:3001}"
-MODEL_NAME="${MODEL_NAME:-NousResearch/Hermes-4.3-Llama-3.3-36B-AWQ}"
+MODEL_NAME="${MODEL_NAME:-NousResearch/Hermes-4-14B}"
 TICK_MS="${TICK_MS:-3000}"
 
 # npm install if needed

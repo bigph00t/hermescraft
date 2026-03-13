@@ -57,9 +57,9 @@ cp build/libs/hermesbridge-*.jar ~/.minecraft/mods/
 cd ..
 
 # 3. Start vLLM with Hermes
-vllm serve NousResearch/Hermes-4.3-Llama-3.3-36B-AWQ \
-  --port 8000 --max-model-len 8192 --quantization awq \
-  --gpu-memory-utilization 0.6 \
+vllm serve NousResearch/Hermes-4-14B \
+  --port 8000 --max-model-len 8192 \
+  --gpu-memory-utilization 0.9 \
   --enable-auto-tool-choice --tool-call-parser hermes
 
 # 4. Launch Minecraft client with Fabric + HermesBridge + Baritone

@@ -453,7 +453,7 @@ async function main() {
 
   logInfo(`Tick interval: ${TICK_INTERVAL}ms`);
   logInfo(`vLLM URL: ${process.env.VLLM_URL || 'http://localhost:8000/v1'}`);
-  logInfo(`Model: ${process.env.MODEL_NAME || 'NousResearch/Hermes-4.3-Llama-3.3-36B-AWQ'}`);
+  logInfo(`Model: ${process.env.MODEL_NAME || 'NousResearch/Hermes-4-14B'}`);
   logInfo(`Mod API: ${process.env.MOD_URL || 'http://localhost:3001'}`);
   logInfo(`Memory: ${memory.lessons.length} lessons, ${memory.strategies.length} strategies`);
   logInfo(`Skills: ${skills.length} loaded`);

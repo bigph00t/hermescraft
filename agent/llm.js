@@ -6,7 +6,7 @@ import OpenAI from 'openai';
 import { GAME_TOOLS } from './tools.js';
 
 const VLLM_URL = process.env.VLLM_URL || 'http://localhost:8000/v1';
-const MODEL_NAME = process.env.MODEL_NAME || 'NousResearch/Hermes-4.3-Llama-3.3-36B-AWQ';
+const MODEL_NAME = process.env.MODEL_NAME || 'NousResearch/Hermes-4-14B';
 const BASE_TEMPERATURE = parseFloat(process.env.TEMPERATURE || '0.7');
 const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '300', 10);
 const MAX_RETRIES = 3;
