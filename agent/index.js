@@ -33,9 +33,6 @@ const STATS_LOG_INTERVAL = 20;  // Log stats every 20 ticks (~60s)
 const DEATH_COOLDOWN_TICKS = 5; // Ignore death detection for N ticks after a death
 const FAILURE_TRACKER_MAX = 50; // Max entries before pruning
 
-// Pending info result from recipes/wiki lookup — shown to LLM on next tick
-let pendingInfoResult = null;
-
 // ── Global crash handlers — CRITICAL for 24/7 operation ──
 process.on('unhandledRejection', (err) => {
   logError('Unhandled promise rejection (non-fatal)', err instanceof Error ? err : new Error(String(err)));
@@ -55,6 +52,8 @@ let running = true;
 let tickCount = 0;
 let lastDeathTick = -999; // For death cooldown
 let currentTickPromise = null; // For graceful shutdown
+let pathingTickCount = 0; // Baritone pathing timeout counter
+const MAX_PATHING_TICKS = 60; // Auto-stop Baritone after ~3 minutes
 
 // Stuck detection
 const failureTracker = new Map();
@@ -285,8 +284,17 @@ async function tick() {
 
   // Skip LLM if Baritone is actively working and we're not in danger
   if (state.isPathing && state.health > 6 && state.food > 3) {
-    logInfo('Baritone pathing — waiting for completion');
-    return;
+    pathingTickCount++;
+    if (pathingTickCount >= MAX_PATHING_TICKS) {
+      logWarn(`Baritone stuck for ${pathingTickCount} ticks (~${Math.round(pathingTickCount * TICK_INTERVAL / 1000 / 60)}min) — forcing stop`);
+      try { await executeAction({ type: 'stop' }); } catch {}
+      pathingTickCount = 0;
+    } else {
+      logInfo(`Baritone pathing — waiting (${pathingTickCount}/${MAX_PATHING_TICKS})`);
+      return;
+    }
+  } else {
+    pathingTickCount = 0;
   }
 
   // 2. THINK — build prompt and query LLM
@@ -364,7 +372,6 @@ async function tick() {
       infoResult = await handleWikiLookup(response.action.query);
     }
     logInfo(`[${actionType}] ${infoResult}`);
-    pendingInfoResult = infoResult;
     actionHistory.push({
       type: actionType,
       success: true,

@@ -16,6 +16,7 @@ const MAX_HISTORY_MESSAGES = 10;  // ~5 ticks of context (keep tight for 8K mode
 const client = new OpenAI({
   baseURL: VLLM_URL,
   apiKey: process.env.VLLM_API_KEY || 'not-needed',
+  timeout: 30000,  // 30s — prevent 10-minute default stalls during 24/7 operation
 });
 
 // ── Conversation Memory (L1 — Session Memory) ──
