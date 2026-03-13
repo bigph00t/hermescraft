@@ -48,7 +48,7 @@ const PHASES = [
       const inv = state.inventory || [];
       const hasStonePick = hasItems(inv, 'stone_pickaxe');
       const hasFurnace = hasItems(inv, 'furnace') ||
-        (state.nearbyBlocks || []).some(b => (b.block || b.name || b).includes('furnace'));
+        (state.nearbyBlocks || []).some(b => String(b.block || b.name || b || '').includes('furnace'));
       const hasCobble = countItem(inv, 'cobblestone') >= 10;
       return hasStonePick && hasFurnace && hasCobble;
     },
@@ -63,7 +63,7 @@ const PHASES = [
       if (hasItems(inv, 'stone_sword')) score += 10;
       if (countItem(inv, 'cobblestone') >= 20) score += 10;
       if (hasItems(inv, 'furnace') ||
-        (state.nearbyBlocks || []).some(b => (b.block || b.name || b).includes('furnace'))) score += 15;
+        (state.nearbyBlocks || []).some(b => String(b.block || b.name || b || '').includes('furnace'))) score += 15;
       if (countItem(inv, 'torch') > 0) score += 5;
       if (countItem(inv, 'coal') > 0) score += 5;
       if (countItem(inv, 'raw') > 0 || countItem(inv, 'cooked') > 0) score += 5;
@@ -132,6 +132,8 @@ const PHASES = [
       'ALWAYS carry a water bucket — lava is everywhere at diamond level',
       'Iron pickaxe can mine diamonds but diamond pick is needed for obsidian',
       'Obsidian needs a diamond pickaxe and takes 9.4 seconds to mine',
+      'To get obsidian: find a lava pool underground or on surface, place water bucket next to lava source blocks — water converts lava to obsidian, then mine with diamond pickaxe',
+      'Lava pools are common at Y=0 to Y=-50 and sometimes on the surface',
       'You need 10 obsidian for a nether portal (minimum frame)',
     ],
     completionCheck(state) {
@@ -216,7 +218,7 @@ const PHASES = [
       if (state.dimension && state.dimension.includes('nether')) score += 10;
       const blazeCount = countItem(inv, 'blaze_rod') + countItem(inv, 'blaze_powder');
       score += Math.min(70, blazeCount * 10);
-      if ((state.nearbyBlocks || []).some(b => (b.block || b.name || b).includes('nether_brick'))) score += 20;
+      if ((state.nearbyBlocks || []).some(b => String(b.block || b.name || b || '').includes('nether_brick'))) score += 20;
       return Math.min(100, score);
     },
   },
@@ -343,7 +345,7 @@ export function getProgressDetail(phase, state) {
     else remaining.push('upgrade to stone tools');
     if (countItem(inv, 'cobblestone') >= 10) completed.push('cobblestone');
     else remaining.push(`mine cobblestone (${countItem(inv, 'cobblestone')}/20)`);
-    if (hasItems(inv, 'furnace') || (state.nearbyBlocks || []).some(b => (b.block || b.name || b).includes('furnace')))
+    if (hasItems(inv, 'furnace') || (state.nearbyBlocks || []).some(b => String(b.block || b.name || b || '').includes('furnace')))
       completed.push('furnace');
     else remaining.push('craft furnace');
   } else if (phase.id === 2) {

@@ -39,6 +39,7 @@ let stats = {
 };
 
 let sessionStart = Date.now();
+let lastSaveTime = Date.now();
 let sessionLogFile = null;
 
 function ensureDataDir() {
@@ -361,6 +362,8 @@ export function readInstructions() {
 // ── Periodic Save ──
 
 export function periodicSave() {
-  stats.totalPlayTimeMs = (stats.totalPlayTimeMs || 0) + (Date.now() - sessionStart);
+  const now = Date.now();
+  stats.totalPlayTimeMs = (stats.totalPlayTimeMs || 0) + (now - lastSaveTime);
+  lastSaveTime = now;
   saveStats();
 }

@@ -96,10 +96,13 @@ export function summarizeState(state) {
 }
 
 export function detectDeath(state) {
-  if (state.health !== undefined && state.health <= 0) return true;
+  // Only detect transition TO death (health dropped to 0 from positive)
+  // Avoids firing repeatedly while health stays at 0 on death screen
   if (stateHistory.length >= 2) {
     const prev = stateHistory[stateHistory.length - 2];
-    if (prev.health > 0 && state.health <= 0) return true;
+    if (prev.health > 0 && state.health !== undefined && state.health <= 0) return true;
   }
+  // First tick ever with health 0 — likely death screen on startup
+  if (stateHistory.length === 1 && state.health !== undefined && state.health <= 0) return true;
   return false;
 }

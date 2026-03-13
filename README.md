@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="hermescraft.png" alt="HermesCraft" width="100%">
+</p>
+
 # HermesCraft
 
 An autonomous AI agent that plays Minecraft survival mode, powered by Nous Hermes 4.3 36B running locally on an A6000 GPU. The agent controls a real Minecraft client through a custom Fabric mod, working through 7 phases to defeat the Ender Dragon. The entire run is livestreamed to PumpFun.

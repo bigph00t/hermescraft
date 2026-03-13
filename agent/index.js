@@ -29,6 +29,19 @@ import {
 const TICK_INTERVAL = parseInt(process.env.TICK_MS || '3000', 10);
 const MAX_STUCK_COUNT = 3;
 const STATS_LOG_INTERVAL = 20;  // Log stats every 20 ticks (~60s)
+const DEATH_COOLDOWN_TICKS = 5; // Ignore death detection for N ticks after a death
+const FAILURE_TRACKER_MAX = 50; // Max entries before pruning
+
+// ── Global crash handlers — CRITICAL for 24/7 operation ──
+process.on('unhandledRejection', (err) => {
+  logError('Unhandled promise rejection (non-fatal)', err instanceof Error ? err : new Error(String(err)));
+});
+process.on('uncaughtException', (err) => {
+  logError('Uncaught exception', err);
+  // Save state and attempt to continue — only exit on truly unrecoverable errors
+  try { periodicSave(); } catch {}
+  // Don't exit — let the loop continue if possible
+});
 
 // Agent state
 let deathCount = 0;
@@ -36,6 +49,8 @@ const actionHistory = [];
 let currentPhase = null;
 let running = true;
 let tickCount = 0;
+let lastDeathTick = -999; // For death cooldown
+let currentTickPromise = null; // For graceful shutdown
 
 // Stuck detection
 const failureTracker = new Map();
@@ -75,6 +90,17 @@ function clearAllFailures() {
   failureTracker.clear();
 }
 
+function pruneFailureTracker() {
+  // Prevent unbounded growth — remove lowest-count entries if too large
+  if (failureTracker.size > FAILURE_TRACKER_MAX) {
+    const entries = [...failureTracker.entries()].sort((a, b) => a[1] - b[1]);
+    const toRemove = entries.slice(0, entries.length - FAILURE_TRACKER_MAX / 2);
+    for (const [key] of toRemove) {
+      failureTracker.delete(key);
+    }
+  }
+}
+
 // ── Baritone Overlay Removal ──
 
 async function disableBaritoneOverlays() {
@@ -108,9 +134,10 @@ async function tick() {
     return;
   }
 
-  // Check for death
-  if (detectDeath(state)) {
+  // Check for death (with cooldown to prevent infinite re-detection)
+  if (detectDeath(state) && (tickCount - lastDeathTick) > DEATH_COOLDOWN_TICKS) {
     deathCount++;
+    lastDeathTick = tickCount;
 
     // Rich death analysis via memory system
     const phase = currentPhase || getCurrentPhase(state);
@@ -148,18 +175,24 @@ async function tick() {
   // Check phase transition
   const transition = checkPhaseTransition(currentPhase, state);
   if (transition.transitioned) {
-    logPhaseChange(currentPhase.name, transition.to.name);
+    // Only log "PHASE UP" if actually progressing forward
+    if (transition.to.id > currentPhase.id) {
+      logPhaseChange(currentPhase.name, transition.to.name);
 
-    // Record phase completion in memory
-    recordPhaseComplete(currentPhase, state, actionHistory);
+      // Record phase completion in memory
+      recordPhaseComplete(currentPhase, state, actionHistory);
 
-    // Create/update skill from successful phase completion
-    const lessonsLearned = getRelevantLessons(currentPhase);
-    const skillResult = createSkillFromPhase(currentPhase, actionHistory, deathCount, lessonsLearned);
-    logSkillCreated(skillResult);
+      // Create/update skill from successful phase completion
+      const lessonsLearned = getRelevantLessons(currentPhase);
+      const skillResult = createSkillFromPhase(currentPhase, actionHistory, deathCount, lessonsLearned);
+      logSkillCreated(skillResult);
 
-    // Update skill outcome (success)
-    recordSkillOutcome(currentPhase, true);
+      // Update skill outcome (success)
+      recordSkillOutcome(currentPhase, true);
+    } else {
+      // Phase regression (e.g. died and lost items) — just note it
+      logInfo(`Phase regressed: ${currentPhase.name} -> ${transition.to.name} (lost items)`);
+    }
 
     currentPhase = transition.to;
     clearAllFailures();
@@ -177,10 +210,11 @@ async function tick() {
     actionCount: getStats().totalActions,
   });
 
-  // Periodic stats line
+  // Periodic stats + failure tracker cleanup
   if (tickCount % STATS_LOG_INTERVAL === 0) {
     logSessionStats(getSessionStats());
     periodicSave();
+    pruneFailureTracker();
   }
 
   // Read user instructions
@@ -270,7 +304,7 @@ async function tick() {
     result = await executeAction(response.action);
   } catch (err) {
     logError('Action execution failed', err);
-    const failCount = trackFailure(response.action);
+    trackFailure(response.action);
     actionHistory.push({
       type: response.action.type || response.action.action,
       success: false,
@@ -350,30 +384,36 @@ async function main() {
     logWarn(`Could not disable Baritone overlays: ${err.message}`);
   }
 
-  // Graceful shutdown
-  process.on('SIGINT', () => {
+  // Graceful shutdown — wait for current tick to finish
+  const shutdown = async () => {
     logInfo('Shutting down...');
-    periodicSave();
     running = false;
-  });
-  process.on('SIGTERM', () => {
-    logInfo('Shutting down...');
+    // Wait for in-flight tick to finish (max 15s)
+    if (currentTickPromise) {
+      try {
+        await Promise.race([currentTickPromise, sleep(15000)]);
+      } catch {}
+    }
     periodicSave();
-    running = false;
-  });
+    const finalStats = getSessionStats();
+    logInfo(`Session complete. Deaths: ${deathCount}. Actions: ${finalStats.totalActions}. Farewell, traveler.`);
+    process.exit(0);
+  };
+
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 
   while (running) {
     try {
-      await tick();
+      currentTickPromise = tick();
+      await currentTickPromise;
+      currentTickPromise = null;
     } catch (err) {
       logError('Unexpected error in tick', err);
+      currentTickPromise = null;
     }
     if (running) await sleep(TICK_INTERVAL);
   }
-
-  periodicSave();
-  const finalStats = getSessionStats();
-  logInfo(`Session complete. Deaths: ${deathCount}. Actions: ${finalStats.totalActions}. Farewell, traveler.`);
 }
 
 main();

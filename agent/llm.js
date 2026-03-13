@@ -8,10 +8,10 @@ import { GAME_TOOLS } from './tools.js';
 const VLLM_URL = process.env.VLLM_URL || 'http://localhost:8000/v1';
 const MODEL_NAME = process.env.MODEL_NAME || 'solidrust/Hermes-3-Llama-3.1-8B-AWQ';
 const BASE_TEMPERATURE = parseFloat(process.env.TEMPERATURE || '0.7');
-const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '512', 10);
+const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '300', 10);
 const MAX_RETRIES = 3;
-const RETRY_BASE_MS = 2000;
-const MAX_HISTORY_MESSAGES = 30;  // ~15 ticks of conversation context
+const RETRY_BASE_MS = 1000;
+const MAX_HISTORY_MESSAGES = 10;  // ~5 ticks of context (keep tight for 8K model)
 
 const client = new OpenAI({
   baseURL: VLLM_URL,
@@ -37,11 +37,27 @@ function trimHistory() {
 
 export function getTemperature(phase, state) {
   if (!state || !phase) return BASE_TEMPERATURE;
-  if ((state.health || 20) <= 6) return 0.3;        // Precise survival decisions
-  if (state.dimension?.includes('nether')) return 0.5; // Careful in danger
-  if (state.dimension?.includes('end')) return 0.4;    // Very careful in End
-  if (phase.id <= 2) return 0.7;                       // Creative early exploration
+  if ((state.health || 20) <= 6) return 0.3;
+  if (state.dimension?.includes('nether')) return 0.5;
+  if (state.dimension?.includes('end')) return 0.4;
+  if (phase.id <= 2) return 0.7;
   return 0.6;
+}
+
+// ── Context overflow detection ──
+
+function isContextOverflowError(err) {
+  const msg = (err?.message || '').toLowerCase();
+  return msg.includes('context length') ||
+    msg.includes('input tokens') ||
+    msg.includes('maximum input length') ||
+    msg.includes('too many tokens');
+}
+
+function isToolCallingUnsupported(err) {
+  const msg = (err?.message || '').toLowerCase();
+  return (err?.status === 400 || err?.status === 422) &&
+    (msg.includes('tool') || msg.includes('function_call') || msg.includes('unrecognized'));
 }
 
 // ── Main Query Function ──
@@ -71,8 +87,18 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
             max_tokens: MAX_TOKENS,
           });
         } catch (toolErr) {
-          // Tool calling not supported — fall back permanently
-          if (toolErr.status === 400 || toolErr.message?.includes('tool')) {
+          if (isContextOverflowError(toolErr)) {
+            // Context overflow — trim history aggressively and retry
+            if (conversationHistory.length > 0) {
+              const trimCount = Math.max(2, Math.ceil(conversationHistory.length / 2));
+              conversationHistory.splice(0, trimCount);
+              throw toolErr; // Will retry with less history
+            }
+            // History already empty — pass through to outer retry
+            throw toolErr;
+          }
+          if (isToolCallingUnsupported(toolErr)) {
+            // Tool calling not supported — fall back permanently
             useToolCalling = false;
             response = await client.chat.completions.create({
               model: MODEL_NAME,
@@ -104,7 +130,9 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
         let args = {};
         try {
           args = JSON.parse(toolCall.function.arguments);
-        } catch {}
+        } catch (parseErr) {
+          // Log but don't crash — empty args will be validated downstream
+        }
 
         result = {
           reasoning: msg.content || '',
@@ -126,10 +154,17 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
           },
         );
       } else {
-        // Fallback to text parsing
+        // No structured tool call — try parsing from text (Hermes XML, JSON, etc)
         const text = msg.content || '';
         result = parseResponseFallback(text);
-        result.mode = 'text_fallback';
+
+        if (result.action) {
+          result.mode = 'text_parsed';  // Got action from text parsing
+        } else {
+          result.mode = 'text_fallback';
+          result.action = { type: 'wait' };  // Default to wait if nothing parseable
+          result.reasoning = result.reasoning || text;
+        }
 
         conversationHistory.push(
           { role: 'user', content: userMessage },
@@ -142,6 +177,17 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
 
     } catch (err) {
       lastError = err;
+
+      // On context overflow, aggressively trim and retry immediately
+      if (isContextOverflowError(err)) {
+        if (conversationHistory.length > 0) {
+          conversationHistory.splice(0, Math.max(2, conversationHistory.length));
+          continue; // Retry immediately without delay
+        }
+        // No history left — nothing more we can trim, fail
+        break;
+      }
+
       if (attempt < MAX_RETRIES - 1) {
         const delay = RETRY_BASE_MS * Math.pow(2, attempt);
         await sleep(delay);
@@ -158,13 +204,43 @@ function parseResponseFallback(text) {
   let reasoning = '';
   let action = null;
 
-  // Extract REASONING
+  // 1. Try Hermes native <tool_call> XML format first
+  const toolCallMatch = text.match(/<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/);
+  if (toolCallMatch) {
+    // Extract reasoning from text before the tool_call tag
+    const beforeTag = text.slice(0, text.indexOf('<tool_call>')).trim();
+    if (beforeTag) reasoning = beforeTag;
+
+    try {
+      // Hermes format: {"name": "mine", "arguments": {"blockName": "oak_log"}}
+      // Fix common malformation: {"name": "mine"}, "arguments": {...}
+      let jsonStr = toolCallMatch[1].trim();
+      jsonStr = jsonStr.replace(/\}\s*,\s*"arguments"/, ', "arguments"');
+      const parsed = JSON.parse(jsonStr);
+      if (parsed.name) {
+        action = { type: parsed.name, ...(parsed.arguments || {}) };
+      }
+    } catch {
+      // Try extracting name and arguments separately
+      const nameMatch = toolCallMatch[1].match(/"name"\s*:\s*"([^"]+)"/);
+      const argsMatch = toolCallMatch[1].match(/"arguments"\s*:\s*(\{[^}]*\})/);
+      if (nameMatch) {
+        let args = {};
+        if (argsMatch) {
+          try { args = JSON.parse(argsMatch[1]); } catch {}
+        }
+        action = { type: nameMatch[1], ...args };
+      }
+    }
+    if (action) return { reasoning, action, raw: text };
+  }
+
+  // 2. Try REASONING: / ACTION: format
   const reasoningMatch = text.match(/REASONING:\s*(.+?)(?=\nACTION:|$)/s);
   if (reasoningMatch) {
     reasoning = reasoningMatch[1].trim();
   }
 
-  // Extract ACTION — look for JSON after ACTION:
   const actionMatch = text.match(/ACTION:\s*(\{[\s\S]*?\})/);
   if (actionMatch) {
     try {
@@ -180,9 +256,24 @@ function parseResponseFallback(text) {
     }
   }
 
-  // Fallback: if no REASONING marker, use everything before ACTION as reasoning
+  // 3. Last resort: find any JSON with a "name" or "type" field
+  if (!action) {
+    const jsonMatch = text.match(/\{[^{}]*"(?:name|type)"\s*:\s*"[^"]+?"[^{}]*\}/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.name || parsed.type) {
+          action = { type: parsed.name || parsed.type, ...(parsed.arguments || {}) };
+          // Remove type/name duplication
+          delete action.name;
+        }
+      } catch {}
+    }
+  }
+
+  // Fallback reasoning: use everything before ACTION or tool_call
   if (!reasoning && !reasoningMatch) {
-    const beforeAction = text.split(/ACTION:/)[0];
+    const beforeAction = text.split(/ACTION:|<tool_call>/)[0];
     if (beforeAction) reasoning = beforeAction.trim();
   }
 

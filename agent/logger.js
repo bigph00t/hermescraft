@@ -102,7 +102,9 @@ export function logAction(action, mode = 'tool_call') {
   delete params.type;
   delete params.action;
   const paramStr = Object.keys(params).length > 0 ? ` ${JSON.stringify(params)}` : '';
-  const modeTag = mode === 'tool_call' ? `${DIM}${GREEN}[fn]${RESET}` : `${DIM}${YELLOW}[txt]${RESET}`;
+  const modeTag = mode === 'tool_call' ? `${DIM}${GREEN}[fn]${RESET}`
+    : mode === 'text_parsed' ? `${DIM}${CYAN}[xml]${RESET}`
+    : `${DIM}${YELLOW}[txt]${RESET}`;
   console.log(`${timestamp()} ${GREEN}${BOLD}ACT:${RESET} ${modeTag} ${GREEN}${type}${paramStr}${RESET}`);
 }
 
@@ -161,9 +163,14 @@ export function logSkillCreated(skillResult) {
 
 // ── Phase Change ──
 
-export function logPhaseChange(oldPhase, newPhase) {
-  console.log(`\n${timestamp()} ${BG_GREEN}${WHITE}${BOLD}  PHASE UP!  ${RESET}`);
-  console.log(`  ${YELLOW}${oldPhase} ${WHITE}-> ${GREEN}${BOLD}${newPhase}${RESET}\n`);
+export function logPhaseChange(oldPhase, newPhase, isRegression = false) {
+  if (isRegression) {
+    console.log(`\n${timestamp()} ${BG_YELLOW}${WHITE}${BOLD}  PHASE RESET  ${RESET}`);
+    console.log(`  ${YELLOW}${oldPhase} ${WHITE}-> ${RED}${newPhase}${RESET}\n`);
+  } else {
+    console.log(`\n${timestamp()} ${BG_GREEN}${WHITE}${BOLD}  PHASE UP!  ${RESET}`);
+    console.log(`  ${YELLOW}${oldPhase} ${WHITE}-> ${GREEN}${BOLD}${newPhase}${RESET}\n`);
+  }
 }
 
 // ── Session Stats Line ──

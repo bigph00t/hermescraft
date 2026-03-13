@@ -160,7 +160,12 @@ export function updateSkill(skillName, updates) {
   const skill = skills.find(s => s.name === skillName);
   if (!skill) return false;
 
-  let content = readFileSync(skill.path, 'utf-8');
+  let content;
+  try {
+    content = readFileSync(skill.path, 'utf-8');
+  } catch {
+    return false; // Skill file was deleted externally
+  }
 
   // Add new lessons
   if (updates.lessonsLearned && updates.lessonsLearned.length > 0) {
@@ -212,12 +217,16 @@ export function recordSkillOutcome(phase, success) {
     ? Math.min(1, currentRate + 0.1)
     : Math.max(0, currentRate - 0.1);
 
-  let content = readFileSync(skill.path, 'utf-8');
-  content = content.replace(
-    /success_rate: "[^"]*"/,
-    `success_rate: "${newRate.toFixed(1)}"`
-  );
-  writeFileSync(skill.path, content, 'utf-8');
+  try {
+    let content = readFileSync(skill.path, 'utf-8');
+    content = content.replace(
+      /success_rate: "[^"]*"/,
+      `success_rate: "${newRate.toFixed(1)}"`
+    );
+    writeFileSync(skill.path, content, 'utf-8');
+  } catch {
+    // Skill file missing or unwritable — skip update
+  }
 }
 
 // ── Helpers ──
