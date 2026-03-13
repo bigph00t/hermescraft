@@ -5,7 +5,8 @@
   "description": "Hermes AI plays Minecraft — LLM agent controlling a real MC client",
   "main": "agent/index.js",
   "scripts": {
-    "start": "node agent/index.js",
+    "start": "./start.sh",
+    "agent": "node agent/index.js",
     "dev": "node --watch agent/index.js"
   },
   "dependencies": {
