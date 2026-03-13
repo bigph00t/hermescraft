@@ -17,9 +17,11 @@ const INSTRUCTIONS_FILE = join(DATA_DIR, 'instructions.txt');
 
 const HOSTILE_MOBS = [
   'zombie', 'skeleton', 'spider', 'creeper', 'witch', 'enderman',
-  'blaze', 'ghast', 'piglin', 'hoglin', 'wither_skeleton', 'magma_cube',
-  'slime', 'drowned', 'husk', 'stray', 'phantom', 'pillager',
-  'vindicator', 'evoker', 'ravager', 'warden', 'guardian', 'elder_guardian',
+  'blaze', 'ghast', 'piglin', 'piglin_brute', 'hoglin', 'wither_skeleton',
+  'magma_cube', 'slime', 'drowned', 'husk', 'stray', 'phantom',
+  'pillager', 'vindicator', 'evoker', 'ravager', 'warden',
+  'guardian', 'elder_guardian', 'zombified_piglin', 'silverfish',
+  'cave_spider', 'breeze', 'bogged', 'shulker', 'endermite',
 ];
 
 let memory = {

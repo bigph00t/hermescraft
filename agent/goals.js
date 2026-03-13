@@ -25,11 +25,11 @@ const PHASES = [
     description: 'Survive the first night. Get wood, make tools, build shelter.',
     objectives: [
       'Punch a tree to get wood logs',
-      'Craft oak_planks (or matching wood type) and sticks',
+      'Craft planks and sticks',
       'Craft a crafting table',
       'Craft a wooden pickaxe',
       'Craft a wooden sword',
-      'Mine cobblestone (at least 20)',
+      'Mine cobblestone (at least 10)',
       'Craft stone tools (pickaxe, sword, axe)',
       'Craft a furnace',
       'Build or dig a shelter before nightfall',
@@ -38,7 +38,7 @@ const PHASES = [
     tips: [
       'Start by looking around — find the nearest tree',
       'Use break_block to punch trees — look at a log block first with look action, then break it',
-      'Craft oak_planks first: 1 oak_log = 4 oak_planks (use the exact wood type)',
+      'Craft planks first: 1 log = 4 planks. Use the exact wood type from your inventory.',
       'Upgrade to stone tools ASAP — they are much faster',
       'If it is getting dark, dig into a hillside for quick shelter',
       'Coal ore appears at the surface — mine it for torches',
@@ -61,12 +61,12 @@ const PHASES = [
       if (hasItems(inv, 'wooden_sword')) score += 5;
       if (hasItems(inv, 'stone_pickaxe')) score += 15;
       if (hasItems(inv, 'stone_sword')) score += 10;
-      if (countItem(inv, 'cobblestone') >= 20) score += 10;
+      if (countItem(inv, 'cobblestone') >= 10) score += 10;
       if (hasItems(inv, 'furnace') ||
         (state.nearbyBlocks || []).some(b => String(b.block || b.name || b || '').includes('furnace'))) score += 15;
       if (countItem(inv, 'torch') > 0) score += 5;
       if (countItem(inv, 'coal') > 0) score += 5;
-      if (countItem(inv, 'raw') > 0 || countItem(inv, 'cooked') > 0) score += 5;
+      if (countItem(inv, 'beef') + countItem(inv, 'chicken') + countItem(inv, 'porkchop') + countItem(inv, 'mutton') + countItem(inv, 'cooked') > 0) score += 5;
       return Math.min(100, score);
     },
   },
@@ -88,7 +88,7 @@ const PHASES = [
       'Iron spawns between Y=0 and Y=64, most common around Y=16',
       'You need a stone pickaxe or better to mine iron ore',
       'Smelt raw iron in the furnace with coal/charcoal',
-      'Shield requires 1 iron + 6 oak_planks (any wood type) — blocks skeleton arrows',
+      'Shield requires 1 iron ingot + 6 planks — blocks skeleton arrows',
       'A bucket of water is essential for nether portal building',
       'Bring torches when mining — mark your path',
     ],
@@ -183,7 +183,8 @@ const PHASES = [
       let score = 0;
       const inv = state.inventory || [];
       if (countItem(inv, 'obsidian') >= 10) score += 30;
-      if (hasItems(inv, 'flint_and_steel') || hasItems(inv, 'flint')) score += 20;
+      if (hasItems(inv, 'flint_and_steel')) score += 20;
+      else if (hasItems(inv, 'flint')) score += 10;
       if (state.dimension && state.dimension.includes('nether')) score = 100;
       return Math.min(100, score);
     },
@@ -344,7 +345,7 @@ export function getProgressDetail(phase, state) {
     if (hasItems(inv, 'stone_pickaxe')) completed.push('stone tools');
     else remaining.push('upgrade to stone tools');
     if (countItem(inv, 'cobblestone') >= 10) completed.push('cobblestone');
-    else remaining.push(`mine cobblestone (${countItem(inv, 'cobblestone')}/20)`);
+    else remaining.push(`mine cobblestone (${countItem(inv, 'cobblestone')}/10)`);
     if (hasItems(inv, 'furnace') || (state.nearbyBlocks || []).some(b => String(b.block || b.name || b || '').includes('furnace')))
       completed.push('furnace');
     else remaining.push('craft furnace');
@@ -377,7 +378,8 @@ export function getProgressDetail(phase, state) {
     // Nether
     if (countItem(inv, 'obsidian') >= 10) completed.push('obsidian');
     else remaining.push('get 10 obsidian');
-    if (hasItems(inv, 'flint_and_steel') || hasItems(inv, 'flint')) completed.push('flint and steel');
+    if (hasItems(inv, 'flint_and_steel')) completed.push('flint and steel');
+    else if (hasItems(inv, 'flint')) remaining.push('craft flint and steel (have flint)');
     else remaining.push('craft flint and steel');
     if (state.dimension?.includes('nether')) completed.push('in the Nether!');
     else remaining.push('build and enter portal');

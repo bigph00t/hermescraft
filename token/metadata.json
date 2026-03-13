@@ -1,7 +1,7 @@
 {
   "name": "HermesCraft",
   "symbol": "HCRAFT",
-  "description": "Watch Hermes, god of cunning, play Minecraft live. Nous Hermes 4.3 36B AI controlling a real Minecraft client — on a quest to kill the Ender Dragon. 100% autonomous gameplay, streamed 24/7.",
+  "description": "Autonomous AI agent that plays Minecraft survival — powered by Nous Hermes 4.3 36B. On a quest to defeat the Ender Dragon with zero human input.",
   "image": "token/branding/logo.png",
   "external_url": "https://github.com/hermescraft/hermescraft",
   "twitter": "",

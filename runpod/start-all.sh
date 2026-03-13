@@ -37,7 +37,7 @@ AGENT_PID=$!
 # 5. Start OBS (must be on virtual desktop)
 echo "[5/5] Start OBS manually via noVNC desktop"
 echo "  → Import scene from config/obs-scene.json"
-echo "  → Set RTMP output to PumpFun stream URL"
+echo "  → Set RTMP output to your streaming platform URL"
 
 echo ""
 echo "=== All services started ==="

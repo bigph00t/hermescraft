@@ -4,68 +4,76 @@
 
 # HermesCraft
 
-An autonomous AI agent that plays Minecraft survival mode, powered by Nous Hermes 4.3 36B running locally on an A6000 GPU. The agent controls a real Minecraft client through a custom Fabric mod, working through 7 phases to defeat the Ender Dragon. The entire run is livestreamed to PumpFun.
+An autonomous AI agent that plays Minecraft survival mode, powered by [Nous Hermes](https://nousresearch.com/) running locally via vLLM. The agent controls a real Minecraft client through a custom Fabric mod, working through 7 phases to defeat the Ender Dragon — all without human input.
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  RunPod Desktop Pod — NVIDIA A6000 48GB                         │
+│  GPU Server (48GB+ VRAM recommended)                            │
 │                                                                 │
-│  ┌──────────────┐    ┌──────────────┐    ┌──────────────────┐  │
-│  │   vLLM        │    │  MC Server   │    │  MC Client       │  │
-│  │  Hermes 4.3   │    │  1.21.1      │    │  1.21.1 Fabric   │  │
-│  │  36B AWQ      │    │  :25565      │    │  + HermesBridge  │  │
-│  │  :8000        │    │              │    │  + Baritone      │  │
-│  └──────┬───────┘    └──────────────┘    └────────┬─────────┘  │
-│         │                                          │            │
-│         │  OpenAI-compatible API                   │ HTTP :3001 │
-│         │                                          │            │
-│  ┌──────┴──────────────────────────────────────────┴─────────┐  │
-│  │                    Agent (Node.js)                         │  │
-│  │                                                           │  │
-│  │   every 3s:  OBSERVE  →  THINK  →  ACT                   │  │
-│  │              (mod API)   (vLLM)    (mod API)              │  │
-│  └───────────────────────────────────────────────────────────┘  │
+│  ┌──────────────┐                   ┌──────────────────┐       │
+│  │   vLLM        │                   │  MC Client       │       │
+│  │  Hermes 4.3   │                   │  1.21.1 Fabric   │       │
+│  │  36B AWQ      │                   │  + HermesBridge  │       │
+│  │  :8000        │                   │  + Baritone      │       │
+│  └──────┬───────┘                   └────────┬─────────┘       │
+│         │                                     │                 │
+│         │  OpenAI-compatible API              │ HTTP :3001      │
+│         │                                     │                 │
+│  ┌──────┴─────────────────────────────────────┴─────────┐      │
+│  │                    Agent (Node.js)                     │      │
+│  │                                                       │      │
+│  │   every 3s:  OBSERVE  →  THINK  →  ACT               │      │
+│  │              (mod API)   (vLLM)    (mod API)          │      │
+│  └───────────────────────────────────────────────────────┘      │
 │                                                                 │
 │  ┌──────────────┐                                              │
-│  │  OBS Studio   │ ── RTMP ──→  PumpFun Livestream             │
-│  │  Terminal+MC  │                                              │
+│  │  OBS Studio   │ ── RTMP ──→  Any streaming platform         │
+│  │  (optional)   │              (Twitch, YouTube, etc.)         │
 │  └──────────────┘                                              │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+## Prerequisites
+
+- **GPU**: 48GB+ VRAM (A6000, A100, etc.) for the 36B model, or 24GB for smaller Hermes variants
+- **Minecraft**: Java Edition 1.21.1 with a server you can connect to (local or remote)
+- **Fabric**: 1.21.1 Fabric loader + Baritone installed on the client
+- **Node.js**: 20+
+- **Python**: 3.10+ (for vLLM)
+
 ## Quick Start
 
 ```bash
-# 1. Provision a RunPod Desktop pod (A6000 48GB)
-#    Use the "RunPod Desktop" template for noVNC access
+# 1. Clone and install
+git clone https://github.com/hermescraft/hermescraft.git
+cd hermescraft
+npm install
 
-# 2. Clone and setup
-git clone https://github.com/hermescraft/hermescraft.git /opt/hermescraft
-cd /opt/hermescraft
-bash runpod/setup.sh
-
-# 3. Install Minecraft server
-bash minecraft/install-server.sh
-
-# 4. Install the HermesBridge mod (Fabric 1.21.1)
+# 2. Build the HermesBridge mod (Fabric 1.21.1)
 cd mod && ./gradlew build
-cp build/libs/hermesbridge-*.jar /opt/minecraft-client/mods/
+cp build/libs/hermesbridge-*.jar ~/.minecraft/mods/
+cd ..
 
-# 5. Install agent dependencies
-cd /opt/hermescraft && npm install
+# 3. Start vLLM with Hermes
+vllm serve NousResearch/Hermes-4.3-Llama-3.3-36B-AWQ \
+  --port 8000 --max-model-len 8192 --quantization awq \
+  --gpu-memory-utilization 0.6 \
+  --enable-auto-tool-choice --tool-call-parser hermes
 
-# 6. Configure environment
+# 4. Launch Minecraft client with Fabric + HermesBridge + Baritone
+#    Connect to any 1.21.1 survival server
+
+# 5. Configure environment
 cp .env.example .env
-# Edit .env with your stream key if streaming
+# Edit .env if vLLM or mod are on non-default ports
 
-# 7. Launch everything
-bash runpod/start-all.sh
-
-# 8. Check health
-bash runpod/health-check.sh
+# 6. Start the agent
+node agent/index.js
 ```
+
+If you're running on RunPod, see `runpod/setup.sh` and `runpod/start-all.sh` for automated provisioning.
 
 ## Components
 
@@ -74,8 +82,8 @@ bash runpod/health-check.sh
 The brain. A Node.js loop that runs every 3 seconds:
 
 1. **Observe** -- Calls HermesBridge mod API to get player state (position, health, hunger, inventory, nearby entities, blocks)
-2. **Think** -- Sends observation + conversation history + phase goals to Hermes 4.3 via vLLM. The model reasons about what to do next.
-3. **Act** -- Parses the model's response into game actions (move, mine, craft, attack, place, etc.) and sends them to the mod API.
+2. **Think** -- Sends observation + conversation history + phase goals to Hermes via vLLM. The model reasons about what to do next.
+3. **Act** -- Parses the model's tool call into a game action (move, mine, craft, attack, place, etc.) and sends it to the mod API.
 
 The agent tracks which phase the run is in and adjusts prompts accordingly. Deaths trigger strategy reassessment. Getting stuck for multiple ticks triggers replanning.
 
@@ -87,25 +95,23 @@ Endpoints:
 - `GET /health` -- Mod status
 - `GET /state` -- Full game state snapshot (position, health, inventory, nearby blocks/entities)
 - `POST /action` -- Execute a game action (move, mine, place, craft, attack, use, look, chat)
+- `GET /recipes?item=X` -- Recipe lookup for a specific item
 
-The mod also integrates with Baritone for pathfinding -- the agent can issue high-level navigation commands like "go to coordinates" or "mine 10 iron ore" and Baritone handles the pathing.
+The mod integrates with Baritone for pathfinding -- the agent can issue high-level navigation commands like "go to coordinates" or "mine 10 iron ore" and Baritone handles the pathing.
 
 ### RunPod Scripts (`runpod/`)
 
+Optional scripts for running on RunPod Desktop pods:
+
 - `setup.sh` -- One-time pod provisioning (Java 21, Node 20, vLLM, OBS, Fabric installer)
-- `start-all.sh` -- Launch vLLM, MC server, agent (MC client and OBS started manually via noVNC)
+- `start-all.sh` -- Launch vLLM, MC server, agent
 - `stop-all.sh` -- Graceful shutdown of all services
-- `health-check.sh` -- Verify GPU, vLLM, MC server, mod, agent, and OBS are running
+- `health-check.sh` -- Verify GPU, vLLM, mod, agent are running
 
 ### Config (`config/`)
 
 - `hermes-profile.json` -- Agent personality, goals, and the 7-phase progression from first night to dragon fight
 - `obs-scene.json` -- OBS scene layout reference (terminal on left, Minecraft on right, logo overlay)
-
-### Token (`token/`)
-
-- `metadata.json` -- PumpFun token metadata (name, symbol, description, links)
-- `branding/` -- Logo and visual assets
 
 ## How It Works
 
@@ -115,12 +121,12 @@ The core loop is **observe-think-act**, running every 3 seconds:
 OBSERVE: Get game state from HermesBridge mod
   → position, health, hunger, inventory, nearby blocks, entities, time of day
 
-THINK: Send to Hermes 4.3 36B via vLLM
+THINK: Send to Hermes via vLLM (native tool calling)
   → system prompt with personality + current phase goals
   → recent observation history (sliding window)
-  → model outputs reasoning + next action(s)
+  → model outputs reasoning + tool call
 
-ACT: Parse model response, send commands to mod
+ACT: Execute tool call via mod API
   → move, mine, craft, place, attack, use items, look around
   → Baritone handles complex pathfinding
 ```
@@ -139,18 +145,19 @@ The agent maintains a conversation history so the model has context about what i
 | 6 | Ender Pearls | Hunt endermen, 12+ pearls, craft Eyes of Ender |
 | 7 | Dragon Fight | Find stronghold, enter End, kill the dragon |
 
-## Streaming Setup
+## Streaming (Optional)
 
-The stream shows two panels side by side:
+You can livestream the agent's gameplay with OBS. The recommended layout is two panels side by side:
 - **Left (40%)** -- Terminal running the agent, showing LLM reasoning in real time
 - **Right (60%)** -- Minecraft client first-person view
 
-Setup via noVNC desktop:
+Setup:
 1. Open OBS Studio
 2. Add window captures for terminal and Minecraft
-3. Set output to Custom RTMP
-4. Enter PumpFun RTMP URL and stream key from your livestream settings
-5. Start streaming
+3. Set output to Custom RTMP with your platform's stream URL and key
+4. Start streaming
+
+Use `runpod/stream-layout.sh` to auto-arrange windows if running on a virtual desktop.
 
 ## Tech Stack
 
@@ -163,19 +170,7 @@ Setup via noVNC desktop:
 | Mod loader | Fabric |
 | Bridge mod | Custom HermesBridge (Java, Fabric API) |
 | Pathfinding | Baritone |
-| Streaming | OBS Studio via RTMP |
-| GPU | NVIDIA A6000 48GB (RunPod) |
-| Desktop | RunPod Desktop template (noVNC) |
-
-## Cost Breakdown
-
-| Resource | Cost |
-|----------|------|
-| RunPod A6000 48GB (Desktop pod) | ~$0.76/hr |
-| 24hr run | ~$18.24 |
-| PumpFun token launch | 0.02 SOL |
-
-The A6000 48GB handles both model inference (~29GB VRAM for AWQ 36B at 60% utilization) and Minecraft rendering simultaneously.
+| Streaming | OBS Studio via RTMP (optional) |
 
 ## Project Structure
 
@@ -184,9 +179,9 @@ hermescraft/
   agent/          # Node.js agent (observe-think-act loop)
   mod/            # HermesBridge Fabric mod (Java)
   config/         # Agent profile, OBS scene config
-  minecraft/      # Server properties, install script
-  runpod/         # Provisioning and lifecycle scripts
-  token/          # PumpFun token metadata and branding
+  minecraft/      # Server properties template
+  runpod/         # RunPod provisioning and lifecycle scripts
+  token/          # Token metadata and branding assets
   .env.example    # Environment variables template
   package.json    # Node.js dependencies
 ```

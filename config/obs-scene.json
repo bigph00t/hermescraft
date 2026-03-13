@@ -36,6 +36,6 @@
   ],
   "output": {
     "type": "rtmp",
-    "notes": "Set RTMP URL and stream key from PumpFun livestream settings"
+    "notes": "Set RTMP URL and stream key from your streaming platform"
   }
 }

@@ -6,11 +6,16 @@ const VALID_ACTIONS = new Set([
   'navigate', 'mine', 'craft', 'smelt', 'attack', 'eat', 'place',
   'equip', 'look', 'chat', 'use_item', 'drop', 'swap_hands',
   'stop', 'jump', 'sneak', 'sprint', 'wait', 'close_screen',
-  'break_block', 'walk',
+  'break_block', 'walk', 'recipes', 'wiki',
 ]);
+
+// Info actions return data to the LLM — they don't execute in the game world
+export const INFO_ACTIONS = new Set(['recipes', 'wiki']);
 
 // Schema validators per action type
 const ACTION_SCHEMAS = {
+  recipes:      (a) => typeof a.item === 'string',
+  wiki:         (a) => typeof a.query === 'string',
   navigate:     (a) => a.x !== undefined && a.y !== undefined && a.z !== undefined,
   mine:         (a) => typeof a.blockName === 'string',
   craft:        (a) => typeof a.item === 'string',

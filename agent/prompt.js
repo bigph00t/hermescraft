@@ -15,7 +15,7 @@ You observe the world, reason about your situation, then take ONE action at a ti
 
 IMPORTANT: Always explain your reasoning in your response content before calling a tool. Your thinking is displayed to viewers watching your stream — they want to understand your strategy.
 
-ITEM NAMING: Use exact Minecraft item IDs. Wood types need prefixes: oak_planks (not planks), oak_log (not log), birch_planks, jungle_planks, etc. Tools are exact: wooden_pickaxe, stone_sword, iron_pickaxe, diamond_sword. Check your inventory for the exact wood type you have before crafting.`;
+ITEM NAMING: Always use the exact item IDs shown in your inventory (e.g. oak_planks not planks, beef not raw_beef). When crafting, check what wood type or material you actually have.`;
 
 export function buildSystemPrompt(phase, {
   deathCount = 0,
@@ -116,8 +116,13 @@ export function buildUserMessage(stateSummary, actionHistory, {
   if (actionHistory.length > 0) {
     parts.push('\n== RECENT ACTIONS (newest first) ==');
     actionHistory.slice(-10).reverse().forEach((entry, i) => {
-      const result = entry.success ? 'OK' : `FAILED: ${entry.error || 'unknown'}`;
-      parts.push(`  ${i + 1}. ${entry.type} -> ${result}`);
+      if (entry.info) {
+        // Info action (recipes/wiki) — show the result
+        parts.push(`  ${i + 1}. ${entry.type} -> ${entry.info}`);
+      } else {
+        const result = entry.success ? 'OK' : `FAILED: ${entry.error || 'unknown'}`;
+        parts.push(`  ${i + 1}. ${entry.type} -> ${result}`);
+      }
     });
   }
 

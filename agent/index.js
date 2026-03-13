@@ -4,7 +4,8 @@
 
 import { fetchState, summarizeState, detectDeath } from './state.js';
 import { queryLLM, clearConversation, getTemperature, isToolCallingEnabled } from './llm.js';
-import { executeAction, validateAction } from './actions.js';
+import { executeAction, validateAction, INFO_ACTIONS } from './actions.js';
+import { fetchRecipes } from './state.js';
 import {
   getCurrentPhase, checkPhaseTransition, getPhaseProgress,
   getProgressDetail, getGoalName, setGoal, isCustomGoal,
@@ -31,6 +32,9 @@ const MAX_STUCK_COUNT = 3;
 const STATS_LOG_INTERVAL = 20;  // Log stats every 20 ticks (~60s)
 const DEATH_COOLDOWN_TICKS = 5; // Ignore death detection for N ticks after a death
 const FAILURE_TRACKER_MAX = 50; // Max entries before pruning
+
+// Pending info result from recipes/wiki lookup — shown to LLM on next tick
+let pendingInfoResult = null;
 
 // ── Global crash handlers — CRITICAL for 24/7 operation ──
 process.on('unhandledRejection', (err) => {
@@ -98,6 +102,56 @@ function pruneFailureTracker() {
     for (const [key] of toRemove) {
       failureTracker.delete(key);
     }
+  }
+}
+
+// ── Info Action Handlers (recipes, wiki) ──
+
+async function handleRecipesLookup(item) {
+  try {
+    const data = await fetchRecipes(item);
+    if (!data || !data.recipes || data.recipes.length === 0) {
+      return `No recipe found for "${item}". Check the item ID — use exact names from your inventory.`;
+    }
+    const lines = [`Recipes for ${data.item} (${data.count} found):`];
+    for (const recipe of data.recipes.slice(0, 3)) {
+      const ingredients = recipe.ingredients
+        ? recipe.ingredients.map(i => i.item || i).join(', ')
+        : JSON.stringify(recipe);
+      lines.push(`  ${ingredients}`);
+    }
+    return lines.join('\n');
+  } catch (err) {
+    return `Recipe lookup failed: ${err.message}`;
+  }
+}
+
+async function handleWikiLookup(query) {
+  // Convert query to wiki page title format
+  const title = query.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join('_');
+  try {
+    const url = `https://minecraft.wiki/api.php?action=query&prop=extracts&titles=${encodeURIComponent(title)}&exintro=true&explaintext=true&exchars=600&format=json`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return `Wiki lookup failed: HTTP ${res.status}`;
+    const data = await res.json();
+    const pages = data?.query?.pages;
+    if (!pages) return `No wiki results for "${query}"`;
+    const page = Object.values(pages)[0];
+    if (page.missing !== undefined) {
+      // Try search instead
+      const searchUrl = `https://minecraft.wiki/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=3&format=json`;
+      const searchRes = await fetch(searchUrl, { signal: AbortSignal.timeout(5000) });
+      if (searchRes.ok) {
+        const searchData = await searchRes.json();
+        if (searchData[1] && searchData[1].length > 0) {
+          return `No exact page for "${query}". Did you mean: ${searchData[1].join(', ')}?`;
+        }
+      }
+      return `No wiki page found for "${query}"`;
+    }
+    return `${page.title}: ${page.extract || 'No summary available.'}`;
+  } catch (err) {
+    return `Wiki lookup failed: ${err.message}`;
   }
 }
 
@@ -299,6 +353,27 @@ async function tick() {
   logAction(response.action, response.mode);
   recordAction();
 
+  const actionType = response.action.type || response.action.action;
+
+  // Handle info actions (recipes, wiki) — return data to LLM, no game state change
+  if (INFO_ACTIONS.has(actionType)) {
+    let infoResult;
+    if (actionType === 'recipes') {
+      infoResult = await handleRecipesLookup(response.action.item);
+    } else if (actionType === 'wiki') {
+      infoResult = await handleWikiLookup(response.action.query);
+    }
+    logInfo(`[${actionType}] ${infoResult}`);
+    pendingInfoResult = infoResult;
+    actionHistory.push({
+      type: actionType,
+      success: true,
+      info: infoResult,
+      timestamp: Date.now(),
+    });
+    return;
+  }
+
   let result;
   try {
     result = await executeAction(response.action);
@@ -306,7 +381,7 @@ async function tick() {
     logError('Action execution failed', err);
     trackFailure(response.action);
     actionHistory.push({
-      type: response.action.type || response.action.action,
+      type: actionType,
       success: false,
       error: err.message,
       timestamp: Date.now(),
@@ -319,7 +394,7 @@ async function tick() {
   // Track result
   const success = result && result.success !== false;
   actionHistory.push({
-    type: response.action.type || response.action.action,
+    type: actionType,
     success,
     error: success ? null : (result?.error || result?.message || 'failed'),
     timestamp: Date.now(),
@@ -371,7 +446,7 @@ async function main() {
 
   logInfo(`Tick interval: ${TICK_INTERVAL}ms`);
   logInfo(`vLLM URL: ${process.env.VLLM_URL || 'http://localhost:8000/v1'}`);
-  logInfo(`Model: ${process.env.MODEL_NAME || 'solidrust/Hermes-3-Llama-3.1-8B-AWQ'}`);
+  logInfo(`Model: ${process.env.MODEL_NAME || 'NousResearch/Hermes-4.3-Llama-3.3-36B-AWQ'}`);
   logInfo(`Mod API: ${process.env.MOD_URL || 'http://localhost:3001'}`);
   logInfo(`Memory: ${memory.lessons.length} lessons, ${memory.strategies.length} strategies`);
   logInfo(`Skills: ${skills.length} loaded`);

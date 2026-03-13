@@ -55,7 +55,7 @@ export const GAME_TOOLS = [
       parameters: {
         type: 'object',
         properties: {
-          item: { type: 'string', description: 'e.g. "raw_iron", "raw_beef"' },
+          item: { type: 'string', description: 'e.g. "raw_iron", "beef"' },
         },
         required: ['item'],
       },
@@ -247,6 +247,34 @@ export const GAME_TOOLS = [
       name: 'close_screen',
       description: 'Close any open GUI (inventory, crafting, furnace, chest).',
       parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'recipes',
+      description: 'Look up how to craft an item. Returns ingredients and pattern. Use when unsure about a recipe.',
+      parameters: {
+        type: 'object',
+        properties: {
+          item: { type: 'string', description: 'Item to look up, e.g. "shield", "golden_apple"' },
+        },
+        required: ['item'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'wiki',
+      description: 'Search the Minecraft wiki for info. Use when stuck or unsure about game mechanics, mob behavior, item IDs, etc.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'What to search, e.g. "blaze", "nether fortress", "enchanting"' },
+        },
+        required: ['query'],
+      },
     },
   },
 ];
