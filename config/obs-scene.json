@@ -1,0 +1,41 @@
+{
+  "name": "HermesCraft",
+  "description": "OBS scene layout for HermesCraft stream",
+  "resolution": {"width": 1920, "height": 1080},
+  "sources": [
+    {
+      "name": "Terminal",
+      "type": "window_capture",
+      "position": {"x": 0, "y": 0},
+      "size": {"width": 768, "height": 1080},
+      "notes": "Terminal running 'node agent/index.js' — shows LLM reasoning"
+    },
+    {
+      "name": "Minecraft",
+      "type": "window_capture",
+      "position": {"x": 768, "y": 0},
+      "size": {"width": 1152, "height": 1080},
+      "notes": "Minecraft client window — first-person gameplay view"
+    },
+    {
+      "name": "Logo",
+      "type": "image",
+      "position": {"x": 20, "y": 20},
+      "size": {"width": 120, "height": 120},
+      "file": "token/branding/logo.png",
+      "notes": "HermesCraft logo overlay (optional)"
+    },
+    {
+      "name": "Phase Tracker",
+      "type": "text",
+      "position": {"x": 780, "y": 10},
+      "font_size": 24,
+      "color": "#FFD700",
+      "notes": "Current phase/goal — read from file updated by agent"
+    }
+  ],
+  "output": {
+    "type": "rtmp",
+    "notes": "Set RTMP URL and stream key from PumpFun livestream settings"
+  }
+}

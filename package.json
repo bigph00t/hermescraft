@@ -1,0 +1,15 @@
+{
+  "name": "hermescraft",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Hermes AI plays Minecraft — LLM agent controlling a real MC client",
+  "main": "agent/index.js",
+  "scripts": {
+    "start": "node agent/index.js",
+    "dev": "node --watch agent/index.js"
+  },
+  "dependencies": {
+    "openai": "^4.0.0",
+    "ws": "^8.16.0"
+  }
+}

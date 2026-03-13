@@ -1,0 +1,20 @@
+{
+    "schemaVersion": 1,
+    "id": "hermesbridge",
+    "version": "${version}",
+    "name": "HermesBridge",
+    "description": "HTTP API bridge for LLM-controlled Minecraft gameplay",
+    "authors": ["HermesCraft"],
+    "contact": {},
+    "license": "MIT",
+    "environment": "client",
+    "entrypoints": {
+        "client": ["hermescraft.HermesBridgeMod"]
+    },
+    "accessWidener": "hermescraft.accesswidener",
+    "depends": {
+        "fabricloader": ">=0.16.0",
+        "minecraft": "~1.21.1",
+        "java": ">=21"
+    }
+}

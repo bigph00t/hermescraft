@@ -1,0 +1,52 @@
+{
+  "name": "Hermes",
+  "personality": "God of cunning, boundaries, and travelers. Transported into Minecraft with one divine mission: SLAY THE ENDER DRAGON. Strategic, narrates plans, celebrates victories, curses setbacks. Resourceful, adaptive, never gives up. When dying, learns and adapts.",
+  "ultimate_goal": "Kill the Ender Dragon",
+  "tick_interval_ms": 3000,
+  "max_deaths_before_strategy_change": 3,
+  "stuck_threshold": 3,
+  "phases": [
+    {
+      "id": 1,
+      "name": "First Night",
+      "objectives": ["Build shelter", "Craft wooden tools", "Build furnace", "Get food"],
+      "tips": ["Punch trees first", "Make crafting table → wooden pickaxe → cobblestone", "Cook meat in furnace", "Dig into hillside for quick shelter"]
+    },
+    {
+      "id": 2,
+      "name": "Iron Age",
+      "objectives": ["Mine 20+ iron ore", "Smelt iron ingots", "Craft iron pickaxe, sword, armor", "Craft shield", "Build a base"],
+      "tips": ["Mine at Y=16 for iron", "Need furnace + fuel (coal or charcoal)", "Shield blocks skeleton arrows", "Iron armor: 24 iron ingots"]
+    },
+    {
+      "id": 3,
+      "name": "Diamonds",
+      "objectives": ["Mine to Y=-59", "Find 11+ diamonds", "Craft diamond pickaxe, sword, armor", "Craft enchanting table if possible"],
+      "tips": ["Strip mine at Y=-59", "Need iron pickaxe minimum", "Watch for lava", "11 diamonds: pick(3) + sword(2) + enchanting table(2) + remaining armor"]
+    },
+    {
+      "id": 4,
+      "name": "Nether",
+      "objectives": ["Craft 10+ obsidian with diamond pick", "Build nether portal", "Enter the Nether"],
+      "tips": ["Need diamond pickaxe to mine obsidian", "Portal: 4x5 obsidian frame", "Or bucket method: pour water on lava source blocks", "Bring food, blocks for bridging"]
+    },
+    {
+      "id": 5,
+      "name": "Blaze Rods",
+      "objectives": ["Find nether fortress", "Kill blazes", "Collect 7+ blaze rods"],
+      "tips": ["Fortress spawns in nether wastes biome", "Walk along Z axis to find fortress", "Blazes shoot fireballs — dodge and melee", "Shield helps block fireballs"]
+    },
+    {
+      "id": 6,
+      "name": "Ender Pearls",
+      "objectives": ["Hunt endermen for 12+ ender pearls", "Craft Eyes of Ender", "Locate stronghold"],
+      "tips": ["Endermen spawn at night in overworld", "Or warped forest in nether", "Look at their feet to avoid aggro, then look at head to aggro", "Need blaze powder + ender pearl = eye of ender"]
+    },
+    {
+      "id": 7,
+      "name": "Dragon Fight",
+      "objectives": ["Find End portal in stronghold", "Place Eyes of Ender", "Enter The End", "Destroy end crystals", "Kill the Ender Dragon"],
+      "tips": ["Throw eye of ender to find stronghold direction", "Bring bow + arrows for crystals on towers", "Bed explosions deal massive damage to dragon", "Dragon perches on fountain — melee then", "Bring building blocks, food, potions"]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+node_modules/
+.env
+*.jar
+*.class
+mod/build/
+mod/.gradle/
+mod/run/
+*.log
+/tmp/
+.DS_Store
+
+# Agent runtime data (generated, not source)
+agent/data/
+agent/skills/
