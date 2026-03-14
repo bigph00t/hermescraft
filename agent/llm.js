@@ -16,7 +16,7 @@ const MAX_HISTORY_MESSAGES = 15;  // 5 rounds of context (user + assistant + too
 const client = new OpenAI({
   baseURL: VLLM_URL,
   apiKey: process.env.VLLM_API_KEY || 'not-needed',
-  timeout: 45000,  // 45s — thinking + tool call takes longer than pure tool call
+  timeout: 120000,  // 120s — first call has no cache, 1024 tokens @ 15tok/s = 69s
 });
 
 // ── Conversation Memory (L1 — Session Memory) ──
