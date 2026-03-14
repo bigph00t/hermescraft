@@ -26,6 +26,8 @@ while true; do
     --enable-prefix-caching \
     --max-num-seqs 4
 
-  echo "[!] vLLM died — restarting in 5s..."
+  echo "[!] vLLM died — cleaning up GPU and restarting in 5s..."
+  # Kill zombie EngineCore processes that hold GPU memory after crashes
+  nvidia-smi --query-compute-apps=pid --format=csv,noheader 2>/dev/null | xargs -r kill -9 2>/dev/null
   sleep 5
 done
