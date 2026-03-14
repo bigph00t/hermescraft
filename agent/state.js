@@ -54,10 +54,22 @@ export function summarizeState(state) {
     lines.push('Inventory: empty');
   }
 
-  // Nearby blocks
+  // Nearby blocks (closest instance of each type with coordinates for look_at_block)
   if (state.nearbyBlocks && state.nearbyBlocks.length > 0) {
-    const blocks = [...new Set(state.nearbyBlocks.map(b => (b.block || b.name || b).replace('minecraft:','')))].slice(0, 15);
-    lines.push(`Nearby blocks: ${blocks.join(', ')}`);
+    const seen = new Set();
+    const blockList = [];
+    // Sort by distance, then show closest of each type
+    const sorted = [...state.nearbyBlocks].sort((a, b) => (a.distance || 99) - (b.distance || 99));
+    for (const b of sorted) {
+      const name = (b.block || b.name || b).replace('minecraft:', '');
+      if (!seen.has(name)) {
+        seen.add(name);
+        const d = Math.round((b.distance || 0) * 10) / 10;
+        blockList.push(`${name}(${b.x},${b.y},${b.z} d:${d})`);
+        if (blockList.length >= 12) break;
+      }
+    }
+    lines.push(`Nearby blocks: ${blockList.join(', ')}`);
   }
 
   // Nearby entities

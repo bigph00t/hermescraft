@@ -15,12 +15,12 @@ metadata:
 1. Equip iron_pickaxe (required for diamond ore).
 2. Bring torches, food, and a water bucket.
 3. Use `navigate` to go to your current X, Y=-59, current Z (deep underground).
-4. Or dig a staircase down: `mine` cobblestone repeatedly while descending.
-5. At Y=-59 to Y=-54, use `mine` diamond_ore count=11. Diamonds are rare — be patient.
+4. Or dig a staircase down: `look_at_block` at stone below your feet → `break_block` repeatedly.
+5. At Y=-59 to Y=-54, find diamond_ore in nearbyBlocks → `look_at_block` → `break_block`. Diamonds are rare — be patient.
 6. Craft diamond_pickaxe (3 diamonds + 2 sticks) — needed for obsidian.
 7. Craft diamond_sword (2 diamonds + 1 stick).
 8. Keep at least 3 diamonds for the pickaxe. Armor if you have excess.
-9. Mine obsidian with diamond_pickaxe: `mine` obsidian count=10 (need 10 for portal + enchanting table).
+9. Equip diamond_pickaxe. Find obsidian in nearbyBlocks → `look_at_block` → `break_block`. Need 10 for portal.
 
 ## Tips
 

@@ -12,14 +12,14 @@ metadata:
 
 ## Strategy
 
-1. Gather 10 obsidian using diamond_pickaxe: `mine` obsidian count=10.
+1. Equip diamond_pickaxe. Find obsidian in nearbyBlocks → `look_at_block` → `break_block`. Need 10.
 2. Find a flat area near your base.
 3. Build the portal frame: 4 wide x 5 tall obsidian frame (corners can be any block).
    - Place 4 obsidian on the ground in a row.
    - Stack 3 obsidian on each side.
    - Place 4 obsidian across the top.
 4. Light the portal with flint_and_steel: `craft` flint_and_steel (1 iron_ingot + 1 flint).
-   - Get flint by mining gravel: `mine` gravel.
+   - Get flint by breaking gravel: find gravel in nearbyBlocks → `look_at_block` → `break_block`.
 5. `use_item` while looking at the portal frame to light it.
 6. Walk into the purple portal to enter the Nether.
 

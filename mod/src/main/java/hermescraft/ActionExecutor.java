@@ -205,7 +205,7 @@ public class ActionExecutor {
     private static String executeInstant(String type, JsonObject action, MinecraftClient client) {
         return switch (type) {
             case "navigate" -> handleNavigate(action, client);
-            case "mine" -> handleMine(action, client);
+            case "look_at_block" -> handleLookAtBlock(action, client);
             case "attack" -> handleAttack(action, client);
             case "place" -> handlePlace(action, client);
             case "equip" -> handleEquip(action, client);
@@ -435,20 +435,34 @@ public class ActionExecutor {
         }
     }
 
-    // --- Mine blocks using Baritone ---
-    private static String handleMine(JsonObject action, MinecraftClient client) {
-        if (!action.has("blockName")) {
-            return errorResult("Mine requires 'blockName'");
+    // --- Look at block by coordinates (for manual mining) ---
+    private static String handleLookAtBlock(JsonObject action, MinecraftClient client) {
+        if (!action.has("x") || !action.has("y") || !action.has("z")) {
+            return errorResult("look_at_block requires x, y, z coordinates");
         }
-        String blockName = action.get("blockName").getAsString();
-        int count = action.has("count") ? action.get("count").getAsInt() : 1;
+        ClientPlayerEntity player = client.player;
+        if (player == null || client.world == null) return errorResult("Not in game");
 
-        boolean started = BaritoneIntegration.mine(blockName, count);
-        if (started) {
-            return successResult("Mining " + count + "x " + blockName);
-        } else {
-            return errorResult("Failed to start mining (Baritone not available or invalid block)");
+        int x = action.get("x").getAsInt();
+        int y = action.get("y").getAsInt();
+        int z = action.get("z").getAsInt();
+        BlockPos pos = new BlockPos(x, y, z);
+
+        double dist = Math.sqrt(player.getBlockPos().getSquaredDistance(pos));
+        if (dist > 10) {
+            return errorResult("Block too far (" + Math.round(dist) + " blocks). Use navigate to get closer.");
         }
+
+        Vec3d target = Vec3d.ofCenter(pos);
+        lookAtPos(player, target);
+
+        BlockState blockState = client.world.getBlockState(pos);
+        if (blockState.isAir()) {
+            return successResult("Looking at air at " + x + ", " + y + ", " + z + " (block already mined?)");
+        }
+
+        String blockName = Registries.BLOCK.getId(blockState.getBlock()).getPath();
+        return successResult("Looking at " + blockName + " at " + x + ", " + y + ", " + z + " (dist: " + Math.round(dist * 10.0) / 10.0 + ")");
     }
 
     // --- Craft items — sustained action with visual tick delays ---

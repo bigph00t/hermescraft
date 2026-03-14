@@ -21,15 +21,16 @@ export const GAME_TOOLS = [
   {
     type: 'function',
     function: {
-      name: 'mine',
-      description: 'Auto-find and mine blocks via Baritone. For nearby single blocks use break_block instead.',
+      name: 'look_at_block',
+      description: 'Turn to face a block at x,y,z coordinates (from nearbyBlocks in game state). Use before break_block to mine it.',
       parameters: {
         type: 'object',
         properties: {
-          blockName: { type: 'string', description: 'e.g. "oak_log", "iron_ore", "cobblestone"' },
-          count: { type: 'integer', description: 'How many (default 1)' },
+          x: { type: 'integer', description: 'X coordinate of block' },
+          y: { type: 'integer', description: 'Y coordinate of block' },
+          z: { type: 'integer', description: 'Z coordinate of block' },
         },
-        required: ['blockName'],
+        required: ['x', 'y', 'z'],
       },
     },
   },

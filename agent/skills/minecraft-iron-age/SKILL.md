@@ -13,7 +13,7 @@ metadata:
 ## Strategy
 
 1. Equip stone_pickaxe (required to mine iron ore).
-2. Use `mine` iron_ore count=10. Iron spawns at any Y level, common around Y=16-48.
+2. Find iron_ore in nearbyBlocks → `look_at_block` → `break_block`. Repeat until you have 10 raw_iron. Iron spawns at any Y level, common around Y=16-48. Use `navigate` to go underground if needed.
 3. Place furnace if not already placed.
 4. Use `smelt` raw_iron with coal or planks as fuel. Repeat until all smelted.
 5. Craft iron_pickaxe (3 iron_ingot + 2 sticks at crafting table).

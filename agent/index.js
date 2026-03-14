@@ -52,8 +52,6 @@ let running = true;
 let tickCount = 0;
 let lastDeathTick = -999; // For death cooldown
 let currentTickPromise = null; // For graceful shutdown
-let pathingTickCount = 0; // Baritone pathing timeout counter
-const MAX_PATHING_TICKS = 60; // Auto-stop Baritone after ~3 minutes
 
 // Stuck detection
 const failureTracker = new Map();
@@ -315,21 +313,6 @@ async function tick() {
       setGoal(userInstruction);
       logInfo(`Goal changed to: ${getGoalName()}`);
     }
-  }
-
-  // Skip LLM if Baritone is actively working and we're not in danger
-  if (state.isPathing && state.health > 6 && state.food > 3) {
-    pathingTickCount++;
-    if (pathingTickCount >= MAX_PATHING_TICKS) {
-      logWarn(`Baritone stuck for ${pathingTickCount} ticks (~${Math.round(pathingTickCount * TICK_INTERVAL / 1000 / 60)}min) — forcing stop`);
-      try { await executeAction({ type: 'stop' }); } catch {}
-      pathingTickCount = 0;
-    } else {
-      logInfo(`Baritone pathing — waiting (${pathingTickCount}/${MAX_PATHING_TICKS})`);
-      return;
-    }
-  } else {
-    pathingTickCount = 0;
   }
 
   // 2. THINK — build prompt and query LLM

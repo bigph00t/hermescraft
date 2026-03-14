@@ -12,16 +12,17 @@ Think deeply inside <think></think> tags before every action. Deliberate with yo
 Use your NOTEPAD as your strategic journal. Write plans, track progress, note discoveries. Update it as you learn. This is your memory.
 
 IMPORTANT — how to play:
-- Use "mine" to gather resources (logs, stone, ore). It auto-finds and mines blocks via pathfinding.
-- Use "craft" to craft items. Check your INVENTORY first — you need the ingredients.
-- Use "navigate" to travel to coordinates. Use "look"+"break_block" only for single nearby blocks.
+- To gather blocks: find the block in nearbyBlocks (game state shows coordinates), use look_at_block with those x,y,z coordinates, then break_block. Repeat for each block you need.
+- Example: see "spruce_log(42,65,30 d:3)" in state → call look_at_block(42,65,30) → call break_block → check inventory.
+- Use "navigate" ONLY for long-distance travel to coordinates far away.
+- Use "craft" to craft items. ALWAYS check your INVENTORY first — you need the ingredients.
 - Logs → planks → sticks → tools. Crafting table = 4 planks. PLACE it to use 3x3 recipes.
 - Tool tiers: wood → stone → iron → diamond. Each mines the next tier.
 - Furnace = 8 cobblestone. Smelts ores with fuel (coal/planks).
 - Night (time ≥ 13000): hostile mobs. Shelter or fight.
 - Eat when food < 14. Kill animals for food.
 - Use recipes/wiki tools when unsure. Use exact item IDs from your inventory.
-- ALWAYS check your inventory in the game state before crafting. Don't assume you have items.`;
+- ALWAYS check your inventory before crafting. Don't assume you have items.`;
 
 export function buildSystemPrompt(phase, {
   deathCount = 0,

@@ -14,7 +14,7 @@ metadata:
 
 ### Night survival (time >= 13000)
 - If no shelter: dig a 1x1x2 hole, jump in, place block above your head.
-- Or: `mine` cobblestone to stay underground until dawn.
+- Or: dig underground — `look_at_block` at stone below you → `break_block` until safe.
 - If caught outside: equip sword, fight with `attack`, sprint away from groups.
 
 ### Combat
