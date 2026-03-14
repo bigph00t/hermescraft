@@ -94,6 +94,9 @@ function isToolCallingUnsupported(err) {
 
 export async function queryLLM(systemPrompt, userMessage, opts = {}) {
   const temperature = opts.temperature ?? BASE_TEMPERATURE;
+  // Adaptive tool_choice: 'required' normally, 'auto' when stuck/failed so model can think
+  const toolChoice = opts.needsThinking ? 'auto' : 'required';
+  const maxTokens = opts.needsThinking ? 512 : MAX_TOKENS;  // More room for thinking + tool call
   let lastError;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -112,9 +115,9 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
             model: MODEL_NAME,
             messages,
             tools: GAME_TOOLS,
-            tool_choice: 'required',
+            tool_choice: toolChoice,
             temperature,
-            max_tokens: MAX_TOKENS,
+            max_tokens: maxTokens,
             top_p: 0.95,
           });
         } catch (toolErr) {

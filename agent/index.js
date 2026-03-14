@@ -350,8 +350,13 @@ async function tick() {
   const temperature = getTemperature(currentPhase, state);
 
   let response;
+  // Switch to auto (thinking) when stuck or last action failed — lets model deliberate
+  const lastAction = actionHistory.length > 0 ? actionHistory[actionHistory.length - 1] : null;
+  const lastFailed = lastAction && !lastAction.success;
+  const needsThinking = !!stuckInfo || lastFailed;
+
   try {
-    response = await queryLLM(systemPrompt, userMessage, { temperature });
+    response = await queryLLM(systemPrompt, userMessage, { temperature, needsThinking });
   } catch (err) {
     logError('LLM query failed', err);
     return;
