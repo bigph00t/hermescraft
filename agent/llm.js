@@ -7,11 +7,11 @@ import { GAME_TOOLS } from './tools.js';
 
 const VLLM_URL = process.env.VLLM_URL || 'http://localhost:8000/v1';
 const MODEL_NAME = process.env.MODEL_NAME || 'Doradus/Hermes-4.3-36B-FP8';
-const BASE_TEMPERATURE = parseFloat(process.env.TEMPERATURE || '0.7');
-const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '512', 10);
+const BASE_TEMPERATURE = parseFloat(process.env.TEMPERATURE || '0.6');
+const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '1024', 10);
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 1000;
-const MAX_HISTORY_MESSAGES = 6;  // 3 ticks of context — 8K window
+const MAX_HISTORY_MESSAGES = 9;  // 3 rounds of context (user + assistant + tool_result)
 
 const client = new OpenAI({
   baseURL: VLLM_URL,
@@ -29,19 +29,48 @@ export function clearConversation() {
 }
 
 function trimHistory() {
+  // Remove oldest conversation rounds to stay under limit.
+  // A round is: user + assistant + optional tool_result (2 or 3 messages).
   while (conversationHistory.length > MAX_HISTORY_MESSAGES) {
-    conversationHistory.splice(0, 2);  // Remove oldest user+assistant pair
+    if (conversationHistory.length >= 3 &&
+        conversationHistory[0].role === 'user' &&
+        conversationHistory[1].role === 'assistant' &&
+        conversationHistory[2].role === 'tool') {
+      conversationHistory.splice(0, 3);  // Remove full round with tool result
+    } else if (conversationHistory.length >= 2) {
+      conversationHistory.splice(0, 2);  // Remove user+assistant pair
+    } else {
+      conversationHistory.splice(0, 1);
+    }
+  }
+}
+
+/**
+ * Append a tool result to conversation history after action execution.
+ * This completes the tool call protocol: user → assistant(tool_calls) → tool(result).
+ */
+export function completeToolCall(resultText) {
+  if (conversationHistory.length < 1) return;
+  const lastMsg = conversationHistory[conversationHistory.length - 1];
+  if (lastMsg.role === 'assistant' && lastMsg.tool_calls && lastMsg.tool_calls.length > 0) {
+    conversationHistory.push({
+      role: 'tool',
+      tool_call_id: lastMsg.tool_calls[0].id,
+      content: typeof resultText === 'string' ? resultText : JSON.stringify(resultText),
+    });
+    trimHistory();
   }
 }
 
 // ── Adaptive Temperature ──
+// Hermes 4.3 official recommendation: temp=0.6, top_p=0.95, top_k=20
 
 export function getTemperature(phase, state) {
   if (!state || !phase) return BASE_TEMPERATURE;
   if ((state.health || 20) <= 6) return 0.3;
   if (state.dimension?.includes('nether')) return 0.5;
   if (state.dimension?.includes('end')) return 0.4;
-  if (phase.id <= 2) return 0.7;
+  if (phase.id <= 2) return 0.6;
   return 0.6;
 }
 
@@ -86,6 +115,7 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
             tool_choice: 'auto',
             temperature,
             max_tokens: MAX_TOKENS,
+            top_p: 0.95,
           });
         } catch (toolErr) {
           if (isContextOverflowError(toolErr)) {
@@ -152,7 +182,7 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
           mode: 'tool_call',
         };
 
-        // Store in conversation history with proper format
+        // Store in conversation history (tool result added later via completeToolCall)
         conversationHistory.push(
           { role: 'user', content: userMessage },
           {

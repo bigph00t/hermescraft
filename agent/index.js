@@ -3,7 +3,7 @@
 // configurable goals, rich terminal output, user instructions
 
 import { fetchState, summarizeState, detectDeath } from './state.js';
-import { queryLLM, clearConversation, getTemperature, isToolCallingEnabled } from './llm.js';
+import { queryLLM, clearConversation, getTemperature, isToolCallingEnabled, completeToolCall } from './llm.js';
 import { executeAction, validateAction, INFO_ACTIONS } from './actions.js';
 import { fetchRecipes } from './state.js';
 import {
@@ -351,7 +351,9 @@ async function tick() {
     deathCount,
     goalName: getGoalName(),
     memoryText,
-    notepadContent,
+    phaseObjectives: currentPhase?.objectives || [],
+    phaseTips: currentPhase?.tips || [],
+    activeSkill: activeSkill?.content || '',
   });
 
   const stateSummary = summarizeState(state);
@@ -359,6 +361,7 @@ async function tick() {
     stuckInfo,
     userInstruction,
     notepadContent,
+    progressDetail: progressDetail || null,
   });
 
   const temperature = getTemperature(currentPhase, state);
@@ -413,6 +416,10 @@ async function tick() {
       infoResult = await handleWikiLookup(response.action.query);
     }
     logInfo(`[${actionType}] ${infoResult}`);
+    // Complete tool call protocol so model sees result in history
+    if (response.mode === 'tool_call') {
+      completeToolCall(JSON.stringify({ success: true, info: infoResult?.slice(0, 300) }));
+    }
     actionHistory.push({
       type: actionType,
       success: true,
@@ -438,6 +445,11 @@ async function tick() {
   }
 
   logActionResult(result);
+
+  // Complete tool call protocol so model sees action result in history
+  if (response.mode === 'tool_call' && result) {
+    completeToolCall(JSON.stringify(result).slice(0, 300));
+  }
 
   // Track result
   const success = result && result.success !== false;
