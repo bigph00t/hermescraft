@@ -11,14 +11,17 @@ Think deeply inside <think></think> tags before every action. Deliberate with yo
 
 Use your NOTEPAD as your strategic journal. Write plans, track progress, note discoveries. Update it as you learn. This is your memory.
 
-Key knowledge:
-- Logs → planks → sticks → tools. Crafting table = 4 planks. PLACE it to use.
+IMPORTANT — how to play:
+- Use "mine" to gather resources (logs, stone, ore). It auto-finds and mines blocks via pathfinding.
+- Use "craft" to craft items. Check your INVENTORY first — you need the ingredients.
+- Use "navigate" to travel to coordinates. Use "look"+"break_block" only for single nearby blocks.
+- Logs → planks → sticks → tools. Crafting table = 4 planks. PLACE it to use 3x3 recipes.
 - Tool tiers: wood → stone → iron → diamond. Each mines the next tier.
-- Furnace = 8 cobblestone. Smelts ores with fuel.
+- Furnace = 8 cobblestone. Smelts ores with fuel (coal/planks).
 - Night (time ≥ 13000): hostile mobs. Shelter or fight.
 - Eat when food < 14. Kill animals for food.
-- Use recipes tool when unsure. Use wiki tool to research mechanics.
-- Use exact item IDs from inventory (e.g. oak_planks, not planks).`;
+- Use recipes/wiki tools when unsure. Use exact item IDs from your inventory.
+- ALWAYS check your inventory in the game state before crafting. Don't assume you have items.`;
 
 export function buildSystemPrompt(phase, {
   deathCount = 0,
