@@ -442,9 +442,9 @@ public class ActionExecutor {
         ClientPlayerEntity player = client.player;
         if (player == null || client.world == null) return errorResult("Not in game");
 
-        // Find matching crafting recipe
-        RecipeEntry<?> matchingRecipe = null;
-        boolean needsTable = false;
+        // Find matching crafting recipe — try ALL recipes for this item,
+        // prefer the one where the player actually has the ingredients
+        List<RecipeEntry<?>> candidates = new java.util.ArrayList<>();
 
         for (RecipeEntry<?> entry : client.world.getRecipeManager().values()) {
             Recipe<?> recipe = entry.value();
@@ -454,13 +454,47 @@ public class ActionExecutor {
             String outputId = Registries.ITEM.getId(output.getItem()).toString();
 
             if (outputId.equals(itemName)) {
+                candidates.add(entry);
+            }
+        }
+
+        // Pick the best recipe — one where player has all ingredients
+        RecipeEntry<?> matchingRecipe = null;
+        boolean needsTable = false;
+
+        ScreenHandler currentHandler = player.currentScreenHandler;
+        boolean currentlyAtTable = currentHandler instanceof CraftingScreenHandler;
+        int checkStart = currentlyAtTable ? 10 : 9;
+        int checkEnd = currentlyAtTable ? 45 : 44;
+
+        for (RecipeEntry<?> entry : candidates) {
+            CraftingRecipe cr = (CraftingRecipe) entry.value();
+            boolean hasAll = true;
+            for (Ingredient ing : cr.getIngredients()) {
+                if (ing.isEmpty()) continue;
+                if (findIngredientSlot(currentHandler, ing, checkStart, checkEnd) == -1) {
+                    hasAll = false;
+                    break;
+                }
+            }
+            if (hasAll) {
                 matchingRecipe = entry;
-                if (recipe instanceof ShapedRecipe shaped) {
+                if (cr instanceof ShapedRecipe shaped) {
                     needsTable = shaped.getWidth() > 2 || shaped.getHeight() > 2;
                 }
-                if (recipe.getIngredients().size() > 4) needsTable = true;
+                if (cr.getIngredients().size() > 4) needsTable = true;
                 break;
             }
+        }
+
+        // Fallback to first candidate if none have all ingredients
+        if (matchingRecipe == null && !candidates.isEmpty()) {
+            matchingRecipe = candidates.get(0);
+            Recipe<?> r = matchingRecipe.value();
+            if (r instanceof ShapedRecipe shaped) {
+                needsTable = shaped.getWidth() > 2 || shaped.getHeight() > 2;
+            }
+            if (r.getIngredients().size() > 4) needsTable = true;
         }
 
         if (matchingRecipe == null) {
