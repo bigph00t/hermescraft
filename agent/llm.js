@@ -63,7 +63,7 @@ export function completeToolCall(resultText) {
 }
 
 // ── Adaptive Temperature ──
-// Hermes 4.3 official recommendation: temp=0.6, top_p=0.95, top_k=20
+// Hermes recommended sampling: temp=0.6, top_p=0.95
 
 export function getTemperature(phase, state) {
   if (!state || !phase) return BASE_TEMPERATURE;

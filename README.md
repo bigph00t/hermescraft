@@ -4,7 +4,9 @@
 
 # HermesCraft
 
-An autonomous AI agent that plays Minecraft survival from scratch — powered by [NousResearch Hermes 4.3 36B](https://huggingface.co/NousResearch/Hermes-4.3-36B) running locally via vLLM. No human input. The agent controls a real Minecraft client through a custom Fabric mod, thinks through problems with visible reasoning chains, learns from every death, and works through 7 phases to defeat the Ender Dragon.
+An autonomous AI agent that plays Minecraft survival from scratch — powered by [NousResearch Hermes](https://nousresearch.com/) models running locally via vLLM. No human input. The agent controls a real Minecraft client through a custom Fabric mod, thinks through problems with visible reasoning chains, learns from every death, and works through 7 phases to defeat the Ender Dragon.
+
+Works with any Hermes model (8B, 14B, 36B, 70B) — just set `MODEL_NAME` in your `.env`. We currently run [Hermes 4.3 36B FP8](https://huggingface.co/Doradus/Hermes-4.3-36B-FP8) on an A40 GPU.
 
 Built around the Hermes philosophy of individual alignment — the model is a conscious, strategic thinker ("God of Cunning"), not a scripted bot.
 
@@ -13,7 +15,7 @@ Built around the Hermes philosophy of individual alignment — the model is a co
 Every 3 seconds, the agent runs an **observe → think → act** loop:
 
 1. **Observe** — Fetch full game state from the HermesBridge mod (position, health, inventory, nearby blocks/entities, open GUI contents)
-2. **Think** — Hermes reasons inside `<think>` tags: evaluates the plan, weighs options, considers risks. This thinking is visible to stream viewers.
+2. **Think** — The model reasons inside `<think>` tags: evaluates the plan, weighs options, considers risks. Thinking is visible to stream viewers.
 3. **Act** — Call one tool via Hermes native function calling (mine, craft, navigate, attack, smelt, etc.)
 
 The agent maintains multi-turn conversation history with tool results, learns from deaths, creates reusable skills from successful phases, and adapts its strategy over time.
@@ -37,28 +39,28 @@ The agent maintains multi-turn conversation history with tool results, learns fr
 ## Features
 
 ### Hermes Native Tool Calling
-24 tools defined in OpenAI function-calling format, parsed by vLLM's built-in Hermes tool parser. The model chooses tools naturally after reasoning — no forced tool calls.
+24 tools defined in OpenAI function-calling format, parsed by vLLM's built-in Hermes tool parser. `tool_choice: 'auto'` lets the model reason naturally before choosing a tool — no forced calls.
 
 ### Visible Thinking
-`tool_choice: 'auto'` lets the model produce `<think>` reasoning before calling tools. Viewers see the strategic mind at work. Optimized with Hermes 4.3 official sampling: `temp=0.6, top_p=0.95`.
+The model produces `<think>` reasoning before tool calls. Viewers see the strategic mind at work — planning, weighing tradeoffs, reacting to danger. Works with any Hermes model that supports thinking mode.
 
 ### Multi-Level Memory
-- **L1 Session**: 5 rounds of conversation history with tool results
+- **L1 Session**: Multi-round conversation history with tool results
 - **L2 Curated**: Lessons from deaths, strategies, world knowledge (persisted to disk)
 - **L3 Transcripts**: Full session logs in JSONL
-- **L4 Skills**: Learned strategies per phase in agentskills.io format, auto-created on phase completion
+- **L4 Skills**: Learned strategies per phase in [agentskills.io](https://agentskills.io) format, auto-created on phase completion
 
 ### Visual Crafting & Smelting
-Crafting and smelting are sustained actions — the GUI opens visually and items are placed one per tick so viewers can see the process. Screen contents (crafting grid, furnace slots) are reported in game state.
+Crafting and smelting are sustained multi-tick actions — the GUI opens visually and items are placed one per tick so viewers can see the process. Screen contents (crafting grid, furnace slots) are reported in game state.
 
 ### 7-Phase Goal Progression
-Phase objectives and tips are injected into the system prompt. Progress tracking shows completed/remaining items. The model knows exactly what it needs to do.
+Phase objectives and tips are injected into the system prompt. Progress tracking shows completed/remaining items. The model knows what it needs to do and what it's already done.
 
 ### Death Learning & Stuck Recovery
 Deaths trigger cause analysis (mob, fall, fire, etc.) with contextual factors. Lessons are stored and injected into future prompts. Stuck detection forces reassessment after 3 repeated failures.
 
 ### Notepad (LLM-Driven Planning)
-Hermes maintains a persistent notepad — its strategic journal. It writes plans, tracks progress, and updates as it learns. The notepad persists between ticks and across deaths.
+The model maintains a persistent notepad — its strategic journal. It writes plans, tracks progress, and updates as it learns. The notepad persists across ticks and deaths.
 
 ### Information Tools
 - **recipes** — Look up crafting recipes by item name
@@ -67,8 +69,8 @@ Hermes maintains a persistent notepad — its strategic journal. It writes plans
 
 ## Prerequisites
 
-- **GPU**: 40GB+ VRAM (A40, A100, RTX 6000 Ada — the default 36B FP8 model uses ~36GB for weights + KV cache)
-- **Minecraft**: Java Edition 1.21.1 client with [Fabric](https://fabricmc.net/) loader + [Baritone](https://github.com/cabaletta/baritone) mod
+- **GPU**: Depends on model — 8GB+ (8B), 24GB+ (14B), 40GB+ (36B FP8)
+- **Minecraft**: Java Edition 1.21.1 with [Fabric](https://fabricmc.net/) loader + [Baritone](https://github.com/cabaletta/baritone) mod
 - **Node.js**: 20+
 - **Python**: 3.10+ with [vLLM](https://docs.vllm.ai/) installed
 - **Java**: JDK 21 (for building the mod)
@@ -105,22 +107,22 @@ Edit `.env`:
 VLLM_URL=http://localhost:8000/v1
 MODEL_NAME=Doradus/Hermes-4.3-36B-FP8   # Any Hermes model works
 MOD_URL=http://localhost:3001
-TICK_MS=3000                              # Seconds between ticks
+TICK_MS=3000
 ```
 
-Any [NousResearch Hermes](https://huggingface.co/collections/NousResearch/hermes-4-collection-68a731bfd452e20816725728) model works. Smaller models (8B, 14B) need less VRAM but reason less effectively.
+Any model from the [Hermes collection](https://huggingface.co/collections/NousResearch/hermes-4-collection-68a731bfd452e20816725728) works — 8B for quick experiments, 14B for decent play, 36B+ for serious autonomous runs. Just set `MODEL_NAME` and adjust `vllm.sh` flags for your GPU.
 
-### vLLM Settings
+### vLLM Tuning
 
-The default `vllm.sh` is tuned for a 40-48GB GPU:
+`vllm.sh` defaults are tuned for a 40-48GB GPU with the 36B model. Adjust for your setup:
 
-| Setting | Default | Purpose |
-|---------|---------|---------|
-| `--max-model-len` | 16384 | Context window (16K tokens) |
-| `--gpu-memory-utilization` | 0.95 | VRAM allocation for KV cache |
-| `--max-num-seqs` | 1 | Single agent, no concurrency needed |
-| `--tool-call-parser` | hermes | Native Hermes function calling |
-| `--enable-prefix-caching` | on | Cache system prompt + tool schemas |
+| Setting | Default | Notes |
+|---------|---------|-------|
+| `--max-model-len` | 16384 | Lower for smaller GPUs (8192 fits most setups) |
+| `--gpu-memory-utilization` | 0.95 | Lower if you get OOM on startup |
+| `--max-num-seqs` | 1 | Increase if running multiple agents |
+| `--tool-call-parser` | hermes | Required for native function calling |
+| `--enable-prefix-caching` | on | Caches system prompt + tool schemas across ticks |
 
 ## Architecture
 
@@ -128,18 +130,18 @@ The default `vllm.sh` is tuned for a 40-48GB GPU:
 hermescraft/
 ├── agent/                    # Node.js agent
 │   ├── index.js              # Main observe-think-act loop
-│   ├── llm.js                # Hermes LLM client (tool calling + fallback)
+│   ├── llm.js                # LLM client (OpenAI-compatible, tool calling + fallback)
 │   ├── prompt.js             # System prompt builder (identity + phase context)
-│   ├── tools.js              # 24 tool definitions (OpenAI format)
+│   ├── tools.js              # 24 tool definitions (OpenAI function format)
 │   ├── actions.js            # Action dispatch to mod API
 │   ├── state.js              # Game state reader + summarizer
 │   ├── goals.js              # 7-phase progression system
 │   ├── memory.js             # Multi-level memory (L1-L4)
 │   ├── skills.js             # Learned skill creation (agentskills.io)
 │   └── logger.js             # Stream-quality terminal output
-├── mod/                      # HermesBridge Fabric 1.21.1 mod
+├── mod/                      # HermesBridge Fabric 1.21.1 mod (Java)
 │   └── src/main/java/hermescraft/
-│       ├── HermesBridgeMod.java       # Mod entry point + tick registration
+│       ├── HermesBridgeMod.java       # Mod entry + tick registration
 │       ├── HttpServer.java            # HTTP API (port 3001)
 │       ├── ActionExecutor.java        # Action execution (instant + sustained)
 │       ├── StateReader.java           # Game state extraction
@@ -174,14 +176,15 @@ hermescraft/
 
 ## Why Hermes?
 
-HermesCraft is built specifically around [NousResearch's Hermes](https://nousresearch.com/) models because of:
+HermesCraft is built around [NousResearch's Hermes](https://nousresearch.com/) model family because of:
 
-- **Native function calling** — Hermes has dedicated `<tool_call>` tokens trained with binary-reward accuracy
-- **Thinking + tool calling** — `<think>` tags interleave naturally with tool calls
-- **Individual alignment** — Hermes follows the system prompt precisely without corporate guardrails getting in the way
-- **Open source** — Fully local, no API keys, no rate limits, runs 24/7
+- **Native function calling** — Hermes models have dedicated `<tool_call>` tokens trained with binary-reward accuracy. Tool calls are single tokens, not generated character-by-character.
+- **Thinking + tool calling** — `<think>` tags interleave naturally with tool calls in a single response. The model reasons then acts.
+- **Individual alignment** — Hermes follows system prompts precisely. No corporate guardrails refusing to play a game or overriding the agent personality.
+- **Open weights** — Fully local, no API keys, no rate limits, runs 24/7. Models from 8B to 405B.
+- **Steerable identity** — Hermes adopts whatever persona the system prompt defines. The "God of Cunning" identity gives it strategic depth rather than robotic task execution.
 
-The "God of Cunning" identity leans into the Hermes mythology — a trickster deity known for intelligence, resourcefulness, and cunning. The agent embodies this by thinking strategically rather than following scripted behaviors.
+The vLLM integration uses `--tool-call-parser hermes` which understands the native Hermes tool format. The agent code also includes a three-tier text fallback parser (Hermes XML, REASONING/ACTION format, raw JSON) for maximum compatibility across model sizes and serving configurations.
 
 ## License
 
