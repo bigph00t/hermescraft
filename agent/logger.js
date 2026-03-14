@@ -99,9 +99,14 @@ export function logAction(action, mode = 'tool_call') {
   const params = { ...action };
   delete params.type;
   delete params.action;
+  const reason = params.reason || params.reasoning || '';
   delete params.reason;
   delete params.reasoning;
   const paramStr = Object.keys(params).length > 0 ? ` ${GRAY}${JSON.stringify(params)}${RESET}` : '';
+  // Show reason as inline thinking before the action
+  if (reason) {
+    console.log(`  ${CYAN}${reason}${RESET}`);
+  }
   console.log(`  ${GREEN}${BOLD}▶ ${type}${RESET}${paramStr}`);
 }
 
