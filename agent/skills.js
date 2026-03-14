@@ -117,8 +117,9 @@ export function getActiveSkill(phase) {
   if (phaseSkill) {
     parts.push(`[${phaseSkill.name}]\n${phaseSkill.body}`);
   }
-  for (const gs of generalSkills) {
-    parts.push(`[${gs.name}]\n${gs.body}`);
+  // Only include 1 general skill to save tokens
+  if (generalSkills.length > 0) {
+    parts.push(`[${generalSkills[0].name}]\n${generalSkills[0].body}`);
   }
 
   if (parts.length === 0) return null;
