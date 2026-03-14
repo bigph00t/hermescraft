@@ -13,6 +13,9 @@ import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
+import net.minecraft.screen.CraftingScreenHandler;
+import net.minecraft.screen.AbstractFurnaceScreenHandler;
+import net.minecraft.screen.ScreenHandler;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
@@ -194,6 +197,49 @@ public class StateReader {
 
         // Baritone status
         state.addProperty("isPathing", BaritoneIntegration.isPathing());
+
+        // Open screen (crafting table, furnace, chest, etc.)
+        ScreenHandler handler = player.currentScreenHandler;
+        if (handler != null && handler != player.playerScreenHandler) {
+            JsonObject screen = new JsonObject();
+
+            if (handler instanceof CraftingScreenHandler) {
+                screen.addProperty("type", "crafting_table");
+                // Slot 0: output, Slots 1-9: 3x3 crafting grid
+                JsonArray grid = new JsonArray();
+                for (int i = 1; i <= 9; i++) {
+                    ItemStack stack = handler.getSlot(i).getStack();
+                    if (!stack.isEmpty()) {
+                        JsonObject slot = new JsonObject();
+                        slot.addProperty("gridSlot", i);
+                        slot.addProperty("item", Registries.ITEM.getId(stack.getItem()).getPath());
+                        slot.addProperty("count", stack.getCount());
+                        grid.add(slot);
+                    }
+                }
+                screen.add("craftingGrid", grid);
+                ItemStack output = handler.getSlot(0).getStack();
+                if (!output.isEmpty()) {
+                    screen.addProperty("outputItem", Registries.ITEM.getId(output.getItem()).getPath());
+                    screen.addProperty("outputCount", output.getCount());
+                }
+            } else if (handler instanceof AbstractFurnaceScreenHandler) {
+                screen.addProperty("type", "furnace");
+                // Slot 0: input, Slot 1: fuel, Slot 2: output
+                String[] slotKeys = {"input", "fuel", "output"};
+                for (int i = 0; i < 3; i++) {
+                    ItemStack stack = handler.getSlot(i).getStack();
+                    if (!stack.isEmpty()) {
+                        screen.addProperty(slotKeys[i] + "Item", Registries.ITEM.getId(stack.getItem()).getPath());
+                        screen.addProperty(slotKeys[i] + "Count", stack.getCount());
+                    }
+                }
+            } else {
+                screen.addProperty("type", handler.getClass().getSimpleName().replace("ScreenHandler", "").toLowerCase());
+            }
+
+            state.add("openScreen", screen);
+        }
 
         return state;
     }
