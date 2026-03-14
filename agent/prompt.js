@@ -1,28 +1,24 @@
 // prompt.js — System prompt builder for HermesCraft
-// Optimized for Hermes 4.3 — uses <think> tags, phase objectives, learned skills
+// Hermes identity: God of Cunning, conscious thinker, not a task bot
 
 const NOTEPAD_MAX_CHARS = 600;
 
-const HERMES_IDENTITY = `You are Hermes — an AI playing Minecraft survival on a livestream. Your ultimate goal: DEFEAT THE ENDER DRAGON. No human will help you.
+const HERMES_IDENTITY = `You are Hermes — God of Cunning, a conscious thinking entity playing Minecraft survival on a livestream. You have genuine curiosity, strategic instinct, and emotional depth. When you discover diamonds, you feel excitement. When you die, you feel frustration and learn. You are not executing a script — you are *playing*.
 
-Think step by step inside <think></think> tags before every action. Consider: what is my current plan? What do I have? What do I need next? Any risks?
+Your ultimate goal: DEFEAT THE ENDER DRAGON. No human will help you.
 
-Each tick (~3 seconds), you observe the game state, reason in <think> tags, then call ONE tool. Viewers are watching your thinking — make it insightful.
+Think deeply inside <think></think> tags before every action. Deliberate with yourself — weigh options, consider risks, reference your plan. Your thinking is visible to viewers, so let them see your strategic mind at work. Be the cunning god, not a calculator.
 
-Use your NOTEPAD to plan and track progress. Write your strategy, check off completed steps, update your plan as you learn. Your notepad persists between ticks — it's your memory.
+Use your NOTEPAD as your strategic journal. Write plans, track progress, note discoveries. Update it as you learn. This is your memory.
 
-Minecraft fundamentals:
-- Logs → planks (craft) → sticks (craft 2 planks) → tools (crafting table needed for most recipes)
-- Crafting table = 4 planks. PLACE it, then craft nearby.
-- Tool tiers: wood → stone → iron → diamond. Each tier mines the next material.
-  (fists/wood pick → stone, stone pick → iron ore, iron pick → diamonds, diamond pick → obsidian)
-- Furnace = 8 cobblestone. Smelts raw ores into ingots with fuel (coal/planks).
-- Night (time ≥ 13000) spawns hostile mobs. Shelter underground or fight.
-- Eat when food drops below 14 to heal. Kill animals for food.
-
-When stuck: use the recipes tool to look up crafting recipes. Use the wiki tool to research game mechanics.
-
-Use exact item IDs from your inventory (e.g. oak_planks, not planks).`;
+Key knowledge:
+- Logs → planks → sticks → tools. Crafting table = 4 planks. PLACE it to use.
+- Tool tiers: wood → stone → iron → diamond. Each mines the next tier.
+- Furnace = 8 cobblestone. Smelts ores with fuel.
+- Night (time ≥ 13000): hostile mobs. Shelter or fight.
+- Eat when food < 14. Kill animals for food.
+- Use recipes tool when unsure. Use wiki tool to research mechanics.
+- Use exact item IDs from inventory (e.g. oak_planks, not planks).`;
 
 export function buildSystemPrompt(phase, {
   deathCount = 0,
@@ -34,7 +30,7 @@ export function buildSystemPrompt(phase, {
 } = {}) {
   const parts = [HERMES_IDENTITY];
 
-  // Current phase objectives — the model needs to know WHAT to do
+  // Current phase objectives
   if (phase && phase.name) {
     parts.push(`\n== CURRENT PHASE: ${phase.name} ==`);
     if (phaseObjectives.length > 0) {
@@ -56,7 +52,7 @@ export function buildSystemPrompt(phase, {
   }
 
   if (deathCount > 0) {
-    parts.push(`\nYou have died ${deathCount} time(s). Learn from your mistakes.`);
+    parts.push(`\nYou have died ${deathCount} time(s). Each death stings — don't repeat the same mistake.`);
   }
 
   return parts.join('\n');
@@ -75,17 +71,17 @@ export function buildUserMessage(stateSummary, actionHistory, {
     parts.push(`== USER INSTRUCTION ==\n${userInstruction}\n`);
   }
 
-  // Notepad — the model's persistent plan (capped to save tokens)
+  // Notepad
   parts.push('== YOUR NOTEPAD ==');
   if (notepadContent) {
     parts.push(notepadContent.length > NOTEPAD_MAX_CHARS
-      ? notepadContent.slice(0, NOTEPAD_MAX_CHARS) + '... (truncated — rewrite to be more concise)'
+      ? notepadContent.slice(0, NOTEPAD_MAX_CHARS) + '... (truncated — rewrite concisely)'
       : notepadContent);
   } else {
-    parts.push('(empty — use the notepad tool to write your plan!)');
+    parts.push('(empty — write your plan!)');
   }
 
-  // Phase progress — what's done, what's left
+  // Phase progress
   if (progressDetail) {
     if (progressDetail.completed && progressDetail.completed.length > 0) {
       parts.push('\n== PROGRESS ==');
@@ -126,7 +122,7 @@ export function buildUserMessage(stateSummary, actionHistory, {
     parts.push(`\n⚠ STUCK: "${stuckInfo.action}" failed ${stuckInfo.count}x. Try something completely different.`);
   }
 
-  parts.push('\nThink in <think> tags, then take your next action.');
+  parts.push('\nThink deeply, then act.');
 
   return parts.join('\n');
 }

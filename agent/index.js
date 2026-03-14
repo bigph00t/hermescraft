@@ -384,10 +384,7 @@ async function tick() {
 
   // 3. ACT — execute the action
   if (!response.action) {
-    logWarn('No action parsed from LLM response');
-    if (response.raw) {
-      logInfo(`Raw: ${typeof response.raw === 'string' ? response.raw.slice(0, 200) : JSON.stringify(response.raw).slice(0, 200)}`);
-    }
+    logWarn('No action parsed — defaulting to wait');
     return;
   }
 
