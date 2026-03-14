@@ -339,11 +339,14 @@ async function tick() {
   }
 
   // Log reasoning — the star of the show for viewers
-  if (response.reasoning) {
-    logReasoning(response.reasoning);
-  } else if (response.raw && typeof response.raw === 'string' && response.raw.length > 0) {
-    // No parsed reasoning but we have raw output — show it
-    logReasoning(response.raw.slice(0, 500));
+  let displayReasoning = response.reasoning || '';
+  if (!displayReasoning && response.raw && typeof response.raw === 'string') {
+    displayReasoning = response.raw.slice(0, 800);
+  }
+  // Strip any remaining <think> tags for clean display
+  displayReasoning = displayReasoning.replace(/<\/?think>/g, '').trim();
+  if (displayReasoning) {
+    logReasoning(displayReasoning);
   }
 
   // 3. ACT — execute the action

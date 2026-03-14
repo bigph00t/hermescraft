@@ -8,7 +8,7 @@ import { GAME_TOOLS } from './tools.js';
 const VLLM_URL = process.env.VLLM_URL || 'http://localhost:8000/v1';
 const MODEL_NAME = process.env.MODEL_NAME || 'NousResearch/Hermes-4-14B';
 const BASE_TEMPERATURE = parseFloat(process.env.TEMPERATURE || '0.7');
-const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '300', 10);
+const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '1024', 10);
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 1000;
 const MAX_HISTORY_MESSAGES = 10;  // ~5 ticks of context (keep tight for 8K model)
@@ -135,13 +135,20 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
           // Log but don't crash — empty args will be validated downstream
         }
 
+        // Extract <think>...</think> content as reasoning
+        const rawContent = msg.content || '';
+        const thinkMatch = rawContent.match(/<think>([\s\S]*?)<\/think>/);
+        const reasoning = thinkMatch
+          ? thinkMatch[1].trim()
+          : rawContent.replace(/<think>|<\/think>/g, '').trim();
+
         result = {
-          reasoning: msg.content || '',
+          reasoning,
           action: {
             type: toolCall.function.name,
             ...args,
           },
-          raw: msg.content || JSON.stringify(msg.tool_calls),
+          raw: rawContent || JSON.stringify(msg.tool_calls),
           mode: 'tool_call',
         };
 
@@ -159,12 +166,18 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
         const text = msg.content || '';
         result = parseResponseFallback(text);
 
+        // Extract <think> content for reasoning
+        const thinkFallback = text.match(/<think>([\s\S]*?)<\/think>/);
+        if (thinkFallback && (!result.reasoning || result.reasoning.length < thinkFallback[1].length)) {
+          result.reasoning = thinkFallback[1].trim();
+        }
+
         if (result.action) {
           result.mode = 'text_parsed';  // Got action from text parsing
         } else {
           result.mode = 'text_fallback';
           result.action = { type: 'wait' };  // Default to wait if nothing parseable
-          result.reasoning = result.reasoning || text;
+          result.reasoning = result.reasoning || text.replace(/<think>|<\/think>/g, '').trim();
         }
 
         conversationHistory.push(
