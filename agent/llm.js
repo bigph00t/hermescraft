@@ -11,7 +11,7 @@ const BASE_TEMPERATURE = parseFloat(process.env.TEMPERATURE || '0.7');
 const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '512', 10);
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 1000;
-const MAX_HISTORY_MESSAGES = 10;  // 5 ticks of context — 16K window has plenty of room
+const MAX_HISTORY_MESSAGES = 6;  // 3 ticks of context — 8K window
 
 const client = new OpenAI({
   baseURL: VLLM_URL,
