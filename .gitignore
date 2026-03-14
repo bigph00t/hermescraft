@@ -12,3 +12,4 @@ mod/run/
 # Agent runtime data (generated, not source)
 agent/data/
 agent/skills/
+RUNPOD_SSH.md
