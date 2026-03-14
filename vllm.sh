@@ -7,7 +7,7 @@
 
 MODEL="${MODEL_NAME:-NousResearch/Hermes-4-14B}"
 PORT="${VLLM_PORT:-8000}"
-GPU_MEM="${GPU_MEM:-0.95}"
+GPU_MEM="${GPU_MEM:-0.90}"
 MAX_LEN="${MAX_MODEL_LEN:-4096}"
 
 echo "Starting vLLM — $MODEL"
