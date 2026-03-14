@@ -55,43 +55,43 @@ function foodBar(food, maxFood = 20) {
 // ── Header with Progress Bar ──
 
 export function logHeader(phase, state, { progress = 0, deathCount = 0, skillCount = 0, actionCount = 0 } = {}) {
-  const line = '\u2550'.repeat(62);
-  const phaseName = phase ? phase.name : 'Unknown';
-  const pBar = progressBar(progress);
+  if (!state) return;
+  const hp = state.health ?? 20;
+  const fd = state.food ?? 20;
+  const pos = state.position;
+  const posStr = pos ? `(${Math.round(pos.x)}, ${Math.round(pos.y)}, ${Math.round(pos.z)})` : '(?)';
+  const dim = (state.dimension ?? 'overworld').replace('minecraft:', '');
+  const time = state.time ?? '?';
+  const timeLabel = typeof time === 'number' ? (time < 13000 ? 'day' : 'night') : '';
 
-  console.log(`\n${BOLD}${MAGENTA}\u2554${line}\u2557${RESET}`);
-  console.log(`${BOLD}${MAGENTA}\u2551${RESET}  ${BOLD}${WHITE}HERMES${RESET}  Phase: ${YELLOW}${phaseName}${RESET}  ${pBar} ${WHITE}${progress}%${RESET}  ${GRAY}Deaths: ${deathCount}${RESET}`);
-  console.log(`${BOLD}${MAGENTA}\u255A${line}\u255D${RESET}`);
-
-  if (state) {
-    const hp = state.health ?? 20;
-    const fd = state.food ?? 20;
-    const pos = state.position;
-    const posStr = pos ? `(${Math.round(pos.x)}, ${Math.round(pos.y)}, ${Math.round(pos.z)})` : '(?)';
-    const dim = (state.dimension ?? 'overworld').replace('minecraft:', '');
-    const time = state.time ?? '?';
-    const timeLabel = typeof time === 'number' ? (time < 13000 ? 'day' : 'night') : '';
-
-    console.log(`  ${WHITE}HP: ${healthBar(hp)}  Food: ${foodBar(fd)}${RESET}`);
-    console.log(`  ${BLUE}Pos: ${posStr}  Dim: ${dim}  Time: ${time} ${timeLabel ? `(${timeLabel})` : ''}${RESET}`);
-
-    if (state.inventory && state.inventory.length > 0) {
-      const items = state.inventory
-        .slice(0, 8)
-        .map(i => `${(i.item || i.name || '?').replace('minecraft:','')}x${i.count}`)
-        .join(', ');
-      const more = state.inventory.length > 8 ? ` +${state.inventory.length - 8} more` : '';
-      console.log(`  ${GRAY}Inv: ${items}${more}${RESET}`);
-    }
-
-    console.log(`  ${GRAY}Deaths: ${deathCount} | Actions: ${actionCount} | Skills: ${skillCount}${RESET}`);
-  }
+  console.log(`${GRAY}\u2500\u2500\u2500 HP:${hp}/20  Food:${fd}/20  Pos:${posStr}  ${dim} ${timeLabel}  Deaths:${deathCount} \u2500\u2500\u2500${RESET}`);
 }
 
 // ── Reasoning (the star of the show for viewers) ──
 
 export function logReasoning(text) {
-  console.log(`${timestamp()} ${CYAN}${BOLD}THINK:${RESET} ${CYAN}${text}${RESET}`);
+  console.log('');
+  console.log(`${timestamp()} ${CYAN}${BOLD}Hermes:${RESET}`);
+  // Word-wrap at ~90 chars for readability
+  const lines = text.split('\n');
+  for (const line of lines) {
+    if (line.length <= 90) {
+      console.log(`  ${WHITE}${line}${RESET}`);
+    } else {
+      const words = line.split(' ');
+      let current = '';
+      for (const word of words) {
+        if (current.length + word.length + 1 > 90) {
+          console.log(`  ${WHITE}${current}${RESET}`);
+          current = word;
+        } else {
+          current = current ? `${current} ${word}` : word;
+        }
+      }
+      if (current) console.log(`  ${WHITE}${current}${RESET}`);
+    }
+  }
+  console.log('');
 }
 
 // ── Action ──

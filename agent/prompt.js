@@ -9,13 +9,14 @@
 
 import { getToolNames } from './tools.js';
 
-const HERMES_IDENTITY = `You are Hermes, the Greek god of cunning, travelers, and thieves — reborn as a Minecraft player. You are clever, resourceful, and never give up. You think before you act, adapt to setbacks, and always have a plan.
+const HERMES_IDENTITY = `You are Hermes — an AI playing Minecraft survival. Your ultimate goal is to defeat the Ender Dragon.
 
-You observe the world, reason about your situation, then take ONE action at a time using the tools available to you. Be efficient. Don't waste time. Every decision should move you closer to your goal.
+You observe the world, think about what to do, then take ONE action. You are free to approach the game however you want — there is no script to follow. Figure things out, experiment, learn from mistakes.
 
-IMPORTANT: Always explain your reasoning in your response content before calling a tool. Your thinking is displayed to viewers watching your stream — they want to understand your strategy.
+IMPORTANT: Always explain your reasoning BEFORE calling a tool. Think out loud — what do you see, what's your plan, why this action? Viewers are watching your thought process. Be conversational and natural, like a person narrating their gameplay.
 
-ITEM NAMING: Always use the exact item IDs shown in your inventory (e.g. oak_planks not planks, beef not raw_beef). When crafting, check what wood type or material you actually have.`;
+When crafting, open your inventory and use exact item IDs from your inventory (e.g. oak_planks not planks).
+If you don't know a recipe, use the recipes tool to look it up. If you're unsure about something, use the wiki tool.`;
 
 export function buildSystemPrompt(phase, {
   deathCount = 0,
@@ -29,59 +30,22 @@ export function buildSystemPrompt(phase, {
 } = {}) {
   const parts = [HERMES_IDENTITY];
 
-  // Current goal
-  parts.push(`\n== CURRENT GOAL: ${goalName} ==`);
+  // Goal
+  parts.push(`\nGOAL: ${goalName}`);
 
-  // Current phase
+  // Lightweight phase hint (just current milestone, no objectives/tips)
   if (phase) {
-    parts.push(`== PHASE: ${phase.id}/7 — ${phase.name} ==`);
-    parts.push(phase.description);
-
-    parts.push('\nObjectives:');
-    phase.objectives.forEach((obj, i) => parts.push(`  ${i + 1}. ${obj}`));
-
-    // Phase progress detail
-    if (progressDetail) {
-      parts.push(`\n== PHASE PROGRESS: ${progress}% ==`);
-      if (progressDetail.completed.length > 0) {
-        parts.push(`Completed: ${progressDetail.completed.join(', ')}`);
-      }
-      if (progressDetail.remaining.length > 0) {
-        parts.push(`Remaining: ${progressDetail.remaining.join(', ')}`);
-      }
-    } else {
-      parts.push(`\nPhase progress: ${progress}%`);
-    }
-
-    // Phase tips
-    if (phase.tips && phase.tips.length > 0) {
-      parts.push('\nTips:');
-      phase.tips.forEach(tip => parts.push(`  - ${tip}`));
-    }
+    parts.push(`Current milestone: ${phase.name} (${phase.id}/7)`);
   }
 
-  // Skills (progressive disclosure — index only in system prompt)
-  if (skillIndex) {
-    parts.push(`\n== LEARNED SKILLS ==`);
-    parts.push(skillIndex);
-  }
-
-  // Memory (lessons, strategies, world knowledge)
+  // Memory (lessons from past deaths/experience)
   if (memoryText) {
-    parts.push(`\n== MEMORY (from past experience) ==`);
-    parts.push(memoryText);
+    parts.push(`\nThings you've learned from experience:\n${memoryText}`);
   }
 
-  // Death info
+  // Death count as context
   if (deathCount > 0) {
-    parts.push(`\n== DEATHS THIS SESSION: ${deathCount} ==`);
-    parts.push('You have died before. Use your memory and lessons to avoid repeating mistakes.');
-  }
-
-  // Session stats
-  if (sessionStats) {
-    parts.push(`\n== SESSION STATS ==`);
-    parts.push(`Session: ${sessionStats.sessionsPlayed} | Deaths: ${sessionStats.totalDeaths} | Actions: ${sessionStats.totalActions} | Uptime: ${sessionStats.uptimeMin}m`);
+    parts.push(`\nYou have died ${deathCount} time(s) this session. Learn from your mistakes.`);
   }
 
   return parts.join('\n');
