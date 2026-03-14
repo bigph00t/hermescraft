@@ -2,6 +2,9 @@
 # Start vLLM server — run this first, leave it running forever
 # Auto-restarts on crash. Run in its own terminal.
 
+# Ensure conda python is on PATH (RunPod resets PATH on pod restart)
+[ -d /workspace/miniconda/bin ] && export PATH=/workspace/miniconda/bin:$PATH
+
 MODEL="${MODEL_NAME:-NousResearch/Hermes-4-14B}"
 PORT="${VLLM_PORT:-8000}"
 GPU_MEM="${GPU_MEM:-0.90}"
