@@ -101,10 +101,17 @@ export function logAction(action, mode = 'tool_call') {
   const params = { ...action };
   delete params.type;
   delete params.action;
+  // Extract and display reasoning if present
+  const reason = params.reason || params.reasoning || '';
+  delete params.reason;
+  delete params.reasoning;
   const paramStr = Object.keys(params).length > 0 ? ` ${JSON.stringify(params)}` : '';
   const modeTag = mode === 'tool_call' ? `${DIM}${GREEN}[fn]${RESET}`
     : mode === 'text_parsed' ? `${DIM}${CYAN}[xml]${RESET}`
     : `${DIM}${YELLOW}[txt]${RESET}`;
+  if (reason) {
+    console.log(`\n${timestamp()} ${CYAN}${BOLD}Hermes:${RESET} ${WHITE}${reason}${RESET}`);
+  }
   console.log(`${timestamp()} ${GREEN}${BOLD}ACT:${RESET} ${modeTag} ${GREEN}${type}${paramStr}${RESET}`);
 }
 

@@ -279,6 +279,13 @@ export const GAME_TOOLS = [
   },
 ];
 
+// Inject a 'reason' field into every tool so the model explains each action
+for (const tool of GAME_TOOLS) {
+  const props = tool.function.parameters.properties || {};
+  props.reason = { type: 'string', description: 'Brief explanation of why you chose this action (1-2 sentences for viewers)' };
+  tool.function.parameters.properties = props;
+}
+
 export function getToolNames() {
   return GAME_TOOLS.map(t => t.function.name);
 }
