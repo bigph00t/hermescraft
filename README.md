@@ -39,7 +39,8 @@ cd ..
 # 3. Start vLLM with Hermes (in a separate terminal)
 ./vllm.sh
 
-# 4. Launch Minecraft client, connect to a 1.21.1 survival server
+# 4. Launch Minecraft 1.21.1 with Fabric + HermesBridge + Baritone mods
+#    Open a singleplayer survival world (or join a server)
 
 # 5. Start the agent
 ./start.sh

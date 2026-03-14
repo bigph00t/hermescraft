@@ -442,7 +442,7 @@ async function main() {
 
   // Startup banner
   logStartupBanner({
-    model: process.env.MODEL_NAME || 'Hermes 4.3 36B',
+    model: process.env.MODEL_NAME || 'NousResearch/Hermes-4-14B',
     toolCalling: isToolCallingEnabled(),
     session: stats.sessionsPlayed,
     lessons: memory.lessons.length,
