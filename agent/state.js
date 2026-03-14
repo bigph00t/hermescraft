@@ -5,6 +5,15 @@ const MOD_URL = process.env.MOD_URL || 'http://localhost:3001';
 const stateHistory = [];
 const MAX_HISTORY = 10;
 
+// Navigation tracking — since Baritone isPathing is broken, we track it ourselves
+let navigateActive = false;
+let navigateTicksStill = 0;
+
+export function setNavigating(active) {
+  navigateActive = active;
+  navigateTicksStill = 0;
+}
+
 export async function fetchState() {
   const res = await fetch(`${MOD_URL}/state`, {
     signal: AbortSignal.timeout(5000),
@@ -101,8 +110,31 @@ export function summarizeState(state) {
     }
   }
 
-  // Baritone status
-  if (state.isPathing) lines.push('Status: BARITONE ACTIVE — pathfinding/mining in progress');
+  // Navigation status — detect movement to infer Baritone is working
+  if (navigateActive) {
+    if (stateHistory.length >= 2) {
+      const prev = stateHistory[stateHistory.length - 2];
+      const pp = prev.position;
+      if (p && pp) {
+        const moved = Math.abs(p.x - pp.x) + Math.abs(p.y - pp.y) + Math.abs(p.z - pp.z);
+        if (moved > 0.5) {
+          lines.push('Status: NAVIGATING — Baritone is pathfinding. Use wait or stop to interrupt.');
+        } else {
+          // Not moving — Baritone may have finished or gotten stuck
+          navigateTicksStill++;
+          if (navigateTicksStill >= 3) {
+            navigateActive = false;
+            navigateTicksStill = 0;
+            lines.push('Status: Navigation appears complete (stopped moving).');
+          } else {
+            lines.push('Status: NAVIGATING — waiting for movement...');
+          }
+        }
+      }
+    } else {
+      lines.push('Status: NAVIGATING — Baritone pathfinding started.');
+    }
+  }
 
   return lines.join('\n');
 }

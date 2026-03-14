@@ -27,9 +27,9 @@ metadata:
 - Need stone_pickaxe or better to mine iron ore. Wood pickaxe won't work.
 - Smelt requires fuel — coal is best, planks work too.
 - The furnace GUI needs to be open: first `smelt` call opens it, second loads items.
-- Iron is extremely common — don't waste time looking, just `mine iron_ore`.
+- Iron is extremely common — find iron_ore in nearbyBlocks, `look_at_block` + `break_block`.
 - Craft a shield early — it blocks skeleton arrows and creeper blasts.
 
 ## Key Actions Used
 
-Action sequence: equip -> mine -> place -> smelt -> craft -> equip
+Action sequence: equip -> look_at_block -> break_block -> place -> smelt -> craft

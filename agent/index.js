@@ -2,7 +2,7 @@
 // Integrates: native tool calling, multi-level memory, agentskills.io skills,
 // configurable goals, rich terminal output, user instructions
 
-import { fetchState, summarizeState, detectDeath } from './state.js';
+import { fetchState, summarizeState, detectDeath, setNavigating } from './state.js';
 import { queryLLM, clearConversation, getTemperature, isToolCallingEnabled, completeToolCall } from './llm.js';
 import { executeAction, validateAction, INFO_ACTIONS } from './actions.js';
 import { fetchRecipes } from './state.js';
@@ -429,6 +429,13 @@ async function tick() {
   // Complete tool call protocol so model sees action result in history
   if (response.mode === 'tool_call' && result) {
     completeToolCall(JSON.stringify(result).slice(0, 300));
+  }
+
+  // Track navigation state for Baritone awareness
+  if (actionType === 'navigate' && result?.success !== false) {
+    setNavigating(true);
+  } else if (actionType === 'stop') {
+    setNavigating(false);
   }
 
   // Track result

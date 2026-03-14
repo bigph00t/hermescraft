@@ -34,4 +34,4 @@ metadata:
 
 ## Key Actions Used
 
-Action sequence: mine -> craft -> place -> equip -> mine -> craft -> attack
+Action sequence: look_at_block -> break_block -> craft -> place -> equip -> craft -> attack
