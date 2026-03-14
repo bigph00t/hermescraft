@@ -153,13 +153,6 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
       const msg = response.choices?.[0]?.message;
       if (!msg) throw new Error('Empty response from LLM');
 
-      // Debug: log what the model actually returns
-      if (msg.tool_calls && msg.tool_calls.length > 0) {
-        const contentPreview = msg.content ? msg.content.slice(0, 200) : '(null)';
-        const toolName = msg.tool_calls[0]?.function?.name || '?';
-        console.log(`  [debug] content=${contentPreview} | tool=${toolName}`);
-      }
-
       let result;
 
       // Try to extract from tool_calls first
