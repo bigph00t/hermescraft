@@ -11,5 +11,5 @@ mod/run/
 
 # Agent runtime data (generated, not source)
 agent/data/
-agent/skills/
+# agent/skills/ ships with seed skills, runtime skills also saved here
 RUNPOD_SSH.md

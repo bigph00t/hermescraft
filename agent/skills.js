@@ -108,12 +108,24 @@ export function getActiveSkill(phase) {
   if (!phase) return null;
 
   // Find skill matching current phase
-  const match = skills.find(s => s.phase === phase.id);
-  if (!match) return null;
+  const phaseSkill = skills.find(s => s.phase === phase.id);
+
+  // Also include general skills (phase 0) — core knowledge
+  const generalSkills = skills.filter(s => s.phase === 0);
+
+  const parts = [];
+  if (phaseSkill) {
+    parts.push(`[${phaseSkill.name}]\n${phaseSkill.body}`);
+  }
+  for (const gs of generalSkills) {
+    parts.push(`[${gs.name}]\n${gs.body}`);
+  }
+
+  if (parts.length === 0) return null;
 
   return {
-    name: match.name,
-    content: match.body,
+    name: phaseSkill?.name || generalSkills[0]?.name || 'general',
+    content: parts.join('\n\n'),
   };
 }
 
