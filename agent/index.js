@@ -413,6 +413,11 @@ async function tick() {
     timestamp: Date.now(),
   });
 
+  // Auto-close crafting screen on craft/smelt failure to prevent items stuck in grid
+  if (!success && (actionType === 'craft' || actionType === 'smelt')) {
+    try { await executeAction({ type: 'close_screen' }); } catch {}
+  }
+
   // Keep history bounded
   if (actionHistory.length > 50) {
     actionHistory.splice(0, actionHistory.length - 50);

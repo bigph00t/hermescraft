@@ -83,7 +83,7 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
             model: MODEL_NAME,
             messages,
             tools: GAME_TOOLS,
-            tool_choice: 'required',
+            tool_choice: 'auto',
             temperature,
             max_tokens: MAX_TOKENS,
           });
