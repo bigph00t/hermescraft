@@ -277,6 +277,21 @@ export const GAME_TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'notepad',
+      description: 'Read or write your personal notepad. Use to plan your strategy, track progress, and remember things across ticks. Always write a plan at the start!',
+      parameters: {
+        type: 'object',
+        properties: {
+          action: { type: 'string', enum: ['read', 'write'], description: 'read = see current notepad, write = overwrite with new content' },
+          content: { type: 'string', description: 'New notepad content (only for write)' },
+        },
+        required: ['action'],
+      },
+    },
+  },
 ];
 
 // Inject a 'reason' field into every tool so the model explains each action

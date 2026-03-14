@@ -154,6 +154,41 @@ async function handleWikiLookup(query) {
   }
 }
 
+// ── Notepad (persistent plan) ──
+
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname_idx = dirname(fileURLToPath(import.meta.url));
+const NOTEPAD_FILE = join(__dirname_idx, 'data', 'notepad.txt');
+
+function readNotepad() {
+  try {
+    if (!existsSync(join(__dirname_idx, 'data'))) mkdirSync(join(__dirname_idx, 'data'), { recursive: true });
+    if (existsSync(NOTEPAD_FILE)) return readFileSync(NOTEPAD_FILE, 'utf-8');
+  } catch {}
+  return '';
+}
+
+function writeNotepad(content) {
+  try {
+    if (!existsSync(join(__dirname_idx, 'data'))) mkdirSync(join(__dirname_idx, 'data'), { recursive: true });
+    writeFileSync(NOTEPAD_FILE, content, 'utf-8');
+  } catch {}
+}
+
+function handleNotepad(action, content) {
+  if (action === 'read') {
+    const text = readNotepad();
+    return text || '(notepad is empty)';
+  } else if (action === 'write') {
+    writeNotepad(content || '');
+    return `Notepad updated (${(content || '').length} chars)`;
+  }
+  return 'Invalid notepad action. Use read or write.';
+}
+
 // ── Baritone Overlay Removal ──
 
 async function disableBaritoneOverlays() {
@@ -310,22 +345,20 @@ async function tick() {
   const activeSkill = getActiveSkill(currentPhase);
   const sessionStats = getSessionStats();
 
+  const notepadContent = readNotepad();
+
   const systemPrompt = buildSystemPrompt(currentPhase, {
     deathCount,
-    progress,
-    progressDetail,
     goalName: getGoalName(),
     memoryText,
-    skillIndex,
-    activeSkill,
-    sessionStats,
+    notepadContent,
   });
 
   const stateSummary = summarizeState(state);
   const userMessage = buildUserMessage(stateSummary, actionHistory, {
     stuckInfo,
     userInstruction,
-    activeSkill,
+    notepadContent,
   });
 
   const temperature = getTemperature(currentPhase, state);
@@ -372,7 +405,12 @@ async function tick() {
   // Handle info actions (recipes, wiki) — return data to LLM, no game state change
   if (INFO_ACTIONS.has(actionType)) {
     let infoResult;
-    if (actionType === 'recipes') {
+    if (actionType === 'notepad') {
+      infoResult = handleNotepad(response.action.action, response.action.content);
+      if (response.action.action === 'write') {
+        logInfo(`[notepad] Plan updated`);
+      }
+    } else if (actionType === 'recipes') {
       infoResult = await handleRecipesLookup(response.action.item);
     } else if (actionType === 'wiki') {
       infoResult = await handleWikiLookup(response.action.query);
@@ -453,7 +491,7 @@ async function main() {
 
   // Startup banner
   logStartupBanner({
-    model: process.env.MODEL_NAME || 'NousResearch/Hermes-4-14B',
+    model: process.env.MODEL_NAME || 'Doradus/Hermes-4.3-36B-FP8',
     toolCalling: isToolCallingEnabled(),
     session: stats.sessionsPlayed,
     lessons: memory.lessons.length,
@@ -464,7 +502,7 @@ async function main() {
 
   logInfo(`Tick interval: ${TICK_INTERVAL}ms`);
   logInfo(`vLLM URL: ${process.env.VLLM_URL || 'http://localhost:8000/v1'}`);
-  logInfo(`Model: ${process.env.MODEL_NAME || 'NousResearch/Hermes-4-14B'}`);
+  logInfo(`Model: ${process.env.MODEL_NAME || 'Doradus/Hermes-4.3-36B-FP8'}`);
   logInfo(`Mod API: ${process.env.MOD_URL || 'http://localhost:3001'}`);
   logInfo(`Memory: ${memory.lessons.length} lessons, ${memory.strategies.length} strategies`);
   logInfo(`Skills: ${skills.length} loaded`);

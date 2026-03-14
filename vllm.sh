@@ -5,10 +5,10 @@
 # Ensure conda python is on PATH (RunPod resets PATH on pod restart)
 [ -d /workspace/miniconda/bin ] && export PATH=/workspace/miniconda/bin:$PATH
 
-MODEL="${MODEL_NAME:-NousResearch/Hermes-4-14B}"
+MODEL="${MODEL_NAME:-Doradus/Hermes-4.3-36B-FP8}"
 PORT="${VLLM_PORT:-8000}"
 GPU_MEM="${GPU_MEM:-0.90}"
-MAX_LEN="${MAX_MODEL_LEN:-8192}"
+MAX_LEN="${MAX_MODEL_LEN:-16384}"
 
 echo "Starting vLLM — $MODEL"
 echo "Port: $PORT | GPU mem: $GPU_MEM | Max len: $MAX_LEN"
@@ -24,7 +24,8 @@ while true; do
     --enable-auto-tool-choice \
     --tool-call-parser hermes \
     --enable-prefix-caching \
-    --max-num-seqs 4
+    --max-num-seqs 4 \
+    --trust-remote-code
 
   echo "[!] vLLM died — cleaning up GPU and restarting in 5s..."
   # Kill zombie EngineCore processes that hold GPU memory after crashes

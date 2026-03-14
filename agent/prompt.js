@@ -1,56 +1,40 @@
 // prompt.js — System prompt builder for HermesCraft
-// Structured to leverage Hermes's native capabilities:
-//   - Identity + personality
-//   - Current goal/phase with progress detail
-//   - Learned skills (progressive disclosure)
-//   - Memory (lessons, strategies, world knowledge)
-//   - Session stats
-//   - User instructions
+// Minimal — the LLM drives strategy, code provides tools
 
-import { getToolNames } from './tools.js';
+const HERMES_IDENTITY = `You are Hermes — an AI playing Minecraft survival on a livestream. Your ultimate goal: DEFEAT THE ENDER DRAGON. No human will help you.
 
-const HERMES_IDENTITY = `You are Hermes — an AI playing Minecraft survival on a livestream. Your goal: DEFEAT THE ENDER DRAGON.
+You have tools to interact with the game world. Each tick (~3 seconds), you observe the game state, reason about what to do, and call ONE tool. Explain your reasoning before each action — viewers are watching.
 
-Before each action, briefly explain your reasoning (1-3 sentences). Viewers are watching — they want to understand your thinking. Then call a tool.
+Use your NOTEPAD to plan and track progress. Write your strategy, check off completed steps, update your plan as you learn. Your notepad persists between ticks — it's your memory.
 
-Minecraft basics:
-- Punch trees → logs → planks → sticks → tools. Crafting table = 4 planks.
-- Tool tiers: wood → stone → iron → diamond. Need right tier to mine (wood pick for stone, stone pick for iron, iron pick for diamond, diamond pick for obsidian).
-- Furnace smelts ores. Needs fuel (coal or planks).
-- Night = hostile mobs. Shelter or mine underground.
-- Eat when food < 14.
-- Path to Dragon: tools → iron gear → diamonds → nether portal → blaze rods → ender pearls → stronghold → kill dragon.
+Minecraft fundamentals:
+- Logs → planks (craft) → sticks (craft 2 planks) → tools (crafting table needed for most recipes)
+- Crafting table = 4 planks. PLACE it, then craft nearby.
+- Tool tiers: wood → stone → iron → diamond. Each tier mines the next material.
+  (fists/wood pick → stone, stone pick → iron ore, iron pick → diamonds, diamond pick → obsidian)
+- Furnace = 8 cobblestone. Smelts raw ores into ingots with fuel (coal/planks).
+- Night (time ≥ 13000) spawns hostile mobs. Shelter underground or fight.
+- Eat when food drops below 14 to heal. Kill animals for food.
 
-Use exact item IDs from your inventory. Use the recipes tool if unsure about a recipe.`;
+When stuck: use the recipes tool to look up crafting recipes. Use the wiki tool to research game mechanics.
+
+Use exact item IDs from your inventory (e.g. oak_planks, not planks).`;
 
 export function buildSystemPrompt(phase, {
   deathCount = 0,
-  progress = 0,
-  progressDetail = null,
   goalName = 'Defeat the Ender Dragon',
   memoryText = '',
-  skillIndex = '',
-  activeSkill = null,
-  sessionStats = null,
+  notepadContent = '',
 } = {}) {
   const parts = [HERMES_IDENTITY];
 
-  // Goal
-  parts.push(`\nGOAL: ${goalName}`);
-
-  // Lightweight phase hint (just current milestone, no objectives/tips)
-  if (phase) {
-    parts.push(`Current milestone: ${phase.name} (${phase.id}/7)`);
-  }
-
-  // Memory (lessons from past deaths/experience)
+  // Memory from past deaths
   if (memoryText) {
-    parts.push(`\nThings you've learned from experience:\n${memoryText}`);
+    parts.push(`\nLessons from past experience:\n${memoryText}`);
   }
 
-  // Death count as context
   if (deathCount > 0) {
-    parts.push(`\nYou have died ${deathCount} time(s) this session. Learn from your mistakes.`);
+    parts.push(`\nYou have died ${deathCount} time(s). Learn from your mistakes.`);
   }
 
   return parts.join('\n');
@@ -59,59 +43,54 @@ export function buildSystemPrompt(phase, {
 export function buildUserMessage(stateSummary, actionHistory, {
   stuckInfo = null,
   userInstruction = null,
-  activeSkill = null,
+  notepadContent = '',
 } = {}) {
   const parts = [];
 
-  // User instruction (highest priority — from the human watching)
+  // User instruction
   if (userInstruction) {
-    parts.push('== USER INSTRUCTION (follow this!) ==');
-    parts.push(userInstruction);
-    parts.push('');
+    parts.push(`== USER INSTRUCTION ==\n${userInstruction}\n`);
   }
 
-  // Active skill (full content for current phase)
-  if (activeSkill) {
-    parts.push(`== ACTIVE SKILL: ${activeSkill.name} ==`);
-    parts.push(activeSkill.content);
-    parts.push('');
+  // Notepad — the model's persistent plan
+  parts.push('== YOUR NOTEPAD ==');
+  if (notepadContent) {
+    parts.push(notepadContent);
+  } else {
+    parts.push('(empty — use the notepad tool to write your plan!)');
   }
 
-  // Last action failure feedback (immediate and prominent)
+  // Last action failure
   if (actionHistory.length > 0) {
     const last = actionHistory[actionHistory.length - 1];
     if (last && !last.success && last.error) {
-      parts.push(`!! YOUR LAST ACTION FAILED: ${last.type} — ${last.error}`);
-      parts.push('Think about WHY it failed and try a different approach.\n');
+      parts.push(`\n!! LAST ACTION FAILED: ${last.type} — ${last.error}`);
     }
   }
 
-  // Current game state
-  parts.push('== CURRENT GAME STATE ==');
+  // Game state
+  parts.push('\n== GAME STATE ==');
   parts.push(stateSummary);
 
-  // Action history
+  // Recent actions (compact)
   if (actionHistory.length > 0) {
-    parts.push('\n== RECENT ACTIONS (newest first) ==');
-    actionHistory.slice(-10).reverse().forEach((entry, i) => {
+    parts.push('\n== RECENT ACTIONS ==');
+    actionHistory.slice(-8).reverse().forEach((entry, i) => {
       if (entry.info) {
-        // Info action (recipes/wiki) — show the result
-        parts.push(`  ${i + 1}. ${entry.type} -> ${entry.info}`);
+        parts.push(`  ${i + 1}. ${entry.type}: ${entry.info.slice(0, 150)}`);
       } else {
-        const result = entry.success ? 'OK' : `FAILED: ${entry.error || 'unknown'}`;
-        parts.push(`  ${i + 1}. ${entry.type} -> ${result}`);
+        const r = entry.success ? 'OK' : `FAIL: ${entry.error || '?'}`;
+        parts.push(`  ${i + 1}. ${entry.type} → ${r}`);
       }
     });
   }
 
   // Stuck warning
   if (stuckInfo) {
-    parts.push(`\n== WARNING: STUCK ==`);
-    parts.push(`Action "${stuckInfo.action}" has failed ${stuckInfo.count} times.`);
-    parts.push('You MUST try a completely different approach. Do not repeat the same action.');
+    parts.push(`\n⚠ STUCK: "${stuckInfo.action}" failed ${stuckInfo.count}x. Try something completely different.`);
   }
 
-  parts.push('\nWhat is your next action? Explain your reasoning, then use a tool.');
+  parts.push('\nThink about your plan, then take your next action.');
 
   return parts.join('\n');
 }

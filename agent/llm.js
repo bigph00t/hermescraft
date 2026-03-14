@@ -6,12 +6,12 @@ import OpenAI from 'openai';
 import { GAME_TOOLS } from './tools.js';
 
 const VLLM_URL = process.env.VLLM_URL || 'http://localhost:8000/v1';
-const MODEL_NAME = process.env.MODEL_NAME || 'NousResearch/Hermes-4-14B';
+const MODEL_NAME = process.env.MODEL_NAME || 'Doradus/Hermes-4.3-36B-FP8';
 const BASE_TEMPERATURE = parseFloat(process.env.TEMPERATURE || '0.7');
-const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '300', 10);
+const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '512', 10);
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 1000;
-const MAX_HISTORY_MESSAGES = 4;  // 2 ticks of context — tight for 4K context window
+const MAX_HISTORY_MESSAGES = 10;  // 5 ticks of context — 16K window has plenty of room
 
 const client = new OpenAI({
   baseURL: VLLM_URL,
