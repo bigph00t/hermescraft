@@ -373,9 +373,6 @@ async function tick() {
 
   // Log reasoning — the star of the show for viewers
   let displayReasoning = response.reasoning || '';
-  if (!displayReasoning && response.raw && typeof response.raw === 'string') {
-    displayReasoning = response.raw.slice(0, 800);
-  }
   // Strip any remaining <think> tags for clean display
   displayReasoning = displayReasoning.replace(/<\/?think>/g, '').trim();
   if (displayReasoning) {

@@ -16,7 +16,7 @@ const MAX_HISTORY_MESSAGES = 6;  // 3 ticks of context — 8K window
 const client = new OpenAI({
   baseURL: VLLM_URL,
   apiKey: process.env.VLLM_API_KEY || 'not-needed',
-  timeout: 30000,  // 30s — prevent stalls during 24/7 operation
+  timeout: 45000,  // 45s — thinking + tool call takes longer than pure tool call
 });
 
 // ── Conversation Memory (L1 — Session Memory) ──
@@ -83,7 +83,7 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
             model: MODEL_NAME,
             messages,
             tools: GAME_TOOLS,
-            tool_choice: 'required',
+            tool_choice: 'auto',
             temperature,
             max_tokens: MAX_TOKENS,
           });

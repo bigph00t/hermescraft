@@ -64,6 +64,18 @@ public class ActionExecutor {
         boolean eatStarted = false;
         int foodSlot = -1;
         String foodName;
+        // craft state
+        CraftingRecipe craftRecipe;
+        int craftGridWidth;
+        int craftInvStart;
+        int craftInvEnd;
+        int craftStep = 0;
+        String craftItemName;
+        java.util.List<int[]> craftMoves; // [ingredientIdx, gridSlot]
+        // smelt state
+        int smeltStep = 0;
+        String smeltItemName;
+        String smeltCollected;
 
         SustainedAction(String type, CompletableFuture<String> future, int maxTicks) {
             this.type = type;
@@ -171,6 +183,14 @@ public class ActionExecutor {
                     startEat(client, pa.future);
                     return;
                 }
+                case "craft" -> {
+                    startCraft(client, pa.action, pa.future);
+                    return;
+                }
+                case "smelt" -> {
+                    startSmelt(client, pa.action, pa.future);
+                    return;
+                }
             }
 
             // Instant action — execute immediately on the client thread
@@ -186,8 +206,6 @@ public class ActionExecutor {
         return switch (type) {
             case "navigate" -> handleNavigate(action, client);
             case "mine" -> handleMine(action, client);
-            case "craft" -> handleCraft(action, client);
-            case "smelt" -> handleSmelt(action, client);
             case "attack" -> handleAttack(action, client);
             case "place" -> handlePlace(action, client);
             case "equip" -> handleEquip(action, client);
@@ -323,6 +341,8 @@ public class ActionExecutor {
             case "break_block" -> tickBreakBlock(client, sa);
             case "walk" -> tickWalk(client, sa);
             case "eat" -> tickEat(client, sa);
+            case "craft" -> tickCraft(client, sa);
+            case "smelt" -> tickSmelt(client, sa);
         }
     }
 
@@ -431,16 +451,20 @@ public class ActionExecutor {
         }
     }
 
-    // --- Craft items via recipe lookup + slot manipulation ---
-    private static String handleCraft(JsonObject action, MinecraftClient client) {
+    // --- Craft items — sustained action with visual tick delays ---
+    private static void startCraft(MinecraftClient client, JsonObject action, CompletableFuture<String> future) {
         if (!action.has("item")) {
-            return errorResult("Craft requires 'item'");
+            future.complete(errorResult("Craft requires 'item'"));
+            return;
         }
         String itemName = action.get("item").getAsString();
         if (!itemName.contains(":")) itemName = "minecraft:" + itemName;
 
         ClientPlayerEntity player = client.player;
-        if (player == null || client.world == null) return errorResult("Not in game");
+        if (player == null || client.world == null) {
+            future.complete(errorResult("Not in game"));
+            return;
+        }
 
         // Find matching crafting recipe — try ALL recipes for this item,
         // prefer the one where the player actually has the ingredients
@@ -498,7 +522,8 @@ public class ActionExecutor {
         }
 
         if (matchingRecipe == null) {
-            return errorResult("No crafting recipe found for " + itemName);
+            future.complete(errorResult("No crafting recipe found for " + itemName));
+            return;
         }
 
         ScreenHandler handler = player.currentScreenHandler;
@@ -507,13 +532,20 @@ public class ActionExecutor {
         if (needsTable && !isCraftingTable) {
             BlockPos tablePos = findNearbyBlock(client, player, "minecraft:crafting_table", 5);
             if (tablePos == null) {
-                return errorResult("Recipe requires crafting table but none within 5 blocks. Place one first.");
+                future.complete(errorResult("Recipe requires crafting table but none within 5 blocks. Place one first."));
+                return;
             }
             Vec3d center = Vec3d.ofCenter(tablePos);
             lookAtPos(player, center);
             BlockHitResult hit = new BlockHitResult(center, Direction.UP, tablePos, false);
             client.interactionManager.interactBlock(player, Hand.MAIN_HAND, hit);
-            return successResult("Opening crafting table. Send craft command again next tick.");
+            future.complete(successResult("Opening crafting table. Send craft command again next tick."));
+            return;
+        }
+
+        if (!(matchingRecipe.value() instanceof CraftingRecipe craftRecipe)) {
+            future.complete(errorResult("Internal error: not a crafting recipe"));
+            return;
         }
 
         int gridWidth, invStart, invEnd;
@@ -523,35 +555,17 @@ public class ActionExecutor {
             gridWidth = 2; invStart = 9; invEnd = 44;
         }
 
-        if (!(matchingRecipe.value() instanceof CraftingRecipe craftRecipe)) {
-            return errorResult("Internal error: not a crafting recipe");
-        }
-
-        return executeCrafting(client, player, craftRecipe, handler, gridWidth, invStart, invEnd);
-    }
-
-    private static String executeCrafting(MinecraftClient client, ClientPlayerEntity player,
-                                           CraftingRecipe recipe, ScreenHandler handler,
-                                           int gridWidth, int invStart, int invEnd) {
-        int syncId = handler.syncId;
-        int gridSize = gridWidth * gridWidth;
-
-        // Clear crafting grid first
-        for (int i = 1; i <= gridSize; i++) {
-            if (!handler.getSlot(i).getStack().isEmpty()) {
-                client.interactionManager.clickSlot(syncId, i, 0, SlotActionType.QUICK_MOVE, player);
-            }
-        }
-
-        List<Ingredient> ingredients = recipe.getIngredients();
-        int recipeWidth = recipe instanceof ShapedRecipe shaped ? shaped.getWidth() : gridWidth;
+        // Pre-compute ingredient placements (non-empty ingredients + grid slot)
+        List<Ingredient> ingredients = craftRecipe.getIngredients();
+        int recipeWidth = craftRecipe instanceof ShapedRecipe shaped ? shaped.getWidth() : gridWidth;
+        java.util.List<int[]> moves = new java.util.ArrayList<>();
 
         for (int idx = 0; idx < ingredients.size(); idx++) {
             Ingredient ing = ingredients.get(idx);
             if (ing.isEmpty()) continue;
 
             int gridSlot;
-            if (recipe instanceof ShapedRecipe) {
+            if (craftRecipe instanceof ShapedRecipe) {
                 int row = idx / recipeWidth;
                 int col = idx % recipeWidth;
                 gridSlot = row * gridWidth + col + 1;
@@ -559,7 +573,56 @@ public class ActionExecutor {
                 gridSlot = idx + 1;
             }
 
-            int invSlot = findIngredientSlot(handler, ing, invStart, invEnd);
+            moves.add(new int[]{idx, gridSlot});
+        }
+
+        // Set up sustained crafting action: clear grid + N ingredients + take output
+        int totalSteps = moves.size() + 2;
+        SustainedAction sa = new SustainedAction("craft", future, totalSteps + 5);
+        sa.craftRecipe = craftRecipe;
+        sa.craftGridWidth = gridWidth;
+        sa.craftInvStart = invStart;
+        sa.craftInvEnd = invEnd;
+        sa.craftStep = 0;
+        sa.craftItemName = itemName;
+        sa.craftMoves = moves;
+        currentSustained = sa;
+
+        HermesBridgeMod.LOGGER.info("[HermesBridge] Started crafting {} ({} ingredients)", itemName, moves.size());
+    }
+
+    private static void tickCraft(MinecraftClient client, SustainedAction sa) {
+        ClientPlayerEntity player = client.player;
+        if (player == null) {
+            completeSustained(errorResult("Player disconnected during crafting"));
+            return;
+        }
+
+        ScreenHandler handler = player.currentScreenHandler;
+        int syncId = handler.syncId;
+        int gridSize = sa.craftGridWidth * sa.craftGridWidth;
+
+        if (sa.craftStep == 0) {
+            // Step 0: Clear crafting grid
+            for (int i = 1; i <= gridSize; i++) {
+                if (!handler.getSlot(i).getStack().isEmpty()) {
+                    client.interactionManager.clickSlot(syncId, i, 0, SlotActionType.QUICK_MOVE, player);
+                }
+            }
+            sa.craftStep++;
+            return;
+        }
+
+        int moveIndex = sa.craftStep - 1;
+        if (moveIndex < sa.craftMoves.size()) {
+            // Place one ingredient per tick
+            int[] move = sa.craftMoves.get(moveIndex);
+            int recipeIdx = move[0];
+            int gridSlot = move[1];
+
+            Ingredient ing = sa.craftRecipe.getIngredients().get(recipeIdx);
+            int invSlot = findIngredientSlot(handler, ing, sa.craftInvStart, sa.craftInvEnd);
+
             if (invSlot == -1) {
                 ItemStack[] matching = ing.getMatchingStacks();
                 String needed = matching.length > 0
@@ -571,82 +634,116 @@ public class ActionExecutor {
                         client.interactionManager.clickSlot(syncId, i, 0, SlotActionType.QUICK_MOVE, player);
                     }
                 }
-                return errorResult("Missing ingredient: " + needed);
+                completeSustained(errorResult("Missing ingredient: " + needed));
+                return;
             }
 
             // Pick up from inventory, right-click grid to place 1, put rest back
             client.interactionManager.clickSlot(syncId, invSlot, 0, SlotActionType.PICKUP, player);
             client.interactionManager.clickSlot(syncId, gridSlot, 1, SlotActionType.PICKUP, player);
             client.interactionManager.clickSlot(syncId, invSlot, 0, SlotActionType.PICKUP, player);
+            sa.craftStep++;
+            return;
         }
 
-        // Take crafting output
+        // Final step: take crafting output
         client.interactionManager.clickSlot(syncId, 0, 0, SlotActionType.QUICK_MOVE, player);
 
-        ItemStack output = recipe.getResult(client.world.getRegistryManager());
+        ItemStack output = sa.craftRecipe.getResult(client.world.getRegistryManager());
         String craftedName = Registries.ITEM.getId(output.getItem()).getPath();
-        return successResult("Crafted " + craftedName);
+        completeSustained(successResult("Crafted " + craftedName));
     }
 
-    // --- Smelt items in furnace ---
-    private static String handleSmelt(JsonObject action, MinecraftClient client) {
+    // --- Smelt items — sustained action with visual tick delays ---
+    private static void startSmelt(MinecraftClient client, JsonObject action, CompletableFuture<String> future) {
         if (!action.has("item")) {
-            return errorResult("Smelt requires 'item'");
+            future.complete(errorResult("Smelt requires 'item'"));
+            return;
         }
         String itemName = action.get("item").getAsString();
         if (!itemName.contains(":")) itemName = "minecraft:" + itemName;
         ClientPlayerEntity player = client.player;
 
-        if (!(player.currentScreenHandler instanceof AbstractFurnaceScreenHandler furnace)) {
+        if (!(player.currentScreenHandler instanceof AbstractFurnaceScreenHandler)) {
             BlockPos pos = findNearbyBlock(client, player, "minecraft:furnace", 5);
             if (pos == null) pos = findNearbyBlock(client, player, "minecraft:blast_furnace", 5);
             if (pos == null) pos = findNearbyBlock(client, player, "minecraft:smoker", 5);
             if (pos == null) {
-                return errorResult("No furnace nearby. Craft and place one first.");
+                future.complete(errorResult("No furnace nearby. Craft and place one first."));
+                return;
             }
             Vec3d center = Vec3d.ofCenter(pos);
             lookAtPos(player, center);
             BlockHitResult hit = new BlockHitResult(center, Direction.UP, pos, false);
             client.interactionManager.interactBlock(player, Hand.MAIN_HAND, hit);
-            return successResult("Opening furnace. Send smelt command again next tick.");
+            future.complete(successResult("Opening furnace. Send smelt command again next tick."));
+            return;
+        }
+
+        // Set up sustained smelting: take output → load input → add fuel → done
+        SustainedAction sa = new SustainedAction("smelt", future, 10);
+        sa.smeltStep = 0;
+        sa.smeltItemName = itemName;
+        currentSustained = sa;
+
+        HermesBridgeMod.LOGGER.info("[HermesBridge] Started smelting {}", itemName);
+    }
+
+    private static void tickSmelt(MinecraftClient client, SustainedAction sa) {
+        ClientPlayerEntity player = client.player;
+        if (player == null) {
+            completeSustained(errorResult("Player disconnected during smelting"));
+            return;
+        }
+
+        if (!(player.currentScreenHandler instanceof AbstractFurnaceScreenHandler furnace)) {
+            completeSustained(errorResult("Furnace screen closed during smelting"));
+            return;
         }
 
         int syncId = furnace.syncId;
-        StringBuilder msg = new StringBuilder();
 
-        // 1. Take output if available (slot 2)
-        if (!furnace.getSlot(2).getStack().isEmpty()) {
-            String outputName = Registries.ITEM.getId(furnace.getSlot(2).getStack().getItem()).getPath();
-            int count = furnace.getSlot(2).getStack().getCount();
-            client.interactionManager.clickSlot(syncId, 2, 0, SlotActionType.QUICK_MOVE, player);
-            msg.append("Collected ").append(count).append("x ").append(outputName).append(". ");
-        }
-
-        // 2. Add input item if slot 0 is empty
-        if (furnace.getSlot(0).getStack().isEmpty()) {
-            int itemSlot = findItemSlot(furnace, itemName, 3, 38);
-            if (itemSlot != -1) {
-                client.interactionManager.clickSlot(syncId, itemSlot, 0, SlotActionType.PICKUP, player);
-                client.interactionManager.clickSlot(syncId, 0, 0, SlotActionType.PICKUP, player);
-                msg.append("Loaded input. ");
-            } else if (msg.length() == 0) {
-                return errorResult("Item not in inventory: " + itemName);
+        switch (sa.smeltStep) {
+            case 0 -> {
+                // Take output if available (slot 2)
+                if (!furnace.getSlot(2).getStack().isEmpty()) {
+                    String outputName = Registries.ITEM.getId(furnace.getSlot(2).getStack().getItem()).getPath();
+                    int count = furnace.getSlot(2).getStack().getCount();
+                    client.interactionManager.clickSlot(syncId, 2, 0, SlotActionType.QUICK_MOVE, player);
+                    sa.smeltCollected = "Collected " + count + "x " + outputName + ". ";
+                }
+                sa.smeltStep++;
+            }
+            case 1 -> {
+                // Add input item if slot 0 is empty
+                if (furnace.getSlot(0).getStack().isEmpty()) {
+                    int itemSlot = findItemSlot(furnace, sa.smeltItemName, 3, 38);
+                    if (itemSlot != -1) {
+                        client.interactionManager.clickSlot(syncId, itemSlot, 0, SlotActionType.PICKUP, player);
+                        client.interactionManager.clickSlot(syncId, 0, 0, SlotActionType.PICKUP, player);
+                    } else if (sa.smeltCollected == null) {
+                        completeSustained(errorResult("Item not in inventory: " + sa.smeltItemName));
+                        return;
+                    }
+                }
+                sa.smeltStep++;
+            }
+            case 2 -> {
+                // Add fuel if slot 1 is empty
+                if (furnace.getSlot(1).getStack().isEmpty()) {
+                    int fuelSlot = findFuelSlot(furnace, 3, 38);
+                    if (fuelSlot != -1) {
+                        client.interactionManager.clickSlot(syncId, fuelSlot, 0, SlotActionType.PICKUP, player);
+                        client.interactionManager.clickSlot(syncId, 1, 0, SlotActionType.PICKUP, player);
+                    }
+                }
+                sa.smeltStep++;
+            }
+            default -> {
+                String msg = (sa.smeltCollected != null ? sa.smeltCollected : "") + "Furnace active";
+                completeSustained(successResult(msg.trim()));
             }
         }
-
-        // 3. Add fuel if slot 1 is empty
-        if (furnace.getSlot(1).getStack().isEmpty()) {
-            int fuelSlot = findFuelSlot(furnace, 3, 38);
-            if (fuelSlot != -1) {
-                client.interactionManager.clickSlot(syncId, fuelSlot, 0, SlotActionType.PICKUP, player);
-                client.interactionManager.clickSlot(syncId, 1, 0, SlotActionType.PICKUP, player);
-                msg.append("Added fuel. ");
-            } else {
-                msg.append("No fuel found. ");
-            }
-        }
-
-        return successResult(msg.length() > 0 ? msg.toString().trim() : "Furnace active");
     }
 
     // --- Wait (no-op) ---
@@ -878,6 +975,11 @@ public class ActionExecutor {
             if ("eat".equals(sa.type)) client.options.useKey.setPressed(false);
             if ("break_block".equals(sa.type) && client.interactionManager != null) {
                 client.interactionManager.cancelBlockBreaking();
+            }
+            if ("craft".equals(sa.type) || "smelt".equals(sa.type)) {
+                if (client.player != null) {
+                    client.player.closeHandledScreen();
+                }
             }
             if (!sa.future.isDone()) {
                 sa.future.complete(successResult("Stopped"));
