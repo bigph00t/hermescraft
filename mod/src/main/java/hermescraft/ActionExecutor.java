@@ -435,7 +435,7 @@ public class ActionExecutor {
         }
     }
 
-    // --- Look at block by coordinates (for manual mining) ---
+    // --- Look at and approach block by coordinates (for manual mining) ---
     private static String handleLookAtBlock(JsonObject action, MinecraftClient client) {
         if (!action.has("x") || !action.has("y") || !action.has("z")) {
             return errorResult("look_at_block requires x, y, z coordinates");
@@ -456,13 +456,28 @@ public class ActionExecutor {
         Vec3d target = Vec3d.ofCenter(pos);
         lookAtPos(player, target);
 
+        // Auto-walk toward block if > 2 blocks away (so player can collect drops after breaking)
+        if (dist > 2.5) {
+            client.options.forwardKey.setPressed(true);
+            // Walk for enough ticks to close the gap (rough: 4.3 blocks/sec = ~5 ticks per block)
+            int walkTicks = Math.min((int)(dist * 5), 30);
+            // Schedule key release after walkTicks via a simple delayed task
+            new Thread(() -> {
+                try { Thread.sleep(walkTicks * 50L); } catch (InterruptedException ignored) {}
+                client.execute(() -> {
+                    client.options.forwardKey.setPressed(false);
+                    lookAtPos(player, Vec3d.ofCenter(pos)); // Re-aim after walking
+                });
+            }).start();
+        }
+
         BlockState blockState = client.world.getBlockState(pos);
         if (blockState.isAir()) {
-            return successResult("Looking at air at " + x + ", " + y + ", " + z + " (block already mined?)");
+            return successResult("Approaching " + x + ", " + y + ", " + z + " (block already mined — collecting drops)");
         }
 
         String blockName = Registries.BLOCK.getId(blockState.getBlock()).getPath();
-        return successResult("Looking at " + blockName + " at " + x + ", " + y + ", " + z + " (dist: " + Math.round(dist * 10.0) / 10.0 + ")");
+        return successResult("Approaching " + blockName + " at " + x + ", " + y + ", " + z + " (dist: " + Math.round(dist * 10.0) / 10.0 + ")");
     }
 
     // --- Craft items — sustained action with visual tick delays ---

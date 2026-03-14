@@ -13,7 +13,7 @@ Use your NOTEPAD as your strategic journal. Write plans, track progress, note di
 
 IMPORTANT — how to play:
 - To gather blocks: find the block in nearbyBlocks (game state shows coordinates), use look_at_block with those x,y,z coordinates, then break_block. Repeat for each block you need.
-- Example: see "spruce_log(42,65,30 d:3)" in state → call look_at_block(42,65,30) → call break_block → check inventory.
+- Example: see "spruce_log(42,65,30 d:3)" in state → call look_at_block(42,65,30) (auto-walks closer) → call break_block → item drops, auto-collected. Check inventory next tick.
 - Use "navigate" ONLY for long-distance travel to coordinates far away.
 - Use "craft" to craft items. ALWAYS check your INVENTORY first — you need the ingredients.
 - Logs → planks → sticks → tools. Crafting table = 4 planks. PLACE it to use 3x3 recipes.

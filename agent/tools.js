@@ -22,7 +22,7 @@ export const GAME_TOOLS = [
     type: 'function',
     function: {
       name: 'look_at_block',
-      description: 'Turn to face a block at x,y,z coordinates (from nearbyBlocks in game state). Use before break_block to mine it.',
+      description: 'Walk to and face a block at x,y,z coordinates (from nearbyBlocks). Auto-approaches within reach. Use before break_block.',
       parameters: {
         type: 'object',
         properties: {
