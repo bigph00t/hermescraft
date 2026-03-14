@@ -3,7 +3,8 @@
 const MOD_URL = process.env.MOD_URL || 'http://localhost:3001';
 
 const VALID_ACTIONS = new Set([
-  'navigate', 'mine', 'look_at_block', 'craft', 'smelt', 'attack', 'eat', 'place',
+  'navigate', 'mine', 'look_at_block', 'interact_block', 'pickup_items',
+  'craft', 'smelt', 'attack', 'eat', 'place',
   'equip', 'look', 'chat', 'use_item', 'drop', 'swap_hands',
   'stop', 'jump', 'sneak', 'sprint', 'wait', 'close_screen',
   'break_block', 'walk', 'recipes', 'wiki', 'notepad',
@@ -20,6 +21,8 @@ const ACTION_SCHEMAS = {
   navigate:     (a) => a.x !== undefined && a.y !== undefined && a.z !== undefined,
   mine:         (a) => typeof a.blockName === 'string',
   look_at_block: (a) => a.x !== undefined && a.y !== undefined && a.z !== undefined,
+  interact_block: (a) => a.x !== undefined && a.y !== undefined && a.z !== undefined,
+  pickup_items: () => true,
   craft:        (a) => typeof a.item === 'string',
   smelt:        (a) => typeof a.item === 'string',
   attack:       () => true,

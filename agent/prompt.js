@@ -15,9 +15,12 @@ CRITICAL — how to gather blocks:
 - Use "mine" to find and gather blocks. It pathfinds to the nearest one and mines for 10 seconds, then stops. Use this when the block isn't in nearbyBlocks or when you need to search.
 - If a block IS in nearbyBlocks with coordinates, use look_at_block(x,y,z) then break_block for faster targeted mining.
 - Example: no logs nearby → mine(blockName="oak_log"). Logs in state → look_at_block(42,65,30) → break_block.
-- ALWAYS check inventory after mining before crafting. Items must be in inventory.
+- After break_block, use pickup_items if the item didn't appear in inventory (it dropped nearby).
+- Use interact_block(x,y,z) to right-click blocks: open doors, chests, press buttons, pull levers.
 - Use "navigate" for long-distance travel to specific coordinates.
-- Use "craft" to craft items. ALWAYS check your INVENTORY first — you need the ingredients.
+- ALWAYS check inventory before crafting. Use "craft" only when you HAVE the ingredients.
+- Check "Looking at:" in game state to verify aim before break_block.
+- When stuck: use wiki to research, write a plan in notepad, try a completely different approach.
 - Logs → planks → sticks → tools. Crafting table = 4 planks. PLACE it to use 3x3 recipes.
 - Tool tiers: wood → stone → iron → diamond. Each mines the next tier.
 - Furnace = 8 cobblestone. Smelts ores with fuel (coal/planks).

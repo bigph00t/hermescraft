@@ -76,6 +76,11 @@ public class ActionExecutor {
         int smeltStep = 0;
         String smeltItemName;
         String smeltCollected;
+        // look_at_block (approach) state
+        BlockPos approachTarget;
+        String approachBlockName;
+        // pickup_items state
+        int pickupPhase = 0; // 0=forward, 1=left, 2=back, 3=right
 
         SustainedAction(String type, CompletableFuture<String> future, int maxTicks) {
             this.type = type;
@@ -191,6 +196,14 @@ public class ActionExecutor {
                     startSmelt(client, pa.action, pa.future);
                     return;
                 }
+                case "look_at_block" -> {
+                    startApproachBlock(client, pa.action, pa.future);
+                    return;
+                }
+                case "pickup_items" -> {
+                    startPickupItems(client, pa.future);
+                    return;
+                }
             }
 
             // Instant action — execute immediately on the client thread
@@ -206,7 +219,7 @@ public class ActionExecutor {
         return switch (type) {
             case "navigate" -> handleNavigate(action, client);
             case "mine" -> handleMine(action, client);
-            case "look_at_block" -> handleLookAtBlock(action, client);
+            case "interact_block" -> handleInteractBlock(action, client);
             case "attack" -> handleAttack(action, client);
             case "place" -> handlePlace(action, client);
             case "equip" -> handleEquip(action, client);
@@ -344,6 +357,8 @@ public class ActionExecutor {
             case "eat" -> tickEat(client, sa);
             case "craft" -> tickCraft(client, sa);
             case "smelt" -> tickSmelt(client, sa);
+            case "look_at_block" -> tickApproachBlock(client, sa);
+            case "pickup_items" -> tickPickupItems(client, sa);
         }
     }
 
@@ -460,13 +475,17 @@ public class ActionExecutor {
         return successResult("Mining " + blockName + " (auto-stops in 10s)");
     }
 
-    // --- Look at and approach block by coordinates (for manual mining) ---
-    private static String handleLookAtBlock(JsonObject action, MinecraftClient client) {
+    // --- Approach block (sustained) — walk toward block until close, then aim ---
+    private static void startApproachBlock(MinecraftClient client, JsonObject action, CompletableFuture<String> future) {
         if (!action.has("x") || !action.has("y") || !action.has("z")) {
-            return errorResult("look_at_block requires x, y, z coordinates");
+            future.complete(errorResult("look_at_block requires x, y, z coordinates"));
+            return;
         }
         ClientPlayerEntity player = client.player;
-        if (player == null || client.world == null) return errorResult("Not in game");
+        if (player == null || client.world == null) {
+            future.complete(errorResult("Not in game"));
+            return;
+        }
 
         int x = action.get("x").getAsInt();
         int y = action.get("y").getAsInt();
@@ -474,35 +493,149 @@ public class ActionExecutor {
         BlockPos pos = new BlockPos(x, y, z);
 
         double dist = Math.sqrt(player.getBlockPos().getSquaredDistance(pos));
-        if (dist > 10) {
-            return errorResult("Block too far (" + Math.round(dist) + " blocks). Use navigate to get closer.");
-        }
-
-        Vec3d target = Vec3d.ofCenter(pos);
-        lookAtPos(player, target);
-
-        // Auto-walk toward block if > 2 blocks away (so player can collect drops after breaking)
-        if (dist > 2.5) {
-            client.options.forwardKey.setPressed(true);
-            // Walk for enough ticks to close the gap (rough: 4.3 blocks/sec = ~5 ticks per block)
-            int walkTicks = Math.min((int)(dist * 5), 30);
-            // Schedule key release after walkTicks via a simple delayed task
-            new Thread(() -> {
-                try { Thread.sleep(walkTicks * 50L); } catch (InterruptedException ignored) {}
-                client.execute(() -> {
-                    client.options.forwardKey.setPressed(false);
-                    lookAtPos(player, Vec3d.ofCenter(pos)); // Re-aim after walking
-                });
-            }).start();
+        if (dist > 12) {
+            future.complete(errorResult("Block too far (" + Math.round(dist) + " blocks). Use navigate to get closer."));
+            return;
         }
 
         BlockState blockState = client.world.getBlockState(pos);
+        String blockName = blockState.isAir() ? "air" : Registries.BLOCK.getId(blockState.getBlock()).getPath();
+
+        // Already close enough — just aim and complete
+        if (dist < 3.0) {
+            lookAtPos(player, Vec3d.ofCenter(pos));
+            future.complete(successResult("Looking at " + blockName + " at " + x + "," + y + "," + z + " (dist: " + Math.round(dist * 10.0) / 10.0 + ")"));
+            return;
+        }
+
+        // Start sustained approach
+        SustainedAction sa = new SustainedAction("look_at_block", future, 60); // 3 second timeout
+        sa.approachTarget = pos;
+        sa.approachBlockName = blockName;
+        currentSustained = sa;
+
+        // Face the block and start walking
+        lookAtPos(player, Vec3d.ofCenter(pos));
+        client.options.forwardKey.setPressed(true);
+
+        HermesBridgeMod.LOGGER.info("[HermesBridge] Approaching {} at {} (dist: {})", blockName, pos, Math.round(dist));
+    }
+
+    private static void tickApproachBlock(MinecraftClient client, SustainedAction sa) {
+        ClientPlayerEntity player = client.player;
+        if (player == null) {
+            client.options.forwardKey.setPressed(false);
+            completeSustained(errorResult("Player disconnected"));
+            return;
+        }
+
+        double dist = Math.sqrt(player.getBlockPos().getSquaredDistance(sa.approachTarget));
+
+        // Re-aim each tick (player may have turned)
+        lookAtPos(player, Vec3d.ofCenter(sa.approachTarget));
+
+        // Close enough — stop and aim
+        if (dist < 3.0) {
+            client.options.forwardKey.setPressed(false);
+            lookAtPos(player, Vec3d.ofCenter(sa.approachTarget));
+            completeSustained(successResult("Looking at " + sa.approachBlockName + " at " +
+                sa.approachTarget.getX() + "," + sa.approachTarget.getY() + "," + sa.approachTarget.getZ() +
+                " (dist: " + Math.round(dist * 10.0) / 10.0 + ")"));
+            return;
+        }
+
+        // Timeout — couldn't get close enough
+        if (sa.ticksRemaining <= 0) {
+            client.options.forwardKey.setPressed(false);
+            completeSustained(errorResult("Could not reach block (dist: " + Math.round(dist) + "). Use navigate to get closer or try a different block."));
+            return;
+        }
+
+        // Auto-jump if hitting a wall (velocity near zero while trying to walk)
+        if (sa.ticksElapsed > 5 && player.isOnGround() && player.getVelocity().horizontalLengthSquared() < 0.001) {
+            player.jump();
+        }
+
+        // Keep walking
+        client.options.forwardKey.setPressed(true);
+    }
+
+    // --- Interact (right-click) block at coordinates — doors, chests, buttons, levers ---
+    private static String handleInteractBlock(JsonObject action, MinecraftClient client) {
+        if (!action.has("x") || !action.has("y") || !action.has("z")) {
+            return errorResult("interact_block requires x, y, z coordinates");
+        }
+        ClientPlayerEntity player = client.player;
+        if (player == null || client.interactionManager == null) return errorResult("Not in game");
+
+        int x = action.get("x").getAsInt();
+        int y = action.get("y").getAsInt();
+        int z = action.get("z").getAsInt();
+        BlockPos pos = new BlockPos(x, y, z);
+
+        double dist = Math.sqrt(player.getBlockPos().getSquaredDistance(pos));
+        if (dist > 6) {
+            return errorResult("Block too far to interact (" + Math.round(dist) + " blocks). Get closer first.");
+        }
+
+        Vec3d center = Vec3d.ofCenter(pos);
+        lookAtPos(player, center);
+
+        BlockState blockState = client.world.getBlockState(pos);
         if (blockState.isAir()) {
-            return successResult("Approaching " + x + ", " + y + ", " + z + " (block already mined — collecting drops)");
+            return errorResult("No block at " + x + "," + y + "," + z);
         }
 
         String blockName = Registries.BLOCK.getId(blockState.getBlock()).getPath();
-        return successResult("Approaching " + blockName + " at " + x + ", " + y + ", " + z + " (dist: " + Math.round(dist * 10.0) / 10.0 + ")");
+
+        BlockHitResult hit = new BlockHitResult(center, Direction.UP, pos, false);
+        client.interactionManager.interactBlock(player, Hand.MAIN_HAND, hit);
+        player.swingHand(Hand.MAIN_HAND);
+
+        return successResult("Interacted with " + blockName + " at " + x + "," + y + "," + z);
+    }
+
+    // --- Pickup items — walk in small area to collect drops ---
+    private static void startPickupItems(MinecraftClient client, CompletableFuture<String> future) {
+        ClientPlayerEntity player = client.player;
+        if (player == null) {
+            future.complete(errorResult("Not in game"));
+            return;
+        }
+
+        SustainedAction sa = new SustainedAction("pickup_items", future, 30); // ~1.5 seconds
+        sa.pickupPhase = 0;
+        currentSustained = sa;
+
+        // Start by walking forward briefly
+        client.options.forwardKey.setPressed(true);
+        HermesBridgeMod.LOGGER.info("[HermesBridge] Picking up items");
+    }
+
+    private static void tickPickupItems(MinecraftClient client, SustainedAction sa) {
+        ClientPlayerEntity player = client.player;
+        if (player == null) {
+            completeSustained(errorResult("Player disconnected"));
+            return;
+        }
+
+        // Walk in 4 directions, ~7 ticks each, to sweep the area
+        int phase = sa.ticksElapsed / 7;
+        if (phase != sa.pickupPhase) {
+            sa.pickupPhase = phase;
+            client.options.forwardKey.setPressed(false);
+            switch (phase) {
+                case 1 -> { player.setYaw(player.getYaw() + 90); client.options.forwardKey.setPressed(true); }
+                case 2 -> { player.setYaw(player.getYaw() + 90); client.options.forwardKey.setPressed(true); }
+                case 3 -> { player.setYaw(player.getYaw() + 90); client.options.forwardKey.setPressed(true); }
+            }
+        }
+
+        if (sa.ticksRemaining <= 0 || phase >= 4) {
+            client.options.forwardKey.setPressed(false);
+            completeSustained(successResult("Swept area for item pickup"));
+            return;
+        }
     }
 
     // --- Craft items — sustained action with visual tick delays ---
@@ -1029,6 +1162,9 @@ public class ActionExecutor {
             if ("eat".equals(sa.type)) client.options.useKey.setPressed(false);
             if ("break_block".equals(sa.type) && client.interactionManager != null) {
                 client.interactionManager.cancelBlockBreaking();
+            }
+            if ("look_at_block".equals(sa.type) || "pickup_items".equals(sa.type)) {
+                client.options.forwardKey.setPressed(false);
             }
             if ("craft".equals(sa.type) || "smelt".equals(sa.type)) {
                 if (client.player != null) {

@@ -36,7 +36,7 @@ export const GAME_TOOLS = [
     type: 'function',
     function: {
       name: 'look_at_block',
-      description: 'Walk to and face block at x,y,z from nearbyBlocks. Use before break_block when block IS in nearbyBlocks.',
+      description: 'Walk to and face block at x,y,z. Auto-walks, auto-jumps obstacles. Use before break_block.',
       parameters: {
         type: 'object',
         properties: {
@@ -46,6 +46,30 @@ export const GAME_TOOLS = [
         },
         required: ['x', 'y', 'z'],
       },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'interact_block',
+      description: 'Right-click a block. Opens doors, chests, presses buttons, pulls levers, opens crafting tables.',
+      parameters: {
+        type: 'object',
+        properties: {
+          x: { type: 'integer', description: 'X coordinate' },
+          y: { type: 'integer', description: 'Y coordinate' },
+          z: { type: 'integer', description: 'Z coordinate' },
+        },
+        required: ['x', 'y', 'z'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'pickup_items',
+      description: 'Walk around briefly to collect dropped items nearby. Use after break_block if items not in inventory.',
+      parameters: { type: 'object', properties: {} },
     },
   },
   {

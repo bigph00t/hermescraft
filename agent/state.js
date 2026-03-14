@@ -110,6 +110,11 @@ export function summarizeState(state) {
     }
   }
 
+  // Crosshair — what the player is aiming at
+  if (state.lookingAt) {
+    lines.push(`Looking at: ${state.lookingAt} (dist: ${state.lookingAtDist || '?'})`);
+  }
+
   // Navigation status — detect movement to infer Baritone is working
   if (navigateActive) {
     if (stateHistory.length >= 2) {

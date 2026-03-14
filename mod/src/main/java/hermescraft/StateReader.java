@@ -198,6 +198,18 @@ public class StateReader {
         // Baritone status
         state.addProperty("isPathing", BaritoneIntegration.isPathing());
 
+        // Crosshair target — what the player is looking at
+        net.minecraft.util.hit.HitResult hitResult = client.crosshairTarget;
+        if (hitResult != null && hitResult.getType() == net.minecraft.util.hit.HitResult.Type.BLOCK) {
+            net.minecraft.util.hit.BlockHitResult blockHit = (net.minecraft.util.hit.BlockHitResult) hitResult;
+            BlockPos hitPos = blockHit.getBlockPos();
+            BlockState hitState = world.getBlockState(hitPos);
+            if (!hitState.isAir()) {
+                state.addProperty("lookingAt", Registries.BLOCK.getId(hitState.getBlock()).getPath());
+                state.addProperty("lookingAtDist", Math.round(Math.sqrt(player.getBlockPos().getSquaredDistance(hitPos)) * 10.0) / 10.0);
+            }
+        }
+
         // Open screen (crafting table, furnace, chest, etc.)
         ScreenHandler handler = player.currentScreenHandler;
         if (handler != null && handler != player.playerScreenHandler) {
