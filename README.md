@@ -44,11 +44,14 @@ The agent maintains multi-turn conversation history with tool results, learns fr
 ### Visible Thinking
 The model produces `<think>` reasoning before tool calls. Viewers see the strategic mind at work — planning, weighing tradeoffs, reacting to danger. Works with any Hermes model that supports thinking mode.
 
+### Seed Skills + Skill Learning
+Ships with 9 foundational skills in [agentskills.io](https://agentskills.io) format — one per phase plus general knowledge (resource gathering, combat). The agent uses these from tick 1, then creates and updates skills as it completes phases. Skills include step-by-step strategies, tips, and lessons learned from deaths.
+
 ### Multi-Level Memory
 - **L1 Session**: Multi-round conversation history with tool results
 - **L2 Curated**: Lessons from deaths, strategies, world knowledge (persisted to disk)
 - **L3 Transcripts**: Full session logs in JSONL
-- **L4 Skills**: Learned strategies per phase in [agentskills.io](https://agentskills.io) format, auto-created on phase completion
+- **L4 Skills**: Phase strategies + general knowledge, auto-created on phase completion
 
 ### Visual Crafting & Smelting
 Crafting and smelting are sustained multi-tick actions — the GUI opens visually and items are placed one per tick so viewers can see the process. Screen contents (crafting grid, furnace slots) are reported in game state.
