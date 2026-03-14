@@ -7,6 +7,10 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# Ensure conda/node on PATH (RunPod resets PATH on pod restart)
+[ -d /workspace/miniconda/bin ] && export PATH=/workspace/miniconda/bin:$PATH
+command -v node >/dev/null 2>&1 || { [ -d /workspace/miniconda/bin ] && export PATH=/workspace/miniconda/bin:$PATH; }
+
 # Load .env if present
 [ -f .env ] && { set -a; source .env; set +a; }
 
