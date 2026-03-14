@@ -432,7 +432,7 @@ async function tick() {
   }
 
   // Track navigation state for Baritone awareness
-  if (actionType === 'navigate' && result?.success !== false) {
+  if ((actionType === 'navigate' || actionType === 'mine') && result?.success !== false) {
     setNavigating(true);
   } else if (actionType === 'stop') {
     setNavigating(false);

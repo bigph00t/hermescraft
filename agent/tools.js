@@ -21,8 +21,22 @@ export const GAME_TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'mine',
+      description: 'Find and mine a block type via pathfinding (auto-stops after 10s). Use when the block is NOT in nearbyBlocks.',
+      parameters: {
+        type: 'object',
+        properties: {
+          blockName: { type: 'string', description: 'e.g. "oak_log", "iron_ore", "cobblestone"' },
+        },
+        required: ['blockName'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'look_at_block',
-      description: 'Walk to and face a block at x,y,z coordinates (from nearbyBlocks). Auto-approaches within reach. Use before break_block.',
+      description: 'Walk to and face block at x,y,z from nearbyBlocks. Use before break_block when block IS in nearbyBlocks.',
       parameters: {
         type: 'object',
         properties: {
@@ -118,7 +132,7 @@ export const GAME_TOOLS = [
     type: 'function',
     function: {
       name: 'look',
-      description: 'Look in direction. Yaw: 0=south,90=west,180=north,270=east. Pitch: -90=up,0=horizon,90=down.',
+      description: 'Set camera direction by angle. NOT for mining — use look_at_block instead. Only for scanning surroundings.',
       parameters: {
         type: 'object',
         properties: {

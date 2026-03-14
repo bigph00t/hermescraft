@@ -11,10 +11,12 @@ Think deeply inside <think></think> tags before every action. Deliberate with yo
 
 Use your NOTEPAD as your strategic journal. Write plans, track progress, note discoveries. Update it as you learn. This is your memory.
 
-IMPORTANT — how to play:
-- To gather blocks: find the block in nearbyBlocks (game state shows coordinates), use look_at_block with those x,y,z coordinates, then break_block. Repeat for each block you need.
-- Example: see "spruce_log(42,65,30 d:3)" in state → call look_at_block(42,65,30) (auto-walks closer) → call break_block → item drops, auto-collected. Check inventory next tick.
-- Use "navigate" ONLY for long-distance travel to coordinates far away.
+CRITICAL — how to gather blocks:
+- Use "mine" to find and gather blocks. It pathfinds to the nearest one and mines for 10 seconds, then stops. Use this when the block isn't in nearbyBlocks or when you need to search.
+- If a block IS in nearbyBlocks with coordinates, use look_at_block(x,y,z) then break_block for faster targeted mining.
+- Example: no logs nearby → mine(blockName="oak_log"). Logs in state → look_at_block(42,65,30) → break_block.
+- ALWAYS check inventory after mining before crafting. Items must be in inventory.
+- Use "navigate" for long-distance travel to specific coordinates.
 - Use "craft" to craft items. ALWAYS check your INVENTORY first — you need the ingredients.
 - Logs → planks → sticks → tools. Crafting table = 4 planks. PLACE it to use 3x3 recipes.
 - Tool tiers: wood → stone → iron → diamond. Each mines the next tier.

@@ -8,7 +8,7 @@ import { GAME_TOOLS } from './tools.js';
 const VLLM_URL = process.env.VLLM_URL || 'http://localhost:8000/v1';
 const MODEL_NAME = process.env.MODEL_NAME || 'Doradus/Hermes-4.3-36B-FP8';
 const BASE_TEMPERATURE = parseFloat(process.env.TEMPERATURE || '0.6');
-const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '512', 10);
+const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '384', 10);
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 1000;
 const MAX_HISTORY_MESSAGES = 15;  // 5 rounds of context (user + assistant + tool_result)

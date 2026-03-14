@@ -205,6 +205,7 @@ public class ActionExecutor {
     private static String executeInstant(String type, JsonObject action, MinecraftClient client) {
         return switch (type) {
             case "navigate" -> handleNavigate(action, client);
+            case "mine" -> handleMine(action, client);
             case "look_at_block" -> handleLookAtBlock(action, client);
             case "attack" -> handleAttack(action, client);
             case "place" -> handlePlace(action, client);
@@ -433,6 +434,30 @@ public class ActionExecutor {
         } else {
             return errorResult("Failed to start navigation (Baritone not available)");
         }
+    }
+
+    // --- Mine blocks using Baritone (auto-stops after 10 seconds) ---
+    private static String handleMine(JsonObject action, MinecraftClient client) {
+        if (!action.has("blockName")) {
+            return errorResult("Mine requires 'blockName'");
+        }
+        String blockName = action.get("blockName").getAsString();
+
+        boolean started = BaritoneIntegration.mine(blockName, 1);
+        if (!started) {
+            return errorResult("Failed to start mining (Baritone not available)");
+        }
+
+        // Auto-stop Baritone after 10 seconds so agent can think again
+        new Thread(() -> {
+            try { Thread.sleep(10000); } catch (InterruptedException ignored) {}
+            client.execute(() -> {
+                BaritoneIntegration.stop();
+                HermesBridgeMod.LOGGER.info("[HermesBridge] Auto-stopped mining {} after 10s", blockName);
+            });
+        }).start();
+
+        return successResult("Mining " + blockName + " (auto-stops in 10s)");
     }
 
     // --- Look at and approach block by coordinates (for manual mining) ---
