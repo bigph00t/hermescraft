@@ -7,8 +7,8 @@
 
 MODEL="${MODEL_NAME:-NousResearch/Hermes-4-14B}"
 PORT="${VLLM_PORT:-8000}"
-GPU_MEM="${GPU_MEM:-0.90}"
-MAX_LEN="${MAX_MODEL_LEN:-8192}"
+GPU_MEM="${GPU_MEM:-0.95}"
+MAX_LEN="${MAX_MODEL_LEN:-4096}"
 
 echo "Starting vLLM — $MODEL"
 echo "Port: $PORT | GPU mem: $GPU_MEM | Max len: $MAX_LEN"
@@ -22,7 +22,9 @@ while true; do
     --max-model-len "$MAX_LEN" \
     --gpu-memory-utilization "$GPU_MEM" \
     --enable-auto-tool-choice \
-    --tool-call-parser hermes
+    --tool-call-parser hermes \
+    --enable-prefix-caching \
+    --max-num-seqs 4
 
   echo "[!] vLLM died — restarting in 5s..."
   sleep 5
