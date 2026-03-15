@@ -673,7 +673,10 @@ case "$CMD" in
         Z="${3:?Usage: mc rally X Y Z}"
         MSG="${4:-}"
         DATA="{\"x\":$X,\"y\":$Y,\"z\":$Z"
-        [ -n "$MSG" ] && DATA="$DATA,\"message\":\"$MSG\""
+        if [ -n "$MSG" ]; then
+            ESCAPED_MSG=$(python3 -c "import json,sys; print(json.dumps(sys.argv[1]))" "$MSG")
+            DATA="$DATA,\"message\":$ESCAPED_MSG"
+        fi
         DATA="$DATA}"
         pretty "$(api_post '/action/rally' "$DATA")"
         ;;

@@ -125,7 +125,10 @@ let combatStats = { kills: 0, deaths: 0, assists: 0, damageDealt: 0, damageTaken
 let recentDamagers = {}; // { username: lastDamageTime } for assist tracking
 
 // Active furnaces (fire-and-forget tracking)
-let activeFurnaces = []; // [{ x, y, z, input, count, startTime, estimatedDone }]
+let activeFurnaces = [];
+
+// Local sneak state tracking (Mineflayer controlState is write-only)
+let isSneaking = false; // [{ x, y, z, input, count, startTime, estimatedDone }]
 
 // ═══════════════════════════════════════════════════════════════════
 // Chat Handling — ALL decisions made by the AI, not the bot
@@ -245,17 +248,39 @@ async function createBot() {
         handleChat(username, `hermes ${message}`).catch(e => log(`Whisper handler error: ${e.message}`));
       });
 
-      // Health tracking
+      // Health tracking + combat stats
       bot.on('health', () => {
         if (bot.health < lastHealth) {
           const damage = lastHealth - bot.health;
+          combatStats.damageTaken += damage;
           log(`Took ${damage.toFixed(1)} damage (HP: ${bot.health.toFixed(1)})`);
         }
         lastHealth = bot.health;
       });
 
+      // Sound events: detect nearby entity digging
+      bot.on('blockBreakProgressObserved', (block, destroyStage, entity) => {
+        if (entity && entity !== bot.entity) {
+          addSoundEvent('mining', block.position, FAIR_PLAY.SOUND_MINE_RADIUS);
+        }
+      });
+
+      // Sound events: detect nearby entity sprinting/movement
+      bot._soundCheckInterval = setInterval(() => {
+        if (!bot || !botReady) return;
+        Object.values(bot.entities).forEach(e => {
+          if (e === bot.entity || !e.position) return;
+          const vel = e.velocity;
+          if (!vel) return;
+          const speed = Math.sqrt(vel.x*vel.x + vel.z*vel.z);
+          if (speed > 0.2) addSoundEvent('sprinting', e.position, FAIR_PLAY.SOUND_SPRINT_RADIUS);
+          else if (speed > 0.05) addSoundEvent('walking', e.position, FAIR_PLAY.SOUND_WALK_RADIUS);
+        });
+      }, 2000);
+
       // Death tracking
       bot.on('death', () => {
+        combatStats.deaths++;
         lastDeath = {
           time: Date.now(),
           position: posObj(),
@@ -279,6 +304,7 @@ async function createBot() {
         log(`Disconnected: ${reason}`);
         botReady = false;
         positionHistory = []; // clear stuck detection history
+        if (bot?._soundCheckInterval) { clearInterval(bot._soundCheckInterval); bot._soundCheckInterval = null; }
         const delay = Math.min(5000 * Math.pow(2, reconnectAttempts), 60000);
         reconnectAttempts++;
         log(`Reconnecting in ${delay / 1000}s (attempt ${reconnectAttempts})...`);
@@ -550,7 +576,7 @@ function getFullState() {
     lastDeath: lastDeath ? { position: lastDeath.position, seconds_ago: Math.round((Date.now()-lastDeath.time)/1000) } : null,
     onGround: b.entity.onGround,
     isRaining: b.isRaining,
-    isSneaking: b.controlState?.sneak || false,
+    isSneaking: isSneaking,
     // Fair play: sound events (directional hints without exact positions)
     sounds: soundEvents.length > 0 ? soundEvents.slice(-5) : undefined,
     // Team info
@@ -812,6 +838,9 @@ const ACTIONS = {
     let entities = Object.values(b.entities)
       .filter(e => e !== b.entity && e.position.distanceTo(pos) < radius);
 
+    // Fair play: filter by line-of-sight
+    entities = filterEntitiesFairPlay(entities);
+
     if (type) {
       entities = entities.filter(e =>
         (e.name || '').toLowerCase().includes(type.toLowerCase()) ||
@@ -954,17 +983,17 @@ const ACTIONS = {
   // ── Combat ───────────────────────────────────────
   async attack({ target }) {
     const b = ensureBot();
+    await reactionDelay();
     const hostiles = ['zombie', 'skeleton', 'creeper', 'spider', 'enderman', 'witch', 'drowned', 'phantom', 'blaze', 'ghast', 'wither_skeleton', 'piglin_brute', 'cave_spider'];
 
+    // Fair play: only attack visible entities
+    const rawEnts = Object.values(b.entities).filter(e => e !== b.entity);
+    const visible = filterEntitiesFairPlay(rawEnts);
     let entity;
     if (target) {
-      entity = b.nearestEntity(e =>
-        e !== b.entity && (e.name || '').toLowerCase().includes(target.toLowerCase())
-      );
+      entity = visible.find(e => (e.name || '').toLowerCase().includes(target.toLowerCase()));
     } else {
-      entity = b.nearestEntity(e =>
-        e !== b.entity && hostiles.includes((e.name || '').toLowerCase())
-      );
+      entity = visible.find(e => hostiles.includes((e.name || '').toLowerCase()));
     }
     if (!entity) throw new Error(`No ${target || 'hostile mob'} found nearby.`);
 
@@ -1099,11 +1128,14 @@ const ACTIONS = {
     const hostiles = ['zombie','skeleton','spider','creeper','enderman','witch',
                       'drowned','husk','stray','phantom','pillager','vindicator','blaze',
                       'wither_skeleton','ghast','piglin_brute','hoglin'];
+    // Fair play: only fight visible entities
+    const rawEnts = Object.values(b.entities).filter(e => e !== b.entity);
+    const visible = filterEntitiesFairPlay(rawEnts);
     let entity;
     if (target) {
-      entity = b.nearestEntity(e => e.name?.includes(target) || e.displayName?.includes(target));
+      entity = visible.find(e => e.name?.includes(target) || e.displayName?.includes(target));
     } else {
-      entity = b.nearestEntity(e => hostiles.some(h => e.name?.includes(h)) && e.position?.distanceTo(b.entity.position) < 16);
+      entity = visible.find(e => hostiles.some(h => e.name?.includes(h)) && e.position?.distanceTo(b.entity.position) < 16);
     }
     if (!entity) return { result: `No ${target || 'hostile'} found nearby` };
 
@@ -1144,10 +1176,20 @@ const ACTIONS = {
     return { result: `Fight timeout. ${hits} hits on ${targetName}. Health: ${b.health}` };
   },
 
-  async flee({ distance = 16 }) {
+  async flee({ distance = 16, from }) {
     const b = ensureBot();
-    const hostiles = ['zombie','skeleton','spider','creeper','enderman','witch','drowned','husk','stray','phantom','blaze','wither_skeleton'];
-    const threat = b.nearestEntity(e => hostiles.some(h => e.name?.includes(h)));
+    const hostiles = ['zombie','skeleton','spider','creeper','enderman','witch','drowned','husk','stray','phantom','blaze','wither_skeleton','player'];
+    let threat;
+    if (from) {
+      // Flee from specific entity
+      const rawEnts = Object.values(b.entities).filter(e => e !== b.entity);
+      const visible = filterEntitiesFairPlay(rawEnts);
+      threat = visible.find(e => (e.name || '').toLowerCase().includes(from.toLowerCase()) || (e.username || '').toLowerCase().includes(from.toLowerCase()));
+    } else {
+      const rawEnts = Object.values(b.entities).filter(e => e !== b.entity);
+      const visible = filterEntitiesFairPlay(rawEnts);
+      threat = visible.find(e => hostiles.some(h => (e.name || '').includes(h)));
+    }
     if (!threat) return { result: 'No threats nearby' };
 
     const dx = b.entity.position.x - threat.position.x;
@@ -1268,7 +1310,8 @@ const ACTIONS = {
 
   async sneak({ enable = true }) {
     const b = ensureBot();
-    b.setControlState('sneak', enable);
+    b.setControlState('sneak', !!enable);
+    isSneaking = !!enable;
     return { result: enable ? 'Sneaking — nameplate hidden, reduced detection range' : 'Stopped sneaking' };
   },
 
@@ -1441,11 +1484,6 @@ const ACTIONS = {
       const perpX = dir === 'left' ? -dz/dist : dz/dist;
       const perpZ = dir === 'left' ? dx/dist : -dx/dist;
       
-      // Stay at ~3 block range
-      const targetDist = 3;
-      const adjX = b.entity.position.x + perpX * 1.5 + (dx/dist) * (dist - targetDist) * 0.3;
-      const adjZ = b.entity.position.z + perpZ * 1.5 + (dz/dist) * (dist - targetDist) * 0.3;
-      
       await b.lookAt(entity.position.offset(0, entity.height * 0.8, 0));
       
       // Move toward strafe position
@@ -1585,7 +1623,6 @@ const ACTIONS = {
     const inputItem = furnace.inputItem();
     const fuelItem = furnace.fuelItem();
     const outputItem = furnace.outputItem();
-    const progress = furnace.progress || 0;
     furnace.close();
 
     return {
@@ -1593,7 +1630,7 @@ const ACTIONS = {
         `Input: ${inputItem ? `${inputItem.name} x${inputItem.count}` : 'empty'} | ` +
         `Fuel: ${fuelItem ? `${fuelItem.name} x${fuelItem.count}` : 'empty'} | ` +
         `Output: ${outputItem ? `${outputItem.name} x${outputItem.count}` : 'empty'} | ` +
-        `Progress: ${Math.round(progress * 100)}%`,
+        `Status: ${outputItem ? 'output ready!' : inputItem ? 'smelting...' : 'idle'}`,
       ready: !!outputItem,
       output: outputItem ? { name: outputItem.name, count: outputItem.count } : null,
     };
@@ -1908,7 +1945,7 @@ setInterval(() => {
   positionHistory.push({ time: Date.now(), x: pos.x, y: pos.y, z: pos.z });
   positionHistory = positionHistory.filter(p => Date.now() - p.time < 60000);
   // Only check stuck for movement-based tasks (not craft, smelt, sleep, etc.)
-  const movementActions = ['goto', 'goto_near', 'follow', 'collect', 'fight', 'flee', 'go_mark', 'deathpoint', 'pickup'];
+  const movementActions = ['goto', 'goto_near', 'follow', 'collect', 'fight', 'flee', 'go_mark', 'deathpoint', 'pickup', 'sprint_attack', 'strafe', 'combo'];
   if (currentTask && currentTask.status === 'running' && movementActions.includes(currentTask.action)) {
     const old = positionHistory.find(p => Date.now() - p.time > 30000);
     if (old) {

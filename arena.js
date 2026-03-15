@@ -70,15 +70,23 @@ function generateTeams(size) {
   const redRoles = roles(size);
   const blueRoles = roles(size);
 
+  function namePlayer(team, roles, i) {
+    const role = roles[i];
+    const roleCount = roles.filter((r, j) => j <= i && r === role).length;
+    const totalOfRole = roles.filter(r => r === role).length;
+    const suffix = totalOfRole > 1 ? roleCount : '';
+    return `${team}_${role}${suffix}`.replace(/\s/g, '');
+  }
+
   const red = redRoles.map((role, i) => ({
-    username: `Red_${role}${i > 0 && redRoles.filter((r, j) => j < i && r === role).length > 0 ? redRoles.filter((r, j) => j < i && r === role).length + 1 : ''}`.replace(/\s/g, ''),
+    username: namePlayer('Red', redRoles, i),
     team: 'red',
     role,
     port: config.baseBotPort + i,
   }));
 
   const blue = blueRoles.map((role, i) => ({
-    username: `Blue_${role}${i > 0 && blueRoles.filter((r, j) => j < i && r === role).length > 0 ? blueRoles.filter((r, j) => j < i && r === role).length + 1 : ''}`.replace(/\s/g, ''),
+    username: namePlayer('Blue', blueRoles, i),
     team: 'blue',
     role,
     port: config.baseBotPort + size + i,
@@ -278,11 +286,15 @@ async function startBattle() {
 }
 
 async function monitorMatch() {
+  let monitoring = false;
   const checkInterval = setInterval(async () => {
     if (match.status !== 'battle') {
       clearInterval(checkInterval);
       return;
     }
+    if (monitoring) return; // prevent overlapping checks
+    monitoring = true;
+    try {
     
     // Check time limit
     if (Date.now() > match.endTime) {
@@ -307,11 +319,11 @@ async function monitorMatch() {
       try {
         const stats = await apiCall(player.port, 'GET', '/stats');
         if (stats.ok && stats.data) {
-          // Update match scores
-          // (In a real implementation, we'd track kills server-side via chat/death messages)
+          // Stats are tracked per-bot; aggregate here if needed
         }
       } catch {}
     }
+    } finally { monitoring = false; }
   }, 5000);
 }
 
@@ -332,7 +344,7 @@ async function endMatch(reason) {
   };
   
   console.log(`\n═══════════════════════════════════════`);
-  console.log(`  MATCH OVER — ${winner} WINS!`);
+  console.log(`  MATCH OVER — ${winner === 'TIE' ? "IT'S A TIE!" : winner + ' WINS!'}`);
   console.log(`  RED: ${match.scores.red} | BLUE: ${match.scores.blue}`);
   console.log(`  Duration: ${Math.round(result.duration / 60)}m ${result.duration % 60}s`);
   console.log(`  Reason: ${reason}`);
