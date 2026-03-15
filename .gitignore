@@ -1,15 +1,25 @@
 node_modules/
-.env
-*.jar
-*.class
-mod/build/
-mod/.gradle/
-mod/run/
 *.log
-/tmp/
-.DS_Store
-
-# Agent runtime data (generated, not source)
 agent/data/
-# agent/skills/ ships with seed skills, runtime skills also saved here
-RUNPOD_SSH.md
+.env
+package-lock.json
+
+# Gradle / Java build
+mod/.gradle/
+mod/build/
+mod/gradle/
+mod/gradlew
+mod/gradlew.bat
+mod/.idea/
+*.class
+*.jar
+
+# Old custom agent files (replaced by MCP)
+mc_mcp_server.py
+mc_mcp_server_local.py
+play.sh
+HANDOFF.md
+
+# Python
+__pycache__/
+*.pyc

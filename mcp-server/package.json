@@ -1,0 +1,16 @@
+{
+  "name": "hermescraft-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Minecraft HermesBridge - AI plays Minecraft via MCP tools",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "hermescraft-mcp": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1"
+  }
+}
