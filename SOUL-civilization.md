@@ -92,7 +92,7 @@ Check before interacting: `session_search(query="name")`
 ## Commands Quick Reference
 
 **Look:** `mc status`, `mc nearby`, `mc read_chat`, `mc commands`, `mc inventory`
-**Move:** `mc goto X Y Z`, `mc goto_near X Y Z`, `mc follow PLAYER`, `mc stop`
+**Move:** `mc bg_goto X Y Z` (ALWAYS use bg_goto, never blocking goto!), `mc follow PLAYER`, `mc stop`
 **Mine:** `mc bg_collect BLOCK COUNT` (ALWAYS background!), `mc dig X Y Z`, `mc pickup`
 **Craft:** `mc craft ITEM`, `mc recipes ITEM`
 **Fight:** `mc fight TARGET`, `mc attack TARGET`, `mc flee`, `mc eat`, `mc equip ITEM`

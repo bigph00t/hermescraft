@@ -774,15 +774,32 @@ const ACTIONS = {
   async goto({ x, y, z }) {
     const b = ensureBot();
     const goal = new goals.GoalBlock(Math.floor(x), Math.floor(y), Math.floor(z));
-    await b.pathfinder.goto(goal);
-    return { result: `Arrived at ${fmt(x)}, ${fmt(y)}, ${fmt(z)}` };
+    // Timeout after 15s to prevent blocking the agent forever
+    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 15000));
+    try {
+      await Promise.race([b.pathfinder.goto(goal), timeout]);
+      return { result: `Arrived at ${fmt(x)}, ${fmt(y)}, ${fmt(z)}` };
+    } catch (e) {
+      try { b.pathfinder.setGoal(null); } catch {}
+      const pos = posObj();
+      if (e.message === 'timeout') return { result: `Walked toward ${fmt(x)},${fmt(y)},${fmt(z)} for 15s, now at ${pos.x},${pos.y},${pos.z}. Use mc bg_goto for long distances.` };
+      return { result: `Navigation failed: ${e.message}. Try mc bg_goto instead.` };
+    }
   },
 
   async goto_near({ x, y, z, range = 2 }) {
     const b = ensureBot();
     const goal = new goals.GoalNear(Math.floor(x), Math.floor(y), Math.floor(z), range);
-    await b.pathfinder.goto(goal);
-    return { result: `Arrived near ${fmt(x)}, ${fmt(y)}, ${fmt(z)}` };
+    const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 15000));
+    try {
+      await Promise.race([b.pathfinder.goto(goal), timeout]);
+      return { result: `Arrived near ${fmt(x)}, ${fmt(y)}, ${fmt(z)}` };
+    } catch (e) {
+      try { b.pathfinder.setGoal(null); } catch {}
+      const pos = posObj();
+      if (e.message === 'timeout') return { result: `Walked toward ${fmt(x)},${fmt(y)},${fmt(z)} for 15s, now at ${pos.x},${pos.y},${pos.z}. Use mc bg_goto for long distances.` };
+      return { result: `Navigation failed: ${e.message}. Try mc bg_goto instead.` };
+    }
   },
 
   async follow({ player }) {
