@@ -1,0 +1,25 @@
+{
+  "name": "hermescraft-bot",
+  "version": "3.0.0",
+  "description": "HermesCraft Bot Server — Mineflayer HTTP API for AI agents",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "mineflayer": "^4.23.0",
+    "mineflayer-pathfinder": "^2.4.5",
+    "mineflayer-pvp": "^1.3.2",
+    "mineflayer-armor-manager": "^2.0.1",
+    "mineflayer-auto-eat": "^5.0.0",
+    "mineflayer-collectblock": "^1.6.0",
+    "minecraft-data": "^3.69.0",
+    "vec3": "^0.1.10"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,499 @@
+#!/usr/bin/env bash
+# ═══════════════════════════════════════════════════════════════
+# mc — HermesCraft CLI
+#
+# Talks to the bot HTTP server (bot/server.js) running on localhost.
+# Human-readable output by default. --json for machine output.
+#
+# Usage:
+#   mc status                    # full game state
+#   mc inventory                 # categorized inventory
+#   mc nearby                    # blocks + entities nearby
+#   mc chat "hello world"        # send chat message
+#   mc read_chat                 # read recent messages
+#   mc collect oak_log 5         # mine 5 oak logs
+#   mc craft wooden_pickaxe      # craft an item
+#   mc recipes stone_pickaxe     # look up recipe
+#   mc goto 100 64 -200          # navigate to coordinates
+#   mc goto_near 100 64 -200     # navigate near coordinates
+#   mc attack zombie             # attack nearest mob of type
+#   mc eat                       # eat best food
+#   mc equip stone_sword         # equip item to hand
+#   mc place cobblestone 10 65 5 # place block at position
+#   mc dig 10 65 5               # dig block at position
+#   mc find_blocks iron_ore      # find block locations
+#   mc find_entities creeper     # find entities nearby
+#   mc follow Steve              # follow a player
+#   mc pickup                    # pick up nearby items
+#   mc smelt raw_iron            # smelt in furnace
+#   mc toss dirt                 # toss item
+#   mc sleep                     # sleep in bed
+#   mc stop                      # stop all actions
+#   mc wait 5                    # wait N seconds
+#   mc use                       # use held item
+#   mc connect                   # (re)connect bot
+#   mc health                    # quick health check
+#
+# Environment:
+#   MC_API_URL   Bot server URL (default: http://localhost:3001)
+# ═══════════════════════════════════════════════════════════════
+
+set -o pipefail
+
+API="${MC_API_URL:-http://localhost:3001}"
+JSON_MODE=false
+
+# Check for --json flag
+ARGS=()
+for arg in "$@"; do
+    if [ "$arg" = "--json" ]; then
+        JSON_MODE=true
+    else
+        ARGS+=("$arg")
+    fi
+done
+set -- "${ARGS[@]+"${ARGS[@]}"}"
+
+CMD="${1:-help}"
+shift 2>/dev/null || true
+
+# ── Helpers ──────────────────────────────────────────────
+
+die() { echo "ERROR: $1" >&2; exit 1; }
+
+api_get() {
+    local path="$1"
+    local resp
+    resp=$(curl -sf --max-time 15 "${API}${path}" 2>/dev/null) || die "Bot server not responding at $API. Is it running? (cd bot && npm start)"
+    echo "$resp"
+}
+
+api_post() {
+    local path="$1"
+    local data
+    if [ $# -ge 2 ]; then data="$2"; else data='{}'; fi
+    local resp http_code
+    resp=$(curl -s --max-time 60 -w '\n%{http_code}' -X POST -H 'Content-Type: application/json' -d "$data" "${API}${path}" 2>/dev/null) || die "Bot server not responding at $API. Is it running? (cd bot && npm start)"
+    http_code=$(echo "$resp" | tail -1)
+    resp=$(echo "$resp" | sed '$d')
+    if [ -z "$resp" ] || [ "$http_code" = "000" ]; then
+        die "Bot server not responding at $API. Is it running? (cd bot && npm start)"
+    fi
+    echo "$resp"
+}
+
+# Parse JSON fields — works with basic jq or python fallback
+jq_or_py() {
+    if command -v jq &>/dev/null; then
+        jq -r "$1" 2>/dev/null
+    else
+        python3 -c "import sys,json; data=json.load(sys.stdin); print($2)" 2>/dev/null
+    fi
+}
+
+# Pretty-print JSON for human output
+pretty() {
+    local resp="$1"
+
+    if [ "$JSON_MODE" = true ]; then
+        echo "$resp"
+        return
+    fi
+
+    # Check for errors
+    local ok
+    ok=$(echo "$resp" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('ok',True))" 2>/dev/null)
+    if [ "$ok" = "False" ]; then
+        local err
+        err=$(echo "$resp" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('error','Unknown error'))" 2>/dev/null)
+        die "$err"
+    fi
+
+    # Pretty print with python
+    echo "$resp" | python3 -c "
+import sys, json
+
+data = json.load(sys.stdin)
+
+# If there's a 'result' field, print it prominently
+if 'result' in data:
+    print(f\"  ✓ {data['result']}\")
+
+# Print brief state if present
+state = data.get('state')
+if state:
+    parts = []
+    if 'health' in state: parts.append(f\"HP:{state['health']}\")
+    if 'food' in state: parts.append(f\"Food:{state['food']}\")
+    if 'position' in state:
+        p = state['position']
+        parts.append(f\"Pos:{p['x']},{p['y']},{p['z']}\")
+    if 'holding' in state: parts.append(f\"Hold:{state['holding']}\")
+    if 'isDay' in state: parts.append('☀ Day' if state['isDay'] else '☾ Night')
+    if parts:
+        print(f\"  [{' | '.join(parts)}]\")
+
+# Print data if present (for status/inventory/nearby)
+d = data.get('data')
+if d and isinstance(d, dict):
+    # Full status
+    if 'health' in d and 'position' in d and 'inventory' in d:
+        p = d['position']
+        print(f\"  ♥ Health: {d['health']}/20  Food: {d['food']}/20  Sat: {d.get('saturation', '?')}\")
+        print(f\"  ⊕ Position: {p['x']}, {p['y']}, {p['z']}  ({d.get('dimension','?')}, {d.get('biome','?')})\")
+        tp = d.get('timePhase','?')
+        rain = ' 🌧' if d.get('isRaining') else ''
+        print(f\"  ☀ Time: {d.get('time','?')} ({tp}){rain}\")
+        hold = d.get('holding', 'empty')
+        if isinstance(hold, dict): hold = f\"{hold['name']} x{hold['count']}\"
+        print(f\"  ✋ Holding: {hold}\")
+        print(f\"  📦 Inventory ({d.get('inventoryCount',0)} items):\")
+        for item in d.get('inventory', []):
+            print(f\"     {item['name']} x{item['count']}\")
+        ents = d.get('nearbyEntities', [])
+        if ents:
+            print(f\"  👁 Nearby entities:\")
+            for e in ents[:10]:
+                hp = f\" HP:{e['health']}\" if e.get('health') else ''
+                print(f\"     {e['type']} ({e['distance']}m){hp}\")
+        notable = d.get('notableBlocks', [])
+        if notable:
+            print(f\"  🔍 Notable blocks:\")
+            for b in notable[:10]:
+                bp = b['position']
+                print(f\"     {b['name']} at {bp['x']},{bp['y']},{bp['z']}\")
+        chat = d.get('unreadChat', [])
+        if chat:
+            print(f\"  💬 Chat:\")
+            for m in chat:
+                print(f\"     <{m['from']}> {m['message']} ({m['ago']} ago)\")
+        if d.get('deaths', 0) > 0:
+            print(f\"  💀 Deaths: {d['deaths']}\")
+
+    # Inventory
+    elif 'categories' in d:
+        cats = d['categories']
+        total = d.get('totalSlots', 0)
+        print(f\"  📦 Inventory ({total} slots used):\")
+        for cat, items in cats.items():
+            print(f\"  [{cat.upper()}]\")
+            for item in items:
+                print(f\"    {item['name']} x{item['count']}\")
+
+    # Nearby
+    elif 'entities' in d and 'blocks' in d:
+        ents = d['entities']
+        blocks = d['blocks']
+        print(f\"  👁 Entities ({len(ents)}):\")
+        for e in ents[:15]:
+            hp = f\" HP:{e.get('health','')}\" if e.get('health') else ''
+            kind = f\" [{e.get('kind','')}]\" if e.get('kind') else ''
+            print(f\"    {e['type']} ({e['distance']}m){hp}{kind}\")
+        print(f\"  🧱 Blocks ({len(blocks)} types):\")
+        for b in blocks[:20]:
+            n = b.get('nearest', {})
+            loc = f\" nearest:{n.get('x','')},{n.get('y','')},{n.get('z','')}\" if n else ''
+            print(f\"    {b['name']} x{b['count']}{loc}\")
+
+    # Chat messages
+    elif 'messages' in d:
+        msgs = d['messages']
+        if not msgs:
+            print('  No messages.')
+        else:
+            for m in msgs:
+                w = ' [whisper]' if m.get('whisper') else ''
+                print(f\"  <{m['from']}> {m['message']}{w}\")
+
+    # Recipes
+    elif 'recipes' in d:
+        print(f\"  {d.get('result', '')}\")
+        for r in d.get('recipes', []):
+            ings = ', '.join(f\"{k} x{v}\" for k, v in r.get('ingredients', {}).items())
+            table = ' (needs crafting table)' if r.get('needsTable') else ''
+            print(f\"    {ings} → x{r.get('makes', 1)}{table}\")
+
+    # Find blocks/entities
+    elif 'locations' in d:
+        print(f\"  {d.get('result', '')}\")
+        for loc in d.get('locations', []):
+            print(f\"    ({loc['x']}, {loc['y']}, {loc['z']}) — {loc['distance']}m\")
+
+    # Generic
+    else:
+        for k, v in d.items():
+            print(f\"  {k}: {v}\")
+
+# Print other interesting fields
+for key in ['locations', 'recipes']:
+    if key in data and key not in (data.get('data') or {}):
+        items = data[key]
+        if isinstance(items, list):
+            for item in items[:15]:
+                if isinstance(item, dict):
+                    parts = [f\"{k}:{v}\" for k,v in item.items()]
+                    print(f\"    {' '.join(parts)}\")
+                else:
+                    print(f\"    {item}\")
+" 2>/dev/null || echo "$resp"
+}
+
+# ── Commands ─────────────────────────────────────────────
+
+case "$CMD" in
+    # Observation
+    status|state|observe|s)
+        pretty "$(api_get '/status')"
+        ;;
+
+    inventory|inv|i)
+        pretty "$(api_get '/inventory')"
+        ;;
+
+    nearby|look|n)
+        RADIUS="${1:-32}"
+        pretty "$(api_get "/nearby?radius=$RADIUS")"
+        ;;
+
+    chat|say)
+        MSG="${1:?Usage: mc chat \"message\"}"
+        # Escape the message for JSON
+        ESCAPED_MSG=$(python3 -c "import json,sys; print(json.dumps(sys.argv[1]))" "$MSG")
+        pretty "$(api_post '/action/chat' "{\"message\":$ESCAPED_MSG}")"
+        ;;
+
+    read_chat|messages|msg)
+        COUNT="${1:-20}"
+        pretty "$(api_get "/chat?count=$COUNT")"
+        ;;
+
+    # Movement
+    goto|go|g)
+        X="${1:?Usage: mc goto X Y Z}"
+        Y="${2:?Usage: mc goto X Y Z}"
+        Z="${3:?Usage: mc goto X Y Z}"
+        pretty "$(api_post '/action/goto' "{\"x\":$X,\"y\":$Y,\"z\":$Z}")"
+        ;;
+
+    goto_near|near)
+        X="${1:?Usage: mc goto_near X Y Z [range]}"
+        Y="${2:?Usage: mc goto_near X Y Z}"
+        Z="${3:?Usage: mc goto_near X Y Z}"
+        RANGE="${4:-2}"
+        pretty "$(api_post '/action/goto_near' "{\"x\":$X,\"y\":$Y,\"z\":$Z,\"range\":$RANGE}")"
+        ;;
+
+    follow|f)
+        PLAYER="${1:?Usage: mc follow PLAYER}"
+        pretty "$(api_post '/action/follow' "{\"player\":\"$PLAYER\"}")"
+        ;;
+
+    look_at)
+        X="${1:?Usage: mc look_at X Y Z}"
+        Y="${2:?Usage: mc look_at X Y Z}"
+        Z="${3:?Usage: mc look_at X Y Z}"
+        pretty "$(api_post '/action/look' "{\"x\":$X,\"y\":$Y,\"z\":$Z}")"
+        ;;
+
+    stop)
+        pretty "$(api_post '/action/stop')"
+        ;;
+
+    # Mining
+    collect|mine|c)
+        BLOCK="${1:?Usage: mc collect BLOCK [count]}"
+        COUNT="${2:-1}"
+        pretty "$(api_post '/action/collect' "{\"block\":\"$BLOCK\",\"count\":$COUNT}")"
+        ;;
+
+    dig|d)
+        X="${1:?Usage: mc dig X Y Z}"
+        Y="${2:?Usage: mc dig X Y Z}"
+        Z="${3:?Usage: mc dig X Y Z}"
+        pretty "$(api_post '/action/dig' "{\"x\":$X,\"y\":$Y,\"z\":$Z}")"
+        ;;
+
+    pickup|p)
+        pretty "$(api_post '/action/pickup')"
+        ;;
+
+    find_blocks|find|fb)
+        BLOCK="${1:?Usage: mc find_blocks BLOCK [radius] [count]}"
+        RADIUS="${2:-32}"
+        COUNT="${3:-10}"
+        pretty "$(api_post '/action/find_blocks' "{\"block\":\"$BLOCK\",\"radius\":$RADIUS,\"count\":$COUNT}")"
+        ;;
+
+    find_entities|fe)
+        TYPE="${1:-}"
+        RADIUS="${2:-32}"
+        if [ -n "$TYPE" ]; then
+            pretty "$(api_post '/action/find_entities' "{\"type\":\"$TYPE\",\"radius\":$RADIUS}")"
+        else
+            pretty "$(api_post '/action/find_entities' "{\"radius\":$RADIUS}")"
+        fi
+        ;;
+
+    commands|cmds|queue)
+        pretty "$(api_get '/commands')"
+        ;;
+
+    complete_command|done)
+        IDX="${1:-0}"
+        pretty "$(api_post '/action/complete_command' "{\"index\":$IDX}")"
+        ;;
+
+    # Crafting
+    craft|cr)
+        ITEM="${1:?Usage: mc craft ITEM [count]}"
+        COUNT="${2:-1}"
+        pretty "$(api_post '/action/craft' "{\"item\":\"$ITEM\",\"count\":$COUNT}")"
+        ;;
+
+    recipes|recipe|r)
+        ITEM="${1:?Usage: mc recipes ITEM}"
+        pretty "$(api_post '/action/recipes' "{\"item\":\"$ITEM\"}")"
+        ;;
+
+    smelt|sm)
+        INPUT="${1:?Usage: mc smelt INPUT [fuel] [count]}"
+        FUEL="${2:-}"
+        COUNT="${3:-1}"
+        DATA="{\"input\":\"$INPUT\",\"count\":$COUNT"
+        [ -n "$FUEL" ] && DATA="$DATA,\"fuel\":\"$FUEL\""
+        DATA="$DATA}"
+        pretty "$(api_post '/action/smelt' "$DATA")"
+        ;;
+
+    # Combat / Survival
+    attack|kill|a)
+        TARGET="${1:-}"
+        if [ -n "$TARGET" ]; then
+            pretty "$(api_post '/action/attack' "{\"target\":\"$TARGET\"}")"
+        else
+            pretty "$(api_post '/action/attack' '{}')"
+        fi
+        ;;
+
+    eat|e)
+        pretty "$(api_post '/action/eat')"
+        ;;
+
+    equip|eq)
+        ITEM="${1:?Usage: mc equip ITEM [slot]}"
+        SLOT="${2:-hand}"
+        pretty "$(api_post '/action/equip' "{\"item\":\"$ITEM\",\"slot\":\"$SLOT\"}")"
+        ;;
+
+    # Building
+    place|pl)
+        BLOCK="${1:?Usage: mc place BLOCK X Y Z}"
+        X="${2:?Usage: mc place BLOCK X Y Z}"
+        Y="${3:?Usage: mc place BLOCK X Y Z}"
+        Z="${4:?Usage: mc place BLOCK X Y Z}"
+        pretty "$(api_post '/action/place' "{\"block\":\"$BLOCK\",\"x\":$X,\"y\":$Y,\"z\":$Z}")"
+        ;;
+
+    interact|use_block)
+        X="${1:?Usage: mc interact X Y Z}"
+        Y="${2:?Usage: mc interact X Y Z}"
+        Z="${3:?Usage: mc interact X Y Z}"
+        pretty "$(api_post '/action/interact' "{\"x\":$X,\"y\":$Y,\"z\":$Z}")"
+        ;;
+
+    close)
+        pretty "$(api_post '/action/close_screen')"
+        ;;
+
+    # Utility
+    use|u)
+        pretty "$(api_post '/action/use')"
+        ;;
+
+    toss|drop)
+        ITEM="${1:?Usage: mc toss ITEM}"
+        pretty "$(api_post '/action/toss' "{\"item\":\"$ITEM\"}")"
+        ;;
+
+    sleep|bed)
+        pretty "$(api_post '/action/sleep_bed')"
+        ;;
+
+    wait|w)
+        SECS="${1:-5}"
+        pretty "$(api_post '/action/wait' "{\"seconds\":$SECS}")"
+        ;;
+
+    # Connection
+    connect|reconnect)
+        pretty "$(api_post '/connect')"
+        ;;
+
+    health|h)
+        pretty "$(api_get '/health')"
+        ;;
+
+    # Help
+    help|--help|-h)
+        cat << 'EOF'
+HermesCraft CLI — control your Minecraft bot
+
+OBSERVATION:
+  mc status              Full game state (health, pos, inventory, nearby)
+  mc inventory           Categorized inventory
+  mc nearby [radius]     Blocks + entities nearby (default: 32)
+  mc read_chat [count]   Read recent chat messages
+  mc health              Quick connection + health check
+
+MOVEMENT:
+  mc goto X Y Z          Navigate to exact position
+  mc goto_near X Y Z [r] Navigate near position (range default: 2)
+  mc follow PLAYER       Follow a player
+  mc look_at X Y Z       Look at position
+  mc stop                Stop all movement/actions
+
+MINING:
+  mc collect BLOCK [n]   Find + mine N blocks (e.g. mc collect oak_log 5)
+  mc dig X Y Z           Dig specific block at coords
+  mc pickup              Pick up nearby item drops
+  mc find_blocks BLOCK   Find locations of a block type
+
+CRAFTING:
+  mc craft ITEM [n]      Craft an item (needs crafting table nearby for 3x3)
+  mc recipes ITEM        Look up crafting recipe
+  mc smelt INPUT [fuel]  Smelt in furnace (needs furnace nearby)
+
+COMBAT:
+  mc attack [target]     Attack nearest mob (or specific type)
+  mc eat                 Eat best food in inventory
+  mc equip ITEM [slot]   Equip item (slot: hand, head, torso, legs, feet)
+
+BUILDING:
+  mc place BLOCK X Y Z   Place block at position
+  mc interact X Y Z      Right-click/activate block (chests, doors, etc)
+
+SOCIAL:
+  mc chat "message"      Send chat message in game
+  mc follow PLAYER       Follow a player
+
+UTILITY:
+  mc use                 Use held item
+  mc toss ITEM           Drop item
+  mc sleep               Sleep in nearby bed
+  mc wait [seconds]      Wait (default: 5s)
+  mc connect             (Re)connect bot to server
+
+FLAGS:
+  --json                 Output raw JSON instead of human-readable
+
+ENVIRONMENT:
+  MC_API_URL             Bot server URL (default: http://localhost:3001)
+EOF
+        ;;
+
+    *)
+        echo "Unknown command: $CMD"
+        echo "Run 'mc help' for usage."
+        exit 1
+        ;;
+esac
