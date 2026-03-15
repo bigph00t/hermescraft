@@ -28,7 +28,7 @@ import {
 } from './logger.js';
 
 const TICK_INTERVAL = parseInt(process.env.TICK_MS || '3000', 10);
-const MAX_STUCK_COUNT = 3;
+const MAX_STUCK_COUNT = 2;
 const STATS_LOG_INTERVAL = 20;  // Log stats every 20 ticks (~60s)
 const DEATH_COOLDOWN_TICKS = 5; // Ignore death detection for N ticks after a death
 const FAILURE_TRACKER_MAX = 50; // Max entries before pruning
@@ -52,6 +52,8 @@ let running = true;
 let tickCount = 0;
 let lastDeathTick = -999; // For death cooldown
 let currentTickPromise = null; // For graceful shutdown
+let lastPosition = null; // For position-based stuck detection
+let samePositionTicks = 0;
 
 // Stuck detection
 const failureTracker = new Map();
@@ -220,6 +222,26 @@ async function tick() {
     return;
   }
 
+  // Position-based stuck detection — if not moving for 5 ticks, force recovery
+  const pos = state.position;
+  if (pos && lastPosition) {
+    const moved = Math.abs(pos.x - lastPosition.x) + Math.abs(pos.y - lastPosition.y) + Math.abs(pos.z - lastPosition.z);
+    if (moved < 0.5) {
+      samePositionTicks++;
+      if (samePositionTicks >= 5) {
+        logWarn(`Position stuck for ${samePositionTicks} ticks — forcing stop + fresh thinking`);
+        try { await executeAction({ type: 'stop' }); } catch {}
+        clearConversation();
+        setNavigating(false);
+        clearAllFailures();
+        samePositionTicks = 0;
+      }
+    } else {
+      samePositionTicks = 0;
+    }
+  }
+  lastPosition = pos ? { ...pos } : null;
+
   // Auto-close stuck screens (crafting table, furnace, chest left open)
   if (state.openScreen && state.openScreen.type) {
     try { await executeAction({ type: 'close_screen' }); } catch {}
@@ -325,6 +347,10 @@ async function tick() {
   if (stuckInfo) {
     logStuck(stuckInfo.action, stuckInfo.count);
     failureTracker.delete(stuckInfo.action);
+    // Aggressive recovery: stop Baritone, clear conversation for fresh thinking
+    try { await executeAction({ type: 'stop' }); } catch {}
+    clearConversation();
+    setNavigating(false);
   }
 
   // Build prompts with full Hermes ecosystem context

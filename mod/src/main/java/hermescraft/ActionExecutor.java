@@ -439,13 +439,22 @@ public class ActionExecutor {
         if (!action.has("x") || !action.has("y") || !action.has("z")) {
             return errorResult("Navigate requires x, y, z coordinates");
         }
+        ClientPlayerEntity player = client.player;
+        if (player == null) return errorResult("Not in game");
+
         int x = action.get("x").getAsInt();
         int y = action.get("y").getAsInt();
         int z = action.get("z").getAsInt();
 
+        // Check if already at/near destination
+        double dist = Math.sqrt(player.getBlockPos().getSquaredDistance(new BlockPos(x, y, z)));
+        if (dist < 3) {
+            return successResult("Already at destination (" + Math.round(dist) + " blocks away)");
+        }
+
         boolean started = BaritoneIntegration.navigate(x, y, z);
         if (started) {
-            return successResult("Navigating to " + x + ", " + y + ", " + z);
+            return successResult("Navigating to " + x + ", " + y + ", " + z + " (dist: " + Math.round(dist) + ")");
         } else {
             return errorResult("Failed to start navigation (Baritone not available)");
         }
