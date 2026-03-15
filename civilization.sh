@@ -33,6 +33,11 @@ BASE_API_PORT=3001
 ALL_AGENTS=(
   "Marcus:northeast"
   "Sarah:east"
+  "Jin:south"
+  "Dave:west"
+  "Lisa:north"
+  "Tommy:southeast"
+  "Mia:southwest"
 )
 
 PIDS=()

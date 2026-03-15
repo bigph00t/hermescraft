@@ -175,7 +175,7 @@ function parseMessageRouting(message) {
     // treat as broadcast (e.g. "Hello: world" shouldn't route to "hello")
     // Known agent names for validation
     const knownNames = ['genghis', 'cleopatra', 'tesla', 'pirate', 'monk', 'goblin',
-                        'marcus', 'sarah', 'jin', 'dave', 'lisa', 'tommy',
+                        'marcus', 'sarah', 'jin', 'dave', 'lisa', 'tommy', 'mia',
                         'hermesbot', 'hermes', 'bot', 'all', getMyName()];
     // Also accept any name that matches a nearby player
     const hasValidTarget = targets.some(t => knownNames.includes(t) || 
