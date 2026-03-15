@@ -18,6 +18,8 @@
  *   API_PORT      HTTP API port (default: 3001)
  */
 
+import fs from 'fs';
+import path from 'path';
 import http from 'http';
 import { URL } from 'url';
 import mineflayer from 'mineflayer';
@@ -32,6 +34,18 @@ import collectBlockPkg from 'mineflayer-collectblock';
 const collectBlock = collectBlockPkg.plugin;
 import minecraftData from 'minecraft-data';
 import { Vec3 } from 'vec3';
+
+const LOCATIONS_FILE = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'data', 'locations.json');
+
+function loadLocations() {
+  try { return JSON.parse(fs.readFileSync(LOCATIONS_FILE, 'utf8')); }
+  catch { return {}; }
+}
+function saveLocations(locs) {
+  const dir = path.dirname(LOCATIONS_FILE);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(LOCATIONS_FILE, JSON.stringify(locs, null, 2));
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // Configuration
@@ -71,7 +85,9 @@ let chatLog = [];
 let deathLog = [];
 let commandQueue = []; // complex commands for Hermes to process
 let currentTask = null; // background task state
+let lastDeath = null;
 let lastHealth = 20;
+let reconnectAttempts = 0;
 const MAX_LOG = 100;
 const MAX_QUEUE = 20;
 
@@ -204,28 +220,41 @@ async function createBot() {
 
       // Death tracking
       bot.on('death', () => {
+        lastDeath = {
+          time: Date.now(),
+          position: posObj(),
+          inventory: bot.inventory.items().map(i => ({ name: i.name, count: i.count })),
+          deathNumber: deathLog.length + 1
+        };
         const entry = { time: Date.now(), position: posObj() };
         deathLog.push(entry);
+        const locs = loadLocations(); locs['death_'+deathLog.length]={...posObj(),saved:new Date().toISOString()};saveLocations(locs);
         log('DIED! Respawning...');
       });
 
-      // Kicked / disconnect — auto-reconnect
+      // Kicked — log only, 'end' event fires after and handles reconnect
       bot.on('kicked', (reason) => {
         log(`Kicked: ${JSON.stringify(reason)}`);
         botReady = false;
       });
 
+      // Disconnect — auto-reconnect with backoff (handles both kicks and drops)
       bot.on('end', (reason) => {
         log(`Disconnected: ${reason}`);
         botReady = false;
-        // Auto-reconnect after 5 seconds
+        positionHistory = []; // clear stuck detection history
+        const delay = Math.min(5000 * Math.pow(2, reconnectAttempts), 60000);
+        reconnectAttempts++;
+        log(`Reconnecting in ${delay / 1000}s (attempt ${reconnectAttempts})...`);
         setTimeout(() => {
           log('Attempting reconnect...');
           createBot().catch(e => log(`Reconnect failed: ${e.message}`));
-        }, 5000);
+        }, delay);
       });
 
       botReady = true;
+      reconnectAttempts = 0;
+      const locs = loadLocations(); if(!locs.spawn){locs.spawn={...posObj(),saved:new Date().toISOString()};saveLocations(locs);}
       log(`Connected! Spawned at ${fmt(bot.entity.position.x)}, ${fmt(bot.entity.position.y)}, ${fmt(bot.entity.position.z)}`);
       resolve(bot);
     });
@@ -286,6 +315,7 @@ function briefState() {
 
   if (recentChat.length > 0) state.new_chat = recentChat;
   if (pending.length > 0) state.pending_commands = pending.length;
+  if (currentTask && currentTask.status === 'stuck') state.task_stuck = currentTask.error;
   if (currentTask && currentTask.status === 'running') {
     state.task = { action: currentTask.action, elapsed: Math.round((Date.now() - currentTask.started) / 1000) + 's' };
   } else if (currentTask && currentTask.status === 'done') {
@@ -381,9 +411,11 @@ function getFullState() {
     nearbyBlocks,
     notableBlocks,
     nearbyEntities: entities,
+    nearbyPlayers: entities.filter(e => e.type === 'player' || e.kind === 'player').map(p => ({ name: p.name || p.type, distance: p.distance, position: p.position })),
     lookingAt,
     unreadChat: unreadChat.length > 0 ? unreadChat : undefined,
     deaths: deathLog.length,
+    lastDeath: lastDeath ? { position: lastDeath.position, seconds_ago: Math.round((Date.now()-lastDeath.time)/1000) } : null,
     onGround: b.entity.onGround,
     isRaining: b.isRaining,
   };
@@ -533,7 +565,9 @@ const ACTIONS = {
         await b.dig(target, true);
         collected++;
         await sleep(200);
-      } catch {}
+      } catch (err) {
+        log(`[collect] Error mining ${block} at ${pos.x},${pos.y},${pos.z}: ${err.message}`);
+      }
     }
 
     // Auto-pickup: walk through nearby drops to collect them
@@ -816,8 +850,12 @@ const ACTIONS = {
     const b = ensureBot();
     const invItem = b.inventory.items().find(i => i.name === item);
     if (!invItem) throw new Error(`No ${item} in inventory.`);
-    await b.tossStack(invItem);
-    return { result: `Tossed ${item}` };
+    if (count && count > 0 && count < invItem.count) {
+      await b.toss(invItem.type, null, count);
+    } else {
+      await b.tossStack(invItem);
+    }
+    return { result: `Tossed ${count || invItem.count} ${item}` };
   },
 
   // ── Building ─────────────────────────────────────
@@ -892,6 +930,185 @@ const ACTIONS = {
     await b.sleep(bed);
     return { result: 'Sleeping...' };
   },
+
+  // ── Sustained Combat ──────────────────────────────
+  async fight({ target, retreat_health = 6, duration = 30 }) {
+    const b = ensureBot();
+
+    // Auto-equip best weapon
+    const weapons = ['netherite_sword','diamond_sword','iron_sword','stone_sword','wooden_sword',
+                     'netherite_axe','diamond_axe','iron_axe','stone_axe','wooden_axe'];
+    for (const w of weapons) {
+      const item = b.inventory.items().find(i => i.name === w);
+      if (item) { await b.equip(item, 'hand'); break; }
+    }
+
+    // Find target entity
+    const hostiles = ['zombie','skeleton','spider','creeper','enderman','witch',
+                      'drowned','husk','stray','phantom','pillager','vindicator','blaze',
+                      'wither_skeleton','ghast','piglin_brute','hoglin'];
+    let entity;
+    if (target) {
+      entity = b.nearestEntity(e => e.name?.includes(target) || e.displayName?.includes(target));
+    } else {
+      entity = b.nearestEntity(e => hostiles.some(h => e.name?.includes(h)) && e.position?.distanceTo(b.entity.position) < 16);
+    }
+    if (!entity) return { result: `No ${target || 'hostile'} found nearby` };
+
+    const startHealth = b.health;
+    let hits = 0, targetName = entity.name || entity.displayName || 'entity';
+    const endTime = Date.now() + duration * 1000;
+
+    while (Date.now() < endTime) {
+      if (b.health <= retreat_health) {
+        const fleePos = b.entity.position.offset(
+          -(entity.position.x - b.entity.position.x) * 2, 0,
+          -(entity.position.z - b.entity.position.z) * 2
+        );
+        try { await b.pathfinder.goto(new goals.GoalNear(fleePos.x, fleePos.y, fleePos.z, 2)); } catch {}
+        const food = b.inventory.items().find(i => mcData.foodsByName?.[i.name]);
+        if (food) { await b.equip(food, 'hand'); try { await b.consume(); } catch {} }
+        return { result: `Retreated from ${targetName} at ${b.health} HP. ${hits} hits dealt.` };
+      }
+
+      if (!entity.isValid) {
+        return { result: `Killed ${targetName}! ${hits} hits. Lost ${Math.round(startHealth - b.health)} HP.` };
+      }
+
+      const dist = entity.position.distanceTo(b.entity.position);
+      if (dist > 3.5) {
+        b.pathfinder.setGoal(new goals.GoalFollow(entity, 2), true);
+        await sleep(300);
+        continue;
+      }
+
+      b.pathfinder.setGoal(null);
+      await b.lookAt(entity.position.offset(0, entity.height * 0.8, 0));
+      await b.attack(entity);
+      hits++;
+      await sleep(600);
+    }
+
+    return { result: `Fight timeout. ${hits} hits on ${targetName}. Health: ${b.health}` };
+  },
+
+  async flee({ distance = 16 }) {
+    const b = ensureBot();
+    const hostiles = ['zombie','skeleton','spider','creeper','enderman','witch','drowned','husk','stray','phantom','blaze','wither_skeleton'];
+    const threat = b.nearestEntity(e => hostiles.some(h => e.name?.includes(h)));
+    if (!threat) return { result: 'No threats nearby' };
+
+    const dx = b.entity.position.x - threat.position.x;
+    const dz = b.entity.position.z - threat.position.z;
+    const len = Math.sqrt(dx*dx + dz*dz) || 1;
+    const fleeX = b.entity.position.x + (dx/len) * distance;
+    const fleeZ = b.entity.position.z + (dz/len) * distance;
+
+    try {
+      await b.pathfinder.goto(new goals.GoalNear(fleeX, b.entity.position.y, fleeZ, 3));
+      return { result: `Fled ${distance} blocks from ${threat.name}` };
+    } catch {
+      return { result: `Tried to flee, moved partially. Health: ${b.health}` };
+    }
+  },
+
+  async chat_to({ player, message }) {
+    const b = ensureBot();
+    b.chat(`/msg ${player} ${message}`);
+    return { result: `Whispered to ${player}: ${message}` };
+  },
+
+  // ── Death Recovery ────────────────────────────────
+  async deathpoint() {
+    if (!lastDeath) return { result: 'No deaths recorded.' };
+    const pos = lastDeath.position;
+    const age = Math.round((Date.now() - lastDeath.time) / 1000);
+    const b = ensureBot();
+    await b.pathfinder.goto(new goals.GoalNear(pos.x, pos.y, pos.z, 3));
+    return { result: `At death #${lastDeath.deathNumber} (${age}s ago). Lost: ${lastDeath.inventory.map(i=>`${i.name}x${i.count}`).join(', ')}` };
+  },
+
+  // ── Container Interaction ─────────────────────────
+  async list_container({ x, y, z }) {
+    const b = ensureBot();
+    const block = b.blockAt(new Vec3(x, y, z));
+    if (!block) return { result: 'No block at those coordinates' };
+    if (b.entity.position.distanceTo(block.position) > 4.5)
+      await b.pathfinder.goto(new goals.GoalNear(x, y, z, 3));
+    const chest = await b.openContainer(block);
+    const items = chest.containerItems();
+    const summary = items.length > 0 ? items.map(i => `${i.name}x${i.count}`).join(', ') : '(empty)';
+    chest.close();
+    return { result: `Container: ${summary}` };
+  },
+
+  async deposit({ x, y, z, item, count }) {
+    const b = ensureBot();
+    const block = b.blockAt(new Vec3(x, y, z));
+    if (!block) return { result: 'No block there' };
+    if (b.entity.position.distanceTo(block.position) > 4.5)
+      await b.pathfinder.goto(new goals.GoalNear(x, y, z, 3));
+    const chest = await b.openContainer(block);
+    const invItem = b.inventory.items().find(i => i.name.includes(item));
+    if (!invItem) { chest.close(); return { result: `No ${item} in inventory` }; }
+    const qty = count && count > 0 ? Math.min(count, invItem.count) : invItem.count;
+    await chest.deposit(invItem.type, null, qty);
+    chest.close();
+    return { result: `Deposited ${qty} ${invItem.name}` };
+  },
+
+  async withdraw({ x, y, z, item, count }) {
+    const b = ensureBot();
+    const block = b.blockAt(new Vec3(x, y, z));
+    if (!block) return { result: 'No block there' };
+    if (b.entity.position.distanceTo(block.position) > 4.5)
+      await b.pathfinder.goto(new goals.GoalNear(x, y, z, 3));
+    const chest = await b.openContainer(block);
+    const chestItem = chest.containerItems().find(i => i.name.includes(item));
+    if (!chestItem) { chest.close(); return { result: `No ${item} in container` }; }
+    const qty = count && count > 0 ? Math.min(count, chestItem.count) : chestItem.count;
+    await chest.withdraw(chestItem.type, null, qty);
+    chest.close();
+    return { result: `Withdrew ${qty} ${chestItem.name}` };
+  },
+
+  // ── Coordinate Memory ────────────────────────────
+  async mark({ name, note }) {
+    const b = ensureBot();
+    const pos = posObj();
+    const locs = loadLocations();
+    locs[name] = { x: Math.round(pos.x), y: Math.round(pos.y), z: Math.round(pos.z),
+      note: note || '', saved: new Date().toISOString() };
+    saveLocations(locs);
+    return { result: `Saved '${name}' at ${locs[name].x}, ${locs[name].y}, ${locs[name].z}` };
+  },
+  async marks() {
+    const b = ensureBot();
+    const locs = loadLocations();
+    const entries = Object.entries(locs);
+    if (!entries.length) return { result: 'No saved locations' };
+    const pos = b.entity.position;
+    const lines = entries.map(([name, l]) => {
+      const dist = Math.round(Math.sqrt((pos.x-l.x)**2+(pos.y-l.y)**2+(pos.z-l.z)**2));
+      return `${name}: ${l.x},${l.y},${l.z} (${dist}m)${l.note ? ' — '+l.note : ''}`;
+    });
+    return { result: lines.join('\n') };
+  },
+  async go_mark({ name }) {
+    const locs = loadLocations();
+    if (!locs[name]) return { result: `No location '${name}'` };
+    const l = locs[name];
+    const b = ensureBot();
+    await b.pathfinder.goto(new goals.GoalNear(l.x, l.y, l.z, 2));
+    return { result: `Arrived at '${name}' (${l.x},${l.y},${l.z})` };
+  },
+  async unmark({ name }) {
+    const locs = loadLocations();
+    if (!locs[name]) return { result: `No location '${name}'` };
+    delete locs[name];
+    saveLocations(locs);
+    return { result: `Deleted '${name}'` };
+  },
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -958,10 +1175,21 @@ const httpServer = http.createServer(async (req, res) => {
 
       if (path === '/chat') {
         const count = parseInt(url.searchParams.get('count') || '20');
-        const clear = url.searchParams.get('clear') !== 'false';
+        const clear = url.searchParams.get('clear') === 'true';
         const msgs = chatLog.slice(-count);
         if (clear) chatLog.length = 0;
         return respond(res, 200, { ok: true, data: { messages: msgs } });
+      }
+
+      if (path === '/deaths') {
+        return respond(res, 200, { ok: true, data: {
+          total: deathLog.length,
+          last_death: lastDeath ? {
+            ...lastDeath,
+            seconds_ago: Math.round((Date.now() - lastDeath.time) / 1000),
+            items_lost: lastDeath.inventory.map(i => `${i.name}x${i.count}`).join(', ')
+          } : null
+        }});
       }
 
       if (path === '/commands') {
@@ -1002,16 +1230,19 @@ const httpServer = http.createServer(async (req, res) => {
           const available = Object.keys(ACTIONS).join(', ');
           return respond(res, 400, { ok: false, error: `Unknown action "${actionName}". Available: ${available}` });
         }
+        if (currentTask && currentTask.status === 'running') {
+          return respond(res, 409, { ok: false, error: `Task "${currentTask.action}" is already running (${Math.round((Date.now() - currentTask.started) / 1000)}s). POST /task/cancel first.`, state: briefState() });
+        }
         const taskId = `${actionName}_${Date.now()}`;
         currentTask = { id: taskId, action: actionName, status: 'running', started: Date.now(), result: null, error: null };
         // Fire and forget — runs in background
         actionFn(body).then(result => {
-          if (currentTask && currentTask.id === taskId) {
+          if (currentTask && currentTask.id === taskId && currentTask.status === 'running') {
             currentTask.status = 'done';
             currentTask.result = result;
           }
         }).catch(err => {
-          if (currentTask && currentTask.id === taskId) {
+          if (currentTask && currentTask.id === taskId && currentTask.status === 'running') {
             currentTask.status = 'error';
             currentTask.error = err.message;
           }
@@ -1048,6 +1279,33 @@ const httpServer = http.createServer(async (req, res) => {
     respond(res, status, { ok: false, error: err.message, state: briefState() });
   }
 });
+
+// ═══════════════════════════════════════════════════════════════════
+// Stuck Detection Watchdog
+// ═══════════════════════════════════════════════════════════════════
+
+let positionHistory = [];
+setInterval(() => {
+  if (!bot || !botReady) return;
+  const pos = bot.entity.position;
+  positionHistory.push({ time: Date.now(), x: pos.x, y: pos.y, z: pos.z });
+  positionHistory = positionHistory.filter(p => Date.now() - p.time < 60000);
+  // Only check stuck for movement-based tasks (not craft, smelt, sleep, etc.)
+  const movementActions = ['goto', 'goto_near', 'follow', 'collect', 'fight', 'flee', 'go_mark', 'deathpoint', 'pickup'];
+  if (currentTask && currentTask.status === 'running' && movementActions.includes(currentTask.action)) {
+    const old = positionHistory.find(p => Date.now() - p.time > 30000);
+    if (old) {
+      const dist = Math.sqrt((pos.x-old.x)**2+(pos.y-old.y)**2+(pos.z-old.z)**2);
+      if (dist < 2) {
+        try { bot.pathfinder.setGoal(null); } catch {}
+        try { bot.stopDigging(); } catch {}
+        currentTask.status = 'stuck';
+        currentTask.error = `Stuck at ${Math.round(pos.x)},${Math.round(pos.y)},${Math.round(pos.z)} for 30s`;
+        log('STUCK detected — task cancelled');
+      }
+    }
+  }
+}, 5000);
 
 // ═══════════════════════════════════════════════════════════════════
 // Startup

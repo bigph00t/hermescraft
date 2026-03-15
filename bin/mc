@@ -27,12 +27,24 @@
 #   mc pickup                    # pick up nearby items
 #   mc smelt raw_iron            # smelt in furnace
 #   mc toss dirt                 # toss item
+#   mc fight zombie              # sustained combat
+#   mc bg_fight                  # fight in background
+#   mc flee 20                   # flee from hostiles
+#   mc chat_to Steve "hello"     # whisper to player
 #   mc sleep                     # sleep in bed
 #   mc stop                      # stop all actions
 #   mc wait 5                    # wait N seconds
 #   mc use                       # use held item
 #   mc connect                   # (re)connect bot
 #   mc health                    # quick health check
+#   mc chest 10 65 5             # list container contents
+#   mc deposit dirt 10 65 5      # deposit item in container
+#   mc withdraw iron_ingot 10 65 5 # withdraw from container
+#   mc mark home "my base"      # save current location
+#   mc marks                    # list saved locations
+#   mc go_mark home             # navigate to saved location
+#   mc deaths                   # death info
+#   mc deathpoint               # go to last death spot
 #
 # Environment:
 #   MC_API_URL   Bot server URL (default: http://localhost:3001)
@@ -388,6 +400,25 @@ case "$CMD" in
         fi
         ;;
 
+    fight)
+        pretty "$(api_post '/action/fight' "{\"target\":\"${1:-}\",\"retreat_health\":${2:-6},\"duration\":${3:-30}}")"
+        ;;
+
+    bg_fight)
+        pretty "$(api_post '/task/fight' "{\"target\":\"${1:-}\",\"retreat_health\":${2:-6},\"duration\":${3:-30}}")"
+        ;;
+
+    flee)
+        pretty "$(api_post '/action/flee' "{\"distance\":${1:-16}}")"
+        ;;
+
+    chat_to|whisper)
+        PLAYER="${1:?Usage: mc chat_to PLAYER \"message\"}"
+        MSG="${2:?Usage: mc chat_to PLAYER \"message\"}"
+        ESCAPED_MSG=$(python3 -c "import json,sys; print(json.dumps(sys.argv[1]))" "$MSG")
+        pretty "$(api_post '/action/chat_to' "{\"player\":\"$PLAYER\",\"message\":$ESCAPED_MSG}")"
+        ;;
+
     eat|e)
         pretty "$(api_post '/action/eat')"
         ;;
@@ -424,8 +455,13 @@ case "$CMD" in
         ;;
 
     toss|drop)
-        ITEM="${1:?Usage: mc toss ITEM}"
-        pretty "$(api_post '/action/toss' "{\"item\":\"$ITEM\"}")"
+        ITEM="${1:?Usage: mc toss ITEM [count]}"
+        COUNT="${2:-}"
+        if [ -n "$COUNT" ]; then
+            pretty "$(api_post '/action/toss' "{\"item\":\"$ITEM\",\"count\":$COUNT}")"
+        else
+            pretty "$(api_post '/action/toss' "{\"item\":\"$ITEM\"}")"
+        fi
         ;;
 
     sleep|bed)
@@ -435,6 +471,50 @@ case "$CMD" in
     wait|w)
         SECS="${1:-5}"
         pretty "$(api_post '/action/wait' "{\"seconds\":$SECS}")"
+        ;;
+
+    # Death recovery
+    deaths)     pretty "$(api_get "/deaths")" ;;
+    deathpoint) pretty "$(api_post '/action/deathpoint' '{}')" ;;
+
+    # Container interaction
+    chest)
+        X="${1:?Usage: mc chest X Y Z}"
+        Y="${2:?Usage: mc chest X Y Z}"
+        Z="${3:?Usage: mc chest X Y Z}"
+        pretty "$(api_post '/action/list_container' "{\"x\":$X,\"y\":$Y,\"z\":$Z}")"
+        ;;
+    deposit)
+        ITEM="${1:?Usage: mc deposit ITEM X Y Z [count]}"
+        X="${2:?Usage: mc deposit ITEM X Y Z}"
+        Y="${3:?Usage: mc deposit ITEM X Y Z}"
+        Z="${4:?Usage: mc deposit ITEM X Y Z}"
+        COUNT="${5:-0}"
+        pretty "$(api_post '/action/deposit' "{\"item\":\"$ITEM\",\"x\":$X,\"y\":$Y,\"z\":$Z,\"count\":$COUNT}")"
+        ;;
+    withdraw)
+        ITEM="${1:?Usage: mc withdraw ITEM X Y Z [count]}"
+        X="${2:?Usage: mc withdraw ITEM X Y Z}"
+        Y="${3:?Usage: mc withdraw ITEM X Y Z}"
+        Z="${4:?Usage: mc withdraw ITEM X Y Z}"
+        COUNT="${5:-0}"
+        pretty "$(api_post '/action/withdraw' "{\"item\":\"$ITEM\",\"x\":$X,\"y\":$Y,\"z\":$Z,\"count\":$COUNT}")"
+        ;;
+
+    # Coordinate memory
+    mark)
+        NAME="${1:?Usage: mc mark NAME [note]}"
+        NOTE="${2:-}"
+        pretty "$(api_post '/action/mark' "{\"name\":\"$NAME\",\"note\":\"$NOTE\"}")"
+        ;;
+    marks)    pretty "$(api_post '/action/marks' '{}')" ;;
+    go_mark)
+        NAME="${1:?Usage: mc go_mark NAME}"
+        pretty "$(api_post '/action/go_mark' "{\"name\":\"$NAME\"}")"
+        ;;
+    unmark)
+        NAME="${1:?Usage: mc unmark NAME}"
+        pretty "$(api_post '/action/unmark' "{\"name\":\"$NAME\"}")"
         ;;
 
     # Background tasks
@@ -530,6 +610,9 @@ CRAFTING:
 
 COMBAT:
   mc attack [target]     Attack nearest mob (or specific type)
+  mc fight [target] [hp] [dur]  Sustained fight (retreat at hp, dur seconds)
+  mc bg_fight [target]   Fight in background (non-blocking)
+  mc flee [distance]     Flee from nearest hostile (default: 16 blocks)
   mc eat                 Eat best food in inventory
   mc equip ITEM [slot]   Equip item (slot: hand, head, torso, legs, feet)
 
@@ -539,7 +622,23 @@ BUILDING:
 
 SOCIAL:
   mc chat "message"      Send chat message in game
+  mc chat_to PLAYER "msg"  Whisper to a player (/msg)
   mc follow PLAYER       Follow a player
+
+CONTAINERS:
+  mc chest X Y Z             List container contents
+  mc deposit ITEM X Y Z [n]  Deposit item into container
+  mc withdraw ITEM X Y Z [n] Withdraw item from container
+
+LOCATIONS:
+  mc mark NAME [note]    Save current position with a name
+  mc marks               List all saved locations
+  mc go_mark NAME        Navigate to a saved location
+  mc unmark NAME         Delete a saved location
+
+DEATH RECOVERY:
+  mc deaths              Show death count + last death info
+  mc deathpoint          Navigate to last death location
 
 BACKGROUND TASKS (non-blocking):
   mc bg_collect BLOCK [n]  Collect in background (returns immediately)

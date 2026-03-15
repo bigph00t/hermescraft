@@ -23,28 +23,46 @@ MC_HOST="${MC_HOST:-localhost}"
 MC_PORT="${MC_PORT:-25565}"
 MC_USERNAME="${MC_USERNAME:-HermesBot}"
 API_PORT="${API_PORT:-3001}"
-API_URL="http://localhost:$API_PORT"
+# API_URL is set after arg parsing (see below)
 
 BOT_ONLY=false
 GOAL=""
 SOUL_BACKUP=""
+SOUL_OVERRIDE=""
 BOT_PID=""
 
 # Parse args
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --bot-only) BOT_ONLY=true; shift ;;
+        --name) MC_USERNAME="$2"; shift 2 ;;
+        --port) API_PORT="$2"; shift 2 ;;
+        --soul) SOUL_OVERRIDE="$2"; shift 2 ;;
         --help|-h)
             echo "hermescraft — Hermes plays Minecraft with you"
             echo ""
-            echo "Usage: ./hermescraft.sh [goal]"
+            echo "Usage: ./hermescraft.sh [options] [goal]"
             echo "       ./hermescraft.sh --bot-only"
             echo ""
-            echo "Set MC_PORT for your server (e.g. MC_PORT=35901)"
+            echo "Options:"
+            echo "  --name NAME   Set bot username (default: HermesBot)"
+            echo "  --port PORT   Set API port (default: 3001)"
+            echo "  --soul FILE   Use custom SOUL file instead of SOUL-minecraft.md"
+            echo "  --bot-only    Start bot server only (no Hermes agent)"
+            echo "  --help, -h    Show this help"
+            echo ""
+            echo "Environment:"
+            echo "  MC_HOST       Minecraft server host (default: localhost)"
+            echo "  MC_PORT       Minecraft server port (default: 25565)"
+            echo "  MC_USERNAME   Bot name (default: HermesBot)"
+            echo "  API_PORT      Bot API port (default: 3001)"
             exit 0 ;;
         *) GOAL="$1"; shift ;;
     esac
 done
+
+# Set API_URL after arg parsing so --port takes effect
+API_URL="http://localhost:$API_PORT"
 
 # Cleanup on exit
 cleanup() {
@@ -65,6 +83,7 @@ command -v node &>/dev/null || { echo "  ✗ Need Node.js (v18+)"; exit 1; }
 # Put mc on PATH
 export PATH="$BIN_DIR:$PATH"
 export MC_API_URL="$API_URL"
+export MC_USERNAME
 
 # Symlink mc to ~/.local/bin if not there
 [ -L "$HOME/.local/bin/mc" ] || { mkdir -p "$HOME/.local/bin"; ln -sf "$BIN_DIR/mc" "$HOME/.local/bin/mc" 2>/dev/null || true; }
@@ -126,7 +145,11 @@ if [ -f "$SOUL_FILE" ]; then
     SOUL_BACKUP="$SOUL_FILE.hermescraft-bak"
     cp "$SOUL_FILE" "$SOUL_BACKUP"
 fi
-cp "$SCRIPT_DIR/SOUL-minecraft.md" "$SOUL_FILE"
+if [ -n "$SOUL_OVERRIDE" ] && [ -f "$SOUL_OVERRIDE" ]; then
+    cp "$SOUL_OVERRIDE" "$SOUL_FILE"
+else
+    cp "$SCRIPT_DIR/SOUL-minecraft.md" "$SOUL_FILE"
+fi
 
 echo ""
 echo "  ═══════════════════════════════════════"
