@@ -31,12 +31,12 @@ BASE_API_PORT=3001
 # Agent definitions: name:direction
 # Direction is where they head initially to spread out
 ALL_AGENTS=(
-  "Genghis:northeast"
-  "Cleopatra:east"
-  "Tesla:south"
-  "Pirate:west"
-  "Monk:north"
-  "Goblin:southeast"
+  "Marcus:northeast"
+  "Sarah:east"
+  "Jin:south"
+  "Dave:west"
+  "Lisa:north"
+  "Tommy:southeast"
 )
 
 PIDS=()
