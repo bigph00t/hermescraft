@@ -222,13 +222,15 @@ async function tick() {
     return;
   }
 
-  // Position-based stuck detection — if not moving for 5 ticks, force recovery
+  // Position-based stuck detection — only when last action was a movement action
   const pos = state.position;
-  if (pos && lastPosition) {
+  const lastAct = actionHistory.length > 0 ? actionHistory[actionHistory.length - 1] : null;
+  const wasMovementAction = lastAct && ['navigate', 'walk', 'mine', 'look_at_block'].includes(lastAct.type);
+  if (pos && lastPosition && wasMovementAction) {
     const moved = Math.abs(pos.x - lastPosition.x) + Math.abs(pos.y - lastPosition.y) + Math.abs(pos.z - lastPosition.z);
     if (moved < 0.5) {
       samePositionTicks++;
-      if (samePositionTicks >= 5) {
+      if (samePositionTicks >= 8) {
         logWarn(`Position stuck for ${samePositionTicks} ticks — forcing stop + fresh thinking`);
         try { await executeAction({ type: 'stop' }); } catch {}
         clearConversation();
@@ -239,13 +241,13 @@ async function tick() {
     } else {
       samePositionTicks = 0;
     }
+  } else if (!wasMovementAction) {
+    samePositionTicks = 0; // Reset when doing non-movement actions (crafting, equipping, etc.)
   }
   lastPosition = pos ? { ...pos } : null;
 
-  // Auto-close stuck screens (crafting table, furnace, chest left open)
-  if (state.openScreen && state.openScreen.type) {
-    try { await executeAction({ type: 'close_screen' }); } catch {}
-  }
+  // Note: do NOT auto-close screens here — it breaks the craft flow
+  // (craft opens table on first call, needs it open for second call)
 
   // Check for death (with cooldown to prevent infinite re-detection)
   if (detectDeath(state) && (tickCount - lastDeathTick) > DEATH_COOLDOWN_TICKS) {
