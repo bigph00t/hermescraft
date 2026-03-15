@@ -23,8 +23,9 @@ import { URL } from 'url';
 import mineflayer from 'mineflayer';
 import pathfinderPkg from 'mineflayer-pathfinder';
 const { pathfinder, Movements, goals } = pathfinderPkg;
-import pvpPkg from 'mineflayer-pvp';
-const pvpPlugin = pvpPkg.plugin;
+// pvp plugin disabled — its deprecated physicTick event breaks pathfinder
+// import pvpPkg from 'mineflayer-pvp';
+// const pvpPlugin = pvpPkg.plugin;
 import armorManager from 'mineflayer-armor-manager';
 import { loader as autoEatLoader } from 'mineflayer-auto-eat';
 import collectBlockPkg from 'mineflayer-collectblock';
@@ -69,12 +70,13 @@ let botReady = false;
 let chatLog = [];
 let deathLog = [];
 let commandQueue = []; // complex commands for Hermes to process
+let currentTask = null; // background task state
 let lastHealth = 20;
 const MAX_LOG = 100;
 const MAX_QUEUE = 20;
 
 // ═══════════════════════════════════════════════════════════════════
-// Reactive Chat — instant responses to player commands
+// Chat Handling — ALL decisions made by the AI, not the bot
 // ═══════════════════════════════════════════════════════════════════
 
 const HERMES_NAMES = ['hermes', 'hermesbot', 'bot'];
@@ -89,7 +91,6 @@ function stripBotName(message) {
   for (const name of HERMES_NAMES) {
     if (lower.startsWith(name)) {
       let rest = message.trim().slice(name.length).trim();
-      // Strip leading punctuation: "hermes, come here" -> "come here"
       rest = rest.replace(/^[,!.:\s]+/, '').trim();
       return rest;
     }
@@ -97,265 +98,17 @@ function stripBotName(message) {
   return message.trim();
 }
 
-// Reactive command patterns — these execute INSTANTLY
-const REACTIVE_COMMANDS = [
-  {
-    patterns: [/^(?:follow|come|come here|come to me|come with me|come over)/i],
-    action: async (username, msg) => {
-      const entity = Object.values(bot.entities).find(e =>
-        e !== bot.entity && (e.username || '').toLowerCase() === username.toLowerCase()
-      );
-      if (entity) {
-        bot.chat(`On my way, ${username}.`);
-        bot.pathfinder.setGoal(new goals.GoalFollow(entity, 2), true);
-        return true;
-      } else {
-        bot.chat(`I can't see you, ${username}. Where are you?`);
-        return true;
-      }
-    }
-  },
-  {
-    patterns: [/^stop/i, /^halt/i, /^stay/i, /^wait here/i],
-    action: async (username) => {
-      bot.pathfinder.setGoal(null);
-      try { bot.stopDigging(); } catch {}
-      if (bot.pvp) try { bot.pvp.stop(); } catch {}
-      bot.chat('Stopped.');
-      return true;
-    }
-  },
-  {
-    patterns: [/^(?:hi|hello|hey|sup|yo|greetings|howdy)/i],
-    action: async (username) => {
-      const greetings = [
-        `Greetings, ${username}. What task requires my cunning?`,
-        `Ah, ${username}. The mortal speaks.`,
-        `Hello, ${username}. I am at your service.`,
-        `${username}! What adventure awaits?`,
-        `Salutations. What would you have me do?`,
-      ];
-      bot.chat(greetings[Math.floor(Math.random() * greetings.length)]);
-      return true;
-    }
-  },
-  {
-    patterns: [/^(?:status|how are you|health|hp)/i],
-    action: async () => {
-      const h = Math.round(bot.health);
-      const f = bot.food;
-      const pos = bot.entity.position;
-      const time = bot.time.timeOfDay < 12000 ? 'day' : 'night';
-      bot.chat(`HP: ${h}/20 | Food: ${f}/20 | ${time} | Pos: ${Math.round(pos.x)}, ${Math.round(pos.y)}, ${Math.round(pos.z)}`);
-      return true;
-    }
-  },
-  {
-    patterns: [/^(?:what do you have|inventory|inv|items|what you got)/i],
-    action: async () => {
-      const items = bot.inventory.items();
-      if (items.length === 0) {
-        bot.chat('My pockets are empty. A god with nothing — how humbling.');
-      } else {
-        const summary = items.slice(0, 8).map(i => `${i.name}x${i.count}`).join(', ');
-        const more = items.length > 8 ? ` (+${items.length - 8} more)` : '';
-        bot.chat(summary + more);
-      }
-      return true;
-    }
-  },
-  {
-    patterns: [/^(?:go to|goto|walk to|move to|head to)\s+(-?\d+)\s+(-?\d+)\s+(-?\d+)/i],
-    action: async (username, msg, match) => {
-      const [x, y, z] = [parseInt(match[1]), parseInt(match[2]), parseInt(match[3])];
-      bot.chat(`Heading to ${x}, ${y}, ${z}.`);
-      try {
-        await bot.pathfinder.goto(new goals.GoalBlock(x, y, z));
-        bot.chat('Arrived.');
-      } catch {
-        bot.chat('Could not reach that location.');
-      }
-      return true;
-    }
-  },
-  {
-    patterns: [/^(?:eat|feed|hungry)/i],
-    action: async () => {
-      const foods = bot.inventory.items().filter(i => mcData.foodsByName?.[i.name]);
-      if (foods.length === 0) {
-        bot.chat('No food. Even gods need sustenance.');
-      } else {
-        try {
-          await bot.equip(foods[0], 'hand');
-          await bot.consume();
-          bot.chat(`Ate ${foods[0].name}. Better.`);
-        } catch { bot.chat('Cannot eat right now.'); }
-      }
-      return true;
-    }
-  },
-  {
-    patterns: [/^(?:drop|toss|give me|give)\s+(.+)/i],
-    action: async (username, msg, match) => {
-      const itemName = match[1].toLowerCase().replace(/\s+/g, '_');
-      const item = bot.inventory.items().find(i => i.name.includes(itemName));
-      if (item) {
-        await bot.tossStack(item);
-        bot.chat(`Tossed ${item.name}. Catch!`);
-      } else {
-        bot.chat(`I don't have ${match[1]}.`);
-      }
-      return true;
-    }
-  },
-  {
-    patterns: [/^(?:where are you|location|pos|position)/i],
-    action: async () => {
-      const pos = bot.entity.position;
-      bot.chat(`I'm at ${Math.round(pos.x)}, ${Math.round(pos.y)}, ${Math.round(pos.z)}.`);
-      return true;
-    }
-  },
-  {
-    patterns: [/^(?:help|commands|what can you do)/i],
-    action: async () => {
-      bot.chat('I can: follow, stop, mine, craft, attack, eat, goto X Y Z, give ITEM. Or tell me anything!');
-      return true;
-    }
-  },
-  // ── Mining/Gathering ──
-  {
-    patterns: [
-      /^(?:get|mine|collect|gather|chop|punch)\s+(?:some\s+)?(?:(\d+)\s+)?(.+)/i,
-    ],
-    action: async (username, msg, match) => {
-      let count = parseInt(match[1]) || 5;
-      const raw = match[2].toLowerCase().trim();
-      // Map common names to block IDs
-      const blockMap = {
-        'wood': 'oak_log', 'logs': 'oak_log', 'oak': 'oak_log', 'birch': 'birch_log',
-        'spruce': 'spruce_log', 'trees': 'oak_log', 'tree': 'oak_log',
-        'stone': 'cobblestone', 'cobble': 'cobblestone', 'cobblestone': 'cobblestone',
-        'dirt': 'dirt', 'sand': 'sand', 'gravel': 'gravel', 'clay': 'clay',
-        'iron': 'iron_ore', 'iron ore': 'iron_ore',
-        'coal': 'coal_ore', 'coal ore': 'coal_ore',
-        'diamond': 'diamond_ore', 'diamonds': 'diamond_ore',
-        'gold': 'gold_ore', 'gold ore': 'gold_ore',
-      };
-      const blockName = blockMap[raw] || raw.replace(/\s+/g, '_');
-      const blockType = mcData.blocksByName[blockName];
-      if (!blockType) {
-        bot.chat(`I don't know what "${raw}" is. Try a specific block name.`);
-        return true;
-      }
-      bot.chat(`Mining ${count} ${blockName}...`);
-      try {
-        const result = await ACTIONS.collect({ block: blockName, count });
-        bot.chat(result.result);
-      } catch (e) {
-        bot.chat(`Couldn't mine ${blockName}: ${e.message}`);
-      }
-      return true;
-    }
-  },
-  // ── Crafting ──
-  {
-    patterns: [/^(?:craft|make)\s+(?:a\s+|an\s+|some\s+)?(?:(\d+)\s+)?(.+)/i],
-    action: async (username, msg, match) => {
-      const count = parseInt(match[1]) || 1;
-      const raw = match[2].toLowerCase().trim().replace(/\s+/g, '_');
-      bot.chat(`Crafting ${raw}...`);
-      try {
-        const result = await ACTIONS.craft({ item: raw, count });
-        bot.chat(result.result);
-      } catch (e) {
-        bot.chat(`Can't craft ${raw}: ${e.message}`);
-      }
-      return true;
-    }
-  },
-  // ── Combat ──
-  {
-    patterns: [/^(?:attack|kill|fight|hit)\s+(?:the\s+|that\s+|a\s+)?(.+)/i],
-    action: async (username, msg, match) => {
-      const target = match[1].trim();
-      bot.chat(`Attacking ${target}!`);
-      try {
-        const result = await ACTIONS.attack({ target });
-        bot.chat(result.result);
-      } catch (e) {
-        bot.chat(`Can't attack: ${e.message}`);
-      }
-      return true;
-    }
-  },
-  // ── Look for things ──
-  {
-    patterns: [/^(?:find|look for|search for|where is|where are)\s+(?:some\s+)?(.+)/i],
-    action: async (username, msg, match) => {
-      const raw = match[1].toLowerCase().trim().replace(/\s+/g, '_');
-      // Try as block first
-      const blockType = mcData.blocksByName[raw];
-      if (blockType) {
-        try {
-          const result = await ACTIONS.find_blocks({ block: raw, radius: 64, count: 5 });
-          if (result.locations && result.locations.length > 0) {
-            const nearest = result.locations[0];
-            bot.chat(`Found ${raw}! Nearest at ${nearest.x}, ${nearest.y}, ${nearest.z} (${nearest.distance}m)`);
-          } else {
-            bot.chat(`No ${raw} found within 64 blocks.`);
-          }
-        } catch (e) {
-          bot.chat(`Couldn't search: ${e.message}`);
-        }
-      } else {
-        // Try as entity
-        try {
-          const result = await ACTIONS.find_entities({ type: raw, radius: 64 });
-          if (result.entities && result.entities.length > 0) {
-            const nearest = result.entities[0];
-            bot.chat(`Found ${nearest.type} ${nearest.distance}m away.`);
-          } else {
-            bot.chat(`No ${raw} found nearby.`);
-          }
-        } catch (e) {
-          bot.chat(`Couldn't find any ${raw}.`);
-        }
-      }
-      return true;
-    }
-  },
-];
-
+// No reactive commands — the AI handles EVERYTHING.
+// Bot just logs chat and queues messages addressed to it.
 async function handleChat(username, message) {
-  // Only respond to messages addressed to the bot
   if (!isAddressedToBot(message)) return;
 
   const command = stripBotName(message);
-  if (!command) {
-    bot.chat(`Yes, ${username}?`);
-    return;
-  }
+  if (!command) return;
 
   log(`[Command] <${username}> ${command}`);
 
-  // Try reactive commands first
-  for (const cmd of REACTIVE_COMMANDS) {
-    for (const pattern of cmd.patterns) {
-      const match = command.match(pattern);
-      if (match) {
-        try {
-          await cmd.action(username, command, match);
-        } catch (err) {
-          log(`Reactive command error: ${err.message}`);
-          bot.chat('Something went wrong. Let me try a different approach.');
-        }
-        return;
-      }
-    }
-  }
-
-  // Not a simple command — queue for Hermes (the AI brain) to handle
+  // Queue for the AI to handle
   commandQueue.push({
     time: Date.now(),
     from: username,
@@ -364,17 +117,7 @@ async function handleChat(username, message) {
     status: 'pending',
   });
   if (commandQueue.length > MAX_QUEUE) commandQueue.shift();
-
-  // Acknowledge the complex request
-  const acks = [
-    `Understood. Let me think about that...`,
-    `Hmm, "${command}". Give me a moment.`,
-    `On it, ${username}.`,
-    `Consider it done. Working on it...`,
-    `A worthy task. Beginning now.`,
-  ];
-  bot.chat(acks[Math.floor(Math.random() * acks.length)]);
-  log(`[Queued] Complex command from ${username}: ${command}`);
+  log(`[Queued] ${username}: ${command}`);
 }
 
 function log(msg) {
@@ -410,7 +153,7 @@ async function createBot() {
 
       // Load plugins
       bot.loadPlugin(pathfinder);
-      bot.loadPlugin(pvpPlugin);
+      // bot.loadPlugin(pvpPlugin); // disabled — breaks pathfinder
       bot.loadPlugin(armorManager);
       bot.loadPlugin(autoEatLoader);
       bot.loadPlugin(collectBlock);
@@ -519,9 +262,20 @@ function ensureBot() {
 }
 
 // Brief state snapshot (included in action responses)
+// Includes any new chat messages so the AI sees them after every action
 function briefState() {
   if (!bot || !botReady) return null;
-  return {
+
+  // Grab recent chat (last 30s) so AI sees messages that arrived during action
+  const now = Date.now();
+  const recentChat = chatLog
+    .filter(m => now - m.time < 30000 && m.from !== bot.username)
+    .map(m => ({ from: m.from, message: m.message, ago: Math.round((now - m.time) / 1000) + 's' }));
+
+  // Grab pending commands
+  const pending = commandQueue.filter(c => c.status === 'pending');
+
+  const state = {
     health: fmt(bot.health),
     food: bot.food,
     position: posObj(),
@@ -529,6 +283,18 @@ function briefState() {
     time: bot.time.timeOfDay,
     isDay: bot.time.timeOfDay < 12000,
   };
+
+  if (recentChat.length > 0) state.new_chat = recentChat;
+  if (pending.length > 0) state.pending_commands = pending.length;
+  if (currentTask && currentTask.status === 'running') {
+    state.task = { action: currentTask.action, elapsed: Math.round((Date.now() - currentTask.started) / 1000) + 's' };
+  } else if (currentTask && currentTask.status === 'done') {
+    state.task_done = currentTask.result?.result || 'completed';
+  } else if (currentTask && currentTask.status === 'error') {
+    state.task_error = currentTask.error;
+  }
+
+  return state;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -744,16 +510,19 @@ const ACTIONS = {
     const blockType = mcData.blocksByName[block];
     if (!blockType) throw new Error(`Unknown block "${block}". Check spelling (e.g. oak_log, iron_ore, cobblestone).`);
 
+    // Cap at 20 per call — chat piggybacks on the response so AI sees it
+    const batchSize = Math.min(count, 20);
+
     const found = b.findBlocks({
       matching: blockType.id,
       maxDistance: 64,
-      count: Math.min(count, 30),
+      count: batchSize,
     });
 
     if (found.length === 0) throw new Error(`No ${block} found within 64 blocks.`);
 
     let collected = 0;
-    for (const pos of found.slice(0, count)) {
+    for (const pos of found.slice(0, batchSize)) {
       try {
         const target = b.blockAt(pos);
         if (!target || target.name !== block) continue;
@@ -763,22 +532,32 @@ const ACTIONS = {
         }
         await b.dig(target, true);
         collected++;
-        await sleep(200); // brief pause for drops
+        await sleep(200);
       } catch {}
     }
 
-    // Pick up drops
-    await sleep(500);
-    const drops = Object.values(b.entities)
-      .filter(e => (e.name === 'item' || e.displayName === 'Item') && e.position.distanceTo(b.entity.position) < 10);
-    for (const drop of drops.slice(0, 10)) {
-      try {
-        await b.pathfinder.goto(new goals.GoalNear(drop.position.x, drop.position.y, drop.position.z, 0));
-        await sleep(300);
-      } catch {}
+    // Auto-pickup: walk through nearby drops to collect them
+    await sleep(600);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const drops = Object.values(b.entities)
+        .filter(e => (e.name === 'item' || e.displayName === 'Item') && e.position.distanceTo(b.entity.position) < 12)
+        .sort((a, c) => a.position.distanceTo(b.entity.position) - c.position.distanceTo(b.entity.position));
+      if (drops.length === 0) break;
+      for (const drop of drops.slice(0, 6)) {
+        try {
+          await b.pathfinder.goto(new goals.GoalNear(drop.position.x, drop.position.y, drop.position.z, 1));
+          await sleep(400);
+        } catch {}
+      }
     }
 
-    return { result: `Collected ${collected}/${count} ${block}` };
+    // Report what we actually have now
+    const invCount = b.inventory.items().filter(i => i.name === block).reduce((s, i) => s + i.count, 0);
+    const remaining = count - collected;
+    const msg = remaining > 0
+      ? `Mined ${collected} ${block} (${remaining} more needed). Have ${invCount} ${block} in inventory.`
+      : `Mined ${collected}/${count} ${block}. Have ${invCount} ${block} in inventory.`;
+    return { result: msg };
   },
 
   async dig({ x, y, z }) {
@@ -795,22 +574,27 @@ const ACTIONS = {
 
   async pickup() {
     const b = ensureBot();
-    const pos = b.entity.position;
-    const drops = Object.values(b.entities)
-      .filter(e => (e.name === 'item' || e.displayName === 'Item') && e.position.distanceTo(pos) < 16)
-      .sort((a, c) => a.position.distanceTo(pos) - c.position.distanceTo(pos));
+    const invBefore = b.inventory.items().reduce((s, i) => s + i.count, 0);
 
-    if (drops.length === 0) return { result: 'No items nearby.' };
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const pos = b.entity.position;
+      const drops = Object.values(b.entities)
+        .filter(e => (e.name === 'item' || e.displayName === 'Item') && e.position.distanceTo(pos) < 16)
+        .sort((a, c) => a.position.distanceTo(pos) - c.position.distanceTo(pos));
 
-    let picked = 0;
-    for (const drop of drops.slice(0, 8)) {
-      try {
-        await b.pathfinder.goto(new goals.GoalNear(drop.position.x, drop.position.y, drop.position.z, 0));
-        picked++;
-        await sleep(300);
-      } catch {}
+      if (drops.length === 0) break;
+
+      for (const drop of drops.slice(0, 8)) {
+        try {
+          await b.pathfinder.goto(new goals.GoalNear(drop.position.x, drop.position.y, drop.position.z, 1));
+          await sleep(400);
+        } catch {}
+      }
     }
-    return { result: `Picked up ${picked} item drops.` };
+
+    const invAfter = b.inventory.items().reduce((s, i) => s + i.count, 0);
+    const gained = invAfter - invBefore;
+    return { result: gained > 0 ? `Picked up ${gained} items.` : 'No items to pick up.' };
   },
 
   // ── Find blocks ──────────────────────────────────
@@ -1185,13 +969,57 @@ const httpServer = http.createServer(async (req, res) => {
         const pending = commandQueue.filter(c => c.status === 'pending');
         return respond(res, 200, { ok: true, data: { commands: pending } });
       }
+
+      if (path === '/task') {
+        // Check background task status
+        if (!currentTask) return respond(res, 200, { ok: true, data: { task: null }, state: briefState() });
+        const elapsed = Math.round((Date.now() - currentTask.started) / 1000);
+        return respond(res, 200, { ok: true, data: { task: { ...currentTask, elapsed_s: elapsed } }, state: briefState() });
+      }
     }
 
     // ── POST endpoints (actions) ────────────────
     if (req.method === 'POST') {
       const body = await parseBody(req);
 
-      // Extract action name from path: /action/goto -> goto
+      // Cancel current task
+      if (path === '/task/cancel') {
+        const b = ensureBot();
+        b.pathfinder.setGoal(null);
+        try { b.stopDigging(); } catch {}
+        if (currentTask && currentTask.status === 'running') {
+          currentTask.status = 'cancelled';
+        }
+        return respond(res, 200, { ok: true, result: 'Task cancelled.', state: briefState() });
+      }
+
+      // Background task system: POST /task/ACTION runs async, returns task_id
+      const taskMatch = path.match(/^\/task\/(\w+)$/);
+      if (taskMatch) {
+        const actionName = taskMatch[1];
+        const actionFn = ACTIONS[actionName];
+        if (!actionFn) {
+          const available = Object.keys(ACTIONS).join(', ');
+          return respond(res, 400, { ok: false, error: `Unknown action "${actionName}". Available: ${available}` });
+        }
+        const taskId = `${actionName}_${Date.now()}`;
+        currentTask = { id: taskId, action: actionName, status: 'running', started: Date.now(), result: null, error: null };
+        // Fire and forget — runs in background
+        actionFn(body).then(result => {
+          if (currentTask && currentTask.id === taskId) {
+            currentTask.status = 'done';
+            currentTask.result = result;
+          }
+        }).catch(err => {
+          if (currentTask && currentTask.id === taskId) {
+            currentTask.status = 'error';
+            currentTask.error = err.message;
+          }
+        });
+        return respond(res, 200, { ok: true, task_id: taskId, status: 'started', state: briefState() });
+      }
+
+      // Synchronous action: POST /action/ACTION (still supported for quick stuff)
       const actionMatch = path.match(/^\/action\/(\w+)$/);
       if (!actionMatch) {
         // Special: /connect
