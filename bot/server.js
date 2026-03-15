@@ -824,13 +824,25 @@ const ACTIONS = {
     const found = b.findBlocks({
       matching: blockType.id,
       maxDistance: 64,
-      count: batchSize,
+      count: batchSize * 3, // find extras so we can skip bad ones
     });
 
     if (found.length === 0) throw new Error(`No ${block} found within 64 blocks.`);
 
+    // Filter out blocks directly under the bot (never dig straight down!)
+    const botPos = b.entity.position;
+    const safe = found.filter(pos => {
+      // Skip blocks directly below us (within 1 block horizontally, any depth below)
+      if (Math.abs(pos.x - Math.floor(botPos.x)) < 1 && 
+          Math.abs(pos.z - Math.floor(botPos.z)) < 1 && 
+          pos.y < Math.floor(botPos.y)) return false;
+      return true;
+    });
+
+    if (safe.length === 0) throw new Error(`No safely reachable ${block} found.`);
+
     let collected = 0;
-    for (const pos of found.slice(0, batchSize)) {
+    for (const pos of safe.slice(0, batchSize)) {
       try {
         const target = b.blockAt(pos);
         if (!target || target.name !== block) continue;
@@ -2051,18 +2063,34 @@ setInterval(() => {
   const pos = bot.entity.position;
   positionHistory.push({ time: Date.now(), x: pos.x, y: pos.y, z: pos.z });
   positionHistory = positionHistory.filter(p => Date.now() - p.time < 60000);
-  // Only check stuck for movement-based tasks (not craft, smelt, sleep, etc.)
+  // Stuck detection for movement-based tasks — 10s threshold
   const movementActions = ['goto', 'goto_near', 'follow', 'collect', 'fight', 'flee', 'go_mark', 'deathpoint', 'pickup', 'sprint_attack', 'strafe', 'combo'];
   if (currentTask && currentTask.status === 'running' && movementActions.includes(currentTask.action)) {
-    const old = positionHistory.find(p => Date.now() - p.time > 30000);
+    const old = positionHistory.find(p => Date.now() - p.time > 10000);
     if (old) {
       const dist = Math.sqrt((pos.x-old.x)**2+(pos.y-old.y)**2+(pos.z-old.z)**2);
       if (dist < 2) {
         try { bot.pathfinder.setGoal(null); } catch {}
         try { bot.stopDigging(); } catch {}
+        try { bot.clearControlStates(); } catch {}
         currentTask.status = 'stuck';
-        currentTask.error = `Stuck at ${Math.round(pos.x)},${Math.round(pos.y)},${Math.round(pos.z)} for 30s`;
-        log('STUCK detected — task cancelled');
+        currentTask.error = `Stuck at ${Math.round(pos.x)},${Math.round(pos.y)},${Math.round(pos.z)} — try a different approach`;
+        log('STUCK detected (10s no movement) — task cancelled');
+      }
+    }
+  }
+  // Also detect stuck on non-bg tasks: if bot is jumping repeatedly in place
+  if (!currentTask || currentTask.status !== 'running') {
+    const recent = positionHistory.filter(p => Date.now() - p.time < 8000);
+    if (recent.length >= 3) {
+      const allSameSpot = recent.every(p => 
+        Math.abs(p.x - recent[0].x) < 1.5 && Math.abs(p.z - recent[0].z) < 1.5
+      );
+      if (allSameSpot && !bot.entity.onGround) {
+        // Jumping in place — stop all controls
+        try { bot.clearControlStates(); } catch {}
+        try { bot.pathfinder.setGoal(null); } catch {}
+        log('Jump-stuck detected — cleared controls');
       }
     }
   }
