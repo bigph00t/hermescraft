@@ -196,6 +196,24 @@ function isMessageForMe(routing) {
   return routing.targets.some(t => t === myName || t === 'bot' || t === 'hermes');
 }
 
+// Check if a broadcast message starts with our name (human player addressing us without colon)
+// e.g. "hermes build a house" or "Genghis come here"
+function broadcastMentionsMe(messageBody) {
+  const lower = messageBody.toLowerCase().trim();
+  const myName = getMyName();
+  // Check if message starts with our name
+  if (lower.startsWith(myName)) return myName;
+  // Also check common aliases
+  if (myName !== 'hermesbot' && lower.startsWith('hermes')) return 'hermes';
+  if (lower.startsWith('bot')) return 'bot';
+  return null;
+}
+
+// Strip the bot name prefix from a broadcast mention
+function stripMentionPrefix(messageBody, matchedName) {
+  return messageBody.trim().slice(matchedName.length).replace(/^[,!.:\s]+/, '').trim();
+}
+
 // Handle incoming chat message with routing
 async function handleChat(username, message) {
   const routing = parseMessageRouting(message);
@@ -208,7 +226,7 @@ async function handleChat(username, message) {
     if (chatLog.length > MAX_LOG) chatLog.shift();
     log(`[Chat${routing.isBroadcast ? '' : ' @me'}] <${username}> ${routing.body}`);
     
-    // If directly addressed (not broadcast), also queue as command
+    // If directly addressed (Name: msg format), queue as command
     if (!routing.isBroadcast) {
       commandQueue.push({
         time: Date.now(),
@@ -219,6 +237,24 @@ async function handleChat(username, message) {
       });
       if (commandQueue.length > MAX_QUEUE) commandQueue.shift();
       log(`[Queued] ${username}: ${routing.body}`);
+    } else {
+      // Broadcast but mentions our name at start? Also queue as command.
+      // This handles human players typing "hermes build a house" without the colon.
+      const mention = broadcastMentionsMe(routing.body);
+      if (mention) {
+        const command = stripMentionPrefix(routing.body, mention);
+        if (command) {
+          commandQueue.push({
+            time: Date.now(),
+            from: username,
+            command: command,
+            originalMessage: message,
+            status: 'pending',
+          });
+          if (commandQueue.length > MAX_QUEUE) commandQueue.shift();
+          log(`[Queued via mention] ${username}: ${command}`);
+        }
+      }
     }
   } else {
     // Message is NOT for us — overheard only
