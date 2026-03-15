@@ -92,6 +92,42 @@ const MAX_LOG = 100;
 const MAX_QUEUE = 20;
 
 // ═══════════════════════════════════════════════════════════════════
+// Fair Play Mode — perception constraints for realistic gameplay
+// ═══════════════════════════════════════════════════════════════════
+
+let fairPlayMode = process.env.FAIR_PLAY !== 'false'; // on by default
+const FAIR_PLAY = {
+  LOS_ENTITY_RANGE: 48,       // max entity detection range with LOS
+  SNEAK_DETECT_RANGE: 8,      // sneaking players only detected this close
+  SOUND_MINE_RADIUS: 16,      // mining sound radius
+  SOUND_SPRINT_RADIUS: 8,     // sprinting sound radius
+  SOUND_WALK_RADIUS: 4,       // walking sound radius
+  SOUND_SNEAK_RADIUS: 1,      // sneaking sound radius
+  REACTION_MIN_MS: 100,       // min reaction delay
+  REACTION_MAX_MS: 300,       // max reaction delay
+  BLOCK_SCAN_RANGE: 16,       // limited block scan (was 64 in find_blocks)
+};
+
+// Sound events detected by this bot (populated by nearby activity)
+let soundEvents = [];
+
+// Team system
+let teamConfig = {
+  team: null,        // 'red' or 'blue' or null
+  role: null,        // 'commander', 'warrior', 'ranger', 'support'
+  teammates: [],     // usernames of teammates
+  rallyPoint: null,  // { x, y, z } set by commander
+  teamChat: [],      // team-only messages
+};
+
+// Kill/death tracking
+let combatStats = { kills: 0, deaths: 0, assists: 0, damageDealt: 0, damageTaken: 0 };
+let recentDamagers = {}; // { username: lastDamageTime } for assist tracking
+
+// Active furnaces (fire-and-forget tracking)
+let activeFurnaces = []; // [{ x, y, z, input, count, startTime, estimatedDone }]
+
+// ═══════════════════════════════════════════════════════════════════
 // Chat Handling — ALL decisions made by the AI, not the bot
 // ═══════════════════════════════════════════════════════════════════
 
@@ -290,6 +326,100 @@ function ensureBot() {
   return bot;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// Fair Play — Line-of-Sight & Perception
+// ═══════════════════════════════════════════════════════════════════
+
+function hasLineOfSight(from, to) {
+  if (!bot || !botReady) return false;
+  // Bresenham-style raycast through blocks
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const dz = to.z - from.z;
+  const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+  if (dist < 1) return true;
+  const steps = Math.ceil(dist * 2); // check every 0.5 blocks
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps;
+    const x = from.x + dx * t;
+    const y = from.y + dy * t;
+    const z = from.z + dz * t;
+    const block = bot.blockAt(new Vec3(Math.floor(x), Math.floor(y), Math.floor(z)));
+    if (block && block.boundingBox === 'block') return false; // solid block blocks LOS
+  }
+  return true;
+}
+
+function canDetectEntity(entity) {
+  if (!fairPlayMode || !bot || !botReady) return true; // no filtering if fair play off
+  const pos = bot.entity.position;
+  const dist = entity.position.distanceTo(pos);
+  
+  // Always detect entities within 3 blocks (melee range — you can hear/feel them)
+  if (dist < 3) return true;
+  
+  // Sneaking entities: much shorter detection range
+  const isSneaking = entity.metadata?.[6] === 5 || entity.crouching || (entity.pose === 'sneaking');
+  if (isSneaking && dist > FAIR_PLAY.SNEAK_DETECT_RANGE) return false;
+  
+  // Beyond max range: invisible
+  if (dist > FAIR_PLAY.LOS_ENTITY_RANGE) return false;
+  
+  // LOS check: raycast from bot eyes to entity center
+  const eyeHeight = bot.entity.height * 0.85;
+  const eyePos = pos.offset(0, eyeHeight, 0);
+  const targetCenter = entity.position.offset(0, (entity.height || 1.8) * 0.5, 0);
+  
+  if (!hasLineOfSight(eyePos, targetCenter)) {
+    // Can't see through walls — but check sound events
+    // Mining/sprinting nearby creates sound events
+    return false;
+  }
+  
+  return true;
+}
+
+function filterEntitiesFairPlay(entities) {
+  if (!fairPlayMode) return entities;
+  return entities.filter(e => canDetectEntity(e));
+}
+
+function addSoundEvent(type, position, radius) {
+  if (!bot || !botReady) return;
+  const dist = bot.entity.position.distanceTo(position);
+  if (dist > radius) return;
+  
+  // Rough direction (N/S/E/W/NE/etc)
+  const dx = position.x - bot.entity.position.x;
+  const dz = position.z - bot.entity.position.z;
+  const angle = Math.atan2(dz, dx) * 180 / Math.PI;
+  let dir;
+  if (angle > -22.5 && angle <= 22.5) dir = 'east';
+  else if (angle > 22.5 && angle <= 67.5) dir = 'southeast';
+  else if (angle > 67.5 && angle <= 112.5) dir = 'south';
+  else if (angle > 112.5 && angle <= 157.5) dir = 'southwest';
+  else if (angle > 157.5 || angle <= -157.5) dir = 'west';
+  else if (angle > -157.5 && angle <= -112.5) dir = 'northwest';
+  else if (angle > -112.5 && angle <= -67.5) dir = 'north';
+  else dir = 'northeast';
+  
+  soundEvents.push({
+    time: Date.now(),
+    type, // 'mining', 'sprinting', 'walking', 'combat', 'explosion'
+    direction: dir,
+    distance: fmt(dist),
+    approximate: true,
+  });
+  // Keep only last 20 events, last 30 seconds
+  soundEvents = soundEvents.filter(e => Date.now() - e.time < 30000).slice(-20);
+}
+
+async function reactionDelay() {
+  if (!fairPlayMode) return;
+  const delay = FAIR_PLAY.REACTION_MIN_MS + Math.random() * (FAIR_PLAY.REACTION_MAX_MS - FAIR_PLAY.REACTION_MIN_MS);
+  await sleep(delay);
+}
+
 // Brief state snapshot (included in action responses)
 // Includes any new chat messages so the AI sees them after every action
 function briefState() {
@@ -337,9 +467,11 @@ function getFullState() {
   const inv = b.inventory.items();
   const time = b.time.timeOfDay;
 
-  // Nearby entities
-  const entities = Object.values(b.entities)
-    .filter(e => e !== b.entity && e.position.distanceTo(pos) < 24)
+  // Nearby entities (fair-play filtered)
+  const rawEntities = Object.values(b.entities)
+    .filter(e => e !== b.entity && e.position.distanceTo(pos) < (fairPlayMode ? FAIR_PLAY.LOS_ENTITY_RANGE : 24));
+  const visibleEntities = filterEntitiesFairPlay(rawEntities);
+  const entities = visibleEntities
     .sort((a, c) => a.position.distanceTo(pos) - c.position.distanceTo(pos))
     .slice(0, 15)
     .map(e => ({
@@ -418,6 +550,25 @@ function getFullState() {
     lastDeath: lastDeath ? { position: lastDeath.position, seconds_ago: Math.round((Date.now()-lastDeath.time)/1000) } : null,
     onGround: b.entity.onGround,
     isRaining: b.isRaining,
+    isSneaking: b.controlState?.sneak || false,
+    // Fair play: sound events (directional hints without exact positions)
+    sounds: soundEvents.length > 0 ? soundEvents.slice(-5) : undefined,
+    // Team info
+    team: teamConfig.team ? {
+      name: teamConfig.team,
+      role: teamConfig.role,
+      rallyPoint: teamConfig.rallyPoint,
+      recentTeamChat: teamConfig.teamChat.slice(-3),
+    } : undefined,
+    // Combat stats
+    combatStats: (combatStats.kills + combatStats.deaths > 0) ? combatStats : undefined,
+    // Active furnaces
+    activeFurnaces: activeFurnaces.length > 0 ? activeFurnaces.map(f => ({
+      position: { x: f.x, y: f.y, z: f.z },
+      input: f.input,
+      estimatedDone: f.estimatedDone ? Math.max(0, Math.round((f.estimatedDone - Date.now()) / 1000)) + 's' : 'unknown',
+    })) : undefined,
+    fairPlay: fairPlayMode,
   };
 }
 
@@ -448,9 +599,10 @@ function getNearby(radius = 32) {
   const b = ensureBot();
   const pos = b.entity.position;
 
-  // Entities
-  const entities = Object.values(b.entities)
-    .filter(e => e !== b.entity && e.position.distanceTo(pos) < radius)
+  // Entities (fair-play filtered)
+  const rawEnts = Object.values(b.entities)
+    .filter(e => e !== b.entity && e.position.distanceTo(pos) < radius);
+  const entities = filterEntitiesFairPlay(rawEnts)
     .sort((a, c) => a.position.distanceTo(pos) - c.position.distanceTo(pos))
     .slice(0, 20)
     .map(e => ({
@@ -1109,6 +1261,452 @@ const ACTIONS = {
     saveLocations(locs);
     return { result: `Deleted '${name}'` };
   },
+
+  // ═══════════════════════════════════════════════════════════════
+  // Advanced Combat — sneaking, shields, bows, crits, combos
+  // ═══════════════════════════════════════════════════════════════
+
+  async sneak({ enable = true }) {
+    const b = ensureBot();
+    b.setControlState('sneak', enable);
+    return { result: enable ? 'Sneaking — nameplate hidden, reduced detection range' : 'Stopped sneaking' };
+  },
+
+  async shield_block({ duration = 3 }) {
+    const b = ensureBot();
+    // Check for shield in offhand
+    const shield = b.inventory.items().find(i => i.name === 'shield');
+    if (!shield) throw new Error('No shield in inventory. Craft one first (1 iron + 6 planks).');
+    
+    // Equip to offhand if not already there
+    if (!b.inventory.slots[45] || b.inventory.slots[45].name !== 'shield') {
+      await b.equip(shield, 'off-hand');
+    }
+    
+    // Activate shield (right-click = use = block)
+    b.activateItem(true); // true = offhand
+    const blockTime = Math.min(duration, 10) * 1000;
+    await sleep(blockTime);
+    b.deactivateItem();
+    return { result: `Blocked with shield for ${duration}s` };
+  },
+
+  async shoot({ target, predict = true }) {
+    const b = ensureBot();
+    await reactionDelay();
+    
+    // Find and equip bow
+    const bow = b.inventory.items().find(i => i.name === 'bow' || i.name === 'crossbow');
+    if (!bow) throw new Error('No bow/crossbow in inventory.');
+    const arrows = b.inventory.items().find(i => i.name === 'arrow' || i.name === 'spectral_arrow' || i.name === 'tipped_arrow');
+    if (!arrows) throw new Error('No arrows in inventory.');
+    await b.equip(bow, 'hand');
+    
+    // Find target entity
+    let entity;
+    if (target) {
+      const rawEnts = Object.values(b.entities).filter(e => e !== b.entity);
+      const visible = filterEntitiesFairPlay(rawEnts);
+      entity = visible.find(e =>
+        (e.name || '').toLowerCase().includes(target.toLowerCase()) ||
+        (e.username || '').toLowerCase().includes(target.toLowerCase())
+      );
+    } else {
+      const hostiles = ['zombie','skeleton','spider','creeper','enderman','witch','drowned','blaze','ghast','wither_skeleton','player'];
+      const rawEnts = Object.values(b.entities).filter(e => 
+        e !== b.entity && hostiles.some(h => (e.name || '').includes(h)));
+      const visible = filterEntitiesFairPlay(rawEnts);
+      entity = visible.sort((a, c) => a.position.distanceTo(b.entity.position) - c.position.distanceTo(b.entity.position))[0];
+    }
+    if (!entity) throw new Error(`No ${target || 'target'} visible.`);
+    
+    // Calculate aim point (predict movement for leading shots)
+    let aimPoint = entity.position.offset(0, entity.height * 0.6, 0);
+    if (predict && entity.velocity) {
+      const dist = entity.position.distanceTo(b.entity.position);
+      const flightTime = dist / 30; // arrows travel ~30 blocks/sec
+      aimPoint = aimPoint.offset(
+        entity.velocity.x * flightTime * 20,
+        entity.velocity.y * flightTime * 20 + 0.05 * dist, // gravity compensation
+        entity.velocity.z * flightTime * 20
+      );
+    }
+    
+    await b.lookAt(aimPoint);
+    // Charge bow (full charge = 1 second for bow)
+    b.activateItem();
+    await sleep(bow.name === 'crossbow' ? 1250 : 1000);
+    b.deactivateItem();
+    
+    return { result: `Shot ${bow.name} at ${entity.name || target} (${fmt(entity.position.distanceTo(b.entity.position))}m)` };
+  },
+
+  async sprint_attack({ target }) {
+    const b = ensureBot();
+    await reactionDelay();
+    
+    // Auto-equip best weapon
+    const weapons = ['netherite_sword','diamond_sword','iron_sword','stone_sword','wooden_sword',
+                     'netherite_axe','diamond_axe','iron_axe','stone_axe'];
+    for (const w of weapons) {
+      const item = b.inventory.items().find(i => i.name === w);
+      if (item) { await b.equip(item, 'hand'); break; }
+    }
+    
+    const rawEnts = Object.values(b.entities).filter(e => e !== b.entity);
+    const visible = filterEntitiesFairPlay(rawEnts);
+    const entity = target
+      ? visible.find(e => (e.name || '').toLowerCase().includes(target.toLowerCase()) || (e.username || '').toLowerCase().includes(target.toLowerCase()))
+      : visible.filter(e => ['zombie','skeleton','spider','creeper','player'].some(h => (e.name || '').includes(h)))
+               .sort((a, c) => a.position.distanceTo(b.entity.position) - c.position.distanceTo(b.entity.position))[0];
+    if (!entity) throw new Error(`No ${target || 'target'} visible.`);
+    
+    // Sprint toward and attack — extra knockback on first sprint hit
+    b.setControlState('sprint', true);
+    if (entity.position.distanceTo(b.entity.position) > 3.5) {
+      await b.pathfinder.goto(new goals.GoalNear(entity.position.x, entity.position.y, entity.position.z, 2));
+    }
+    await b.lookAt(entity.position.offset(0, entity.height * 0.8, 0));
+    await b.attack(entity);
+    b.setControlState('sprint', false);
+    
+    return { result: `Sprint-attacked ${entity.name || target}! (extra knockback)` };
+  },
+
+  async critical_hit({ target }) {
+    const b = ensureBot();
+    await reactionDelay();
+    
+    // Equip best weapon
+    const weapons = ['netherite_sword','diamond_sword','iron_sword','stone_sword','wooden_sword','netherite_axe','diamond_axe','iron_axe'];
+    for (const w of weapons) {
+      const item = b.inventory.items().find(i => i.name === w);
+      if (item) { await b.equip(item, 'hand'); break; }
+    }
+    
+    const rawEnts = Object.values(b.entities).filter(e => e !== b.entity);
+    const visible = filterEntitiesFairPlay(rawEnts);
+    const entity = target
+      ? visible.find(e => (e.name || '').toLowerCase().includes(target.toLowerCase()) || (e.username || '').toLowerCase().includes(target.toLowerCase()))
+      : visible.filter(e => e.position.distanceTo(b.entity.position) < 6).sort((a, c) => a.position.distanceTo(b.entity.position) - c.position.distanceTo(b.entity.position))[0];
+    if (!entity) throw new Error(`No ${target || 'target'} visible within range.`);
+    
+    // Approach
+    if (entity.position.distanceTo(b.entity.position) > 3.5) {
+      await b.pathfinder.goto(new goals.GoalNear(entity.position.x, entity.position.y, entity.position.z, 2));
+    }
+    
+    // Jump + attack on the way down = critical hit (150% damage)
+    b.setControlState('jump', true);
+    await sleep(200); // apex of jump
+    b.setControlState('jump', false);
+    await sleep(150); // falling down
+    await b.lookAt(entity.position.offset(0, entity.height * 0.8, 0));
+    await b.attack(entity);
+    
+    return { result: `Critical hit on ${entity.name || target}! (150% damage, star particles)` };
+  },
+
+  async strafe({ target, direction = 'random', duration = 5 }) {
+    const b = ensureBot();
+    await reactionDelay();
+    
+    // Equip best weapon
+    const weapons = ['netherite_sword','diamond_sword','iron_sword','stone_sword','wooden_sword'];
+    for (const w of weapons) {
+      const item = b.inventory.items().find(i => i.name === w);
+      if (item) { await b.equip(item, 'hand'); break; }
+    }
+    
+    const rawEnts = Object.values(b.entities).filter(e => e !== b.entity);
+    const visible = filterEntitiesFairPlay(rawEnts);
+    const entity = target
+      ? visible.find(e => (e.name || '').toLowerCase().includes(target.toLowerCase()) || (e.username || '').toLowerCase().includes(target.toLowerCase()))
+      : visible.filter(e => e.position.distanceTo(b.entity.position) < 8)[0];
+    if (!entity) throw new Error(`No ${target || 'target'} visible.`);
+    
+    let hits = 0;
+    const endTime = Date.now() + Math.min(duration, 15) * 1000;
+    const dir = direction === 'random' ? (Math.random() > 0.5 ? 'left' : 'right') : direction;
+    
+    while (Date.now() < endTime && entity.isValid) {
+      if (b.health <= 6) return { result: `Strafing stopped — low HP (${b.health}). ${hits} hits.` };
+      
+      // Strafe: move perpendicular to target
+      const dx = entity.position.x - b.entity.position.x;
+      const dz = entity.position.z - b.entity.position.z;
+      const dist = Math.sqrt(dx*dx + dz*dz);
+      
+      // Perpendicular direction
+      const perpX = dir === 'left' ? -dz/dist : dz/dist;
+      const perpZ = dir === 'left' ? dx/dist : -dx/dist;
+      
+      // Stay at ~3 block range
+      const targetDist = 3;
+      const adjX = b.entity.position.x + perpX * 1.5 + (dx/dist) * (dist - targetDist) * 0.3;
+      const adjZ = b.entity.position.z + perpZ * 1.5 + (dz/dist) * (dist - targetDist) * 0.3;
+      
+      await b.lookAt(entity.position.offset(0, entity.height * 0.8, 0));
+      
+      // Move toward strafe position
+      b.setControlState(dir === 'left' ? 'left' : 'right', true);
+      b.setControlState(dir === 'left' ? 'right' : 'left', false);
+      
+      // Attack when in range
+      if (dist < 4) {
+        await b.attack(entity);
+        hits++;
+      }
+      
+      await sleep(500);
+    }
+    
+    // Stop strafing
+    b.setControlState('left', false);
+    b.setControlState('right', false);
+    
+    return { result: `Strafed ${dir} around ${entity.name || target}. ${hits} hits in ${duration}s.` };
+  },
+
+  async combo({ target, style = 'aggressive' }) {
+    const b = ensureBot();
+    
+    // Find target
+    const rawEnts = Object.values(b.entities).filter(e => e !== b.entity);
+    const visible = filterEntitiesFairPlay(rawEnts);
+    const entity = target
+      ? visible.find(e => (e.name || '').toLowerCase().includes(target.toLowerCase()) || (e.username || '').toLowerCase().includes(target.toLowerCase()))
+      : visible.filter(e => e.position.distanceTo(b.entity.position) < 16)[0];
+    if (!entity) throw new Error(`No ${target || 'target'} visible.`);
+    const tName = entity.name || entity.username || target || 'target';
+    
+    const results = [];
+    try {
+      switch (style) {
+        case 'aggressive':
+          results.push((await ACTIONS.sprint_attack({ target: tName })).result);
+          await sleep(600);
+          results.push((await ACTIONS.critical_hit({ target: tName })).result);
+          await sleep(600);
+          results.push((await ACTIONS.critical_hit({ target: tName })).result);
+          if (b.inventory.items().find(i => i.name === 'shield')) {
+            await sleep(200);
+            results.push((await ACTIONS.shield_block({ duration: 1 })).result);
+          }
+          break;
+        case 'defensive':
+          if (b.inventory.items().find(i => i.name === 'shield')) {
+            results.push((await ACTIONS.shield_block({ duration: 2 })).result);
+          }
+          results.push((await ACTIONS.critical_hit({ target: tName })).result);
+          await sleep(300);
+          results.push((await ACTIONS.flee({ distance: 6 })).result);
+          break;
+        case 'ranged':
+          results.push((await ACTIONS.shoot({ target: tName, predict: true })).result);
+          await sleep(1200);
+          results.push((await ACTIONS.shoot({ target: tName, predict: true })).result);
+          if (entity.isValid && entity.position.distanceTo(b.entity.position) < 8) {
+            results.push((await ACTIONS.sprint_attack({ target: tName })).result);
+          }
+          break;
+        case 'berserker':
+          results.push((await ACTIONS.sprint_attack({ target: tName })).result);
+          for (let i = 0; i < 3 && entity.isValid && b.health > 4; i++) {
+            await sleep(500);
+            results.push((await ACTIONS.critical_hit({ target: tName })).result);
+          }
+          break;
+        default:
+          throw new Error(`Unknown combo style: ${style}. Use: aggressive, defensive, ranged, berserker`);
+      }
+    } catch (err) {
+      results.push(`Combo interrupted: ${err.message}`);
+    }
+    
+    return { result: `[${style}] ${results.join(' → ')}` };
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // Fire-and-Forget Smelting
+  // ═══════════════════════════════════════════════════════════════
+
+  async smelt_start({ input, fuel, count = 1 }) {
+    const b = ensureBot();
+    const furnaceBlock = b.findBlock({
+      matching: block => block.name === 'furnace' || block.name === 'lit_furnace' || block.name === 'blast_furnace' || block.name === 'smoker',
+      maxDistance: 4,
+    });
+    if (!furnaceBlock) throw new Error('No furnace within 4 blocks. Place one first.');
+
+    const furnace = await b.openFurnace(furnaceBlock);
+    const inputItem = b.inventory.items().find(i => i.name === input);
+    if (!inputItem) { furnace.close(); throw new Error(`No ${input} in inventory.`); }
+
+    const qty = Math.min(count, inputItem.count, 64);
+    await furnace.putInput(inputItem.type, null, qty);
+
+    if (!furnace.fuelItem()) {
+      const fuelNames = ['coal', 'charcoal', 'coal_block', 'oak_planks', 'birch_planks', 'spruce_planks', 'oak_log', 'birch_log', 'spruce_log', 'stick', 'lava_bucket', 'blaze_rod'];
+      const fuelItem = fuel
+        ? b.inventory.items().find(i => i.name === fuel)
+        : b.inventory.items().find(i => fuelNames.includes(i.name));
+      if (!fuelItem) { furnace.close(); throw new Error('No fuel available.'); }
+      // Coal smelts 8 items, planks smelt 1.5, coal_block smelts 80
+      const fuelPer = fuelItem.name === 'coal_block' ? 80 : fuelItem.name.includes('coal') || fuelItem.name === 'charcoal' ? 8 : fuelItem.name === 'blaze_rod' ? 12 : fuelItem.name === 'lava_bucket' ? 100 : 1.5;
+      const fuelNeeded = Math.ceil(qty / fuelPer);
+      await furnace.putFuel(fuelItem.type, null, Math.min(fuelNeeded, fuelItem.count));
+    }
+
+    furnace.close();
+
+    // Track this furnace for later retrieval
+    const fp = furnaceBlock.position;
+    const eta = Date.now() + qty * 10000; // 10s per item
+    activeFurnaces.push({
+      x: fp.x, y: fp.y, z: fp.z,
+      input, count: qty, startTime: Date.now(), estimatedDone: eta,
+    });
+
+    const minutes = Math.ceil(qty * 10 / 60);
+    return { result: `Loaded ${qty} ${input} into furnace at ${fp.x},${fp.y},${fp.z}. ETA: ~${minutes} min. Go do something else!` };
+  },
+
+  async furnace_check({ x, y, z }) {
+    const b = ensureBot();
+    const furnaceBlock = b.blockAt(new Vec3(x, y, z));
+    if (!furnaceBlock || (!furnaceBlock.name.includes('furnace') && furnaceBlock.name !== 'smoker' && furnaceBlock.name !== 'blast_furnace'))
+      throw new Error(`No furnace at ${x},${y},${z}`);
+
+    if (b.entity.position.distanceTo(furnaceBlock.position) > 4.5) {
+      await b.pathfinder.goto(new goals.GoalNear(x, y, z, 3));
+    }
+    const furnace = await b.openFurnace(furnaceBlock);
+    const inputItem = furnace.inputItem();
+    const fuelItem = furnace.fuelItem();
+    const outputItem = furnace.outputItem();
+    const progress = furnace.progress || 0;
+    furnace.close();
+
+    return {
+      result: `Furnace at ${x},${y},${z}: ` +
+        `Input: ${inputItem ? `${inputItem.name} x${inputItem.count}` : 'empty'} | ` +
+        `Fuel: ${fuelItem ? `${fuelItem.name} x${fuelItem.count}` : 'empty'} | ` +
+        `Output: ${outputItem ? `${outputItem.name} x${outputItem.count}` : 'empty'} | ` +
+        `Progress: ${Math.round(progress * 100)}%`,
+      ready: !!outputItem,
+      output: outputItem ? { name: outputItem.name, count: outputItem.count } : null,
+    };
+  },
+
+  async furnace_take({ x, y, z }) {
+    const b = ensureBot();
+    const furnaceBlock = b.blockAt(new Vec3(x, y, z));
+    if (!furnaceBlock) throw new Error(`No block at ${x},${y},${z}`);
+
+    if (b.entity.position.distanceTo(furnaceBlock.position) > 4.5) {
+      await b.pathfinder.goto(new goals.GoalNear(x, y, z, 3));
+    }
+    const furnace = await b.openFurnace(furnaceBlock);
+    const output = furnace.outputItem();
+    if (!output) { furnace.close(); return { result: 'Furnace has no output ready yet.' }; }
+    await furnace.takeOutput();
+    
+    // Also grab remaining input if smelting is done
+    const remaining = furnace.inputItem();
+    furnace.close();
+
+    // Remove from active furnaces tracking
+    activeFurnaces = activeFurnaces.filter(f => !(f.x === x && f.y === y && f.z === z));
+
+    return { result: `Collected ${output.name} x${output.count} from furnace.${remaining ? ` (${remaining.count} ${remaining.name} still being smelted)` : ''}` };
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // Team System — communication, coordination
+  // ═══════════════════════════════════════════════════════════════
+
+  async team_chat({ message }) {
+    const b = ensureBot();
+    if (!teamConfig.team) throw new Error('Not assigned to a team. Use /action/set_team first.');
+    
+    // Send to all teammates via /msg
+    for (const mate of teamConfig.teammates) {
+      b.chat(`/msg ${mate} [${teamConfig.team.toUpperCase()}] ${message}`);
+      await sleep(100); // avoid spam throttle
+    }
+    teamConfig.teamChat.push({ time: Date.now(), from: config.mc.username, message });
+    if (teamConfig.teamChat.length > 50) teamConfig.teamChat.shift();
+    return { result: `[${teamConfig.team}] Sent to ${teamConfig.teammates.length} teammates: ${message}` };
+  },
+
+  async team_status() {
+    const b = ensureBot();
+    if (!teamConfig.team) return { result: 'Not on a team.' };
+    
+    // Find teammates that are visible
+    const teammates = [];
+    for (const name of teamConfig.teammates) {
+      const entity = Object.values(b.entities).find(e => e.username === name);
+      if (entity) {
+        teammates.push({
+          name,
+          distance: fmt(entity.position.distanceTo(b.entity.position)),
+          position: posObj(entity.position),
+          health: entity.health ?? '?',
+        });
+      } else {
+        teammates.push({ name, distance: '?', position: 'not visible', health: '?' });
+      }
+    }
+    
+    return {
+      result: `Team ${teamConfig.team.toUpperCase()} | Role: ${teamConfig.role} | Rally: ${teamConfig.rallyPoint ? `${teamConfig.rallyPoint.x},${teamConfig.rallyPoint.y},${teamConfig.rallyPoint.z}` : 'none'}`,
+      teammates,
+    };
+  },
+
+  async rally({ x, y, z, message }) {
+    const b = ensureBot();
+    if (!teamConfig.team) throw new Error('Not on a team.');
+    teamConfig.rallyPoint = { x: Math.round(x), y: Math.round(y), z: Math.round(z) };
+    
+    // Announce to team
+    const msg = message || `Rally at ${teamConfig.rallyPoint.x},${teamConfig.rallyPoint.y},${teamConfig.rallyPoint.z}!`;
+    for (const mate of teamConfig.teammates) {
+      b.chat(`/msg ${mate} [RALLY] ${msg}`);
+      await sleep(100);
+    }
+    return { result: `Rally point set and announced to team: ${msg}` };
+  },
+
+  async report({ message }) {
+    const b = ensureBot();
+    if (!teamConfig.team) throw new Error('Not on a team.');
+    const pos = posObj();
+    const fullMsg = `[INTEL] ${message} (at ${pos.x},${pos.y},${pos.z})`;
+    for (const mate of teamConfig.teammates) {
+      b.chat(`/msg ${mate} ${fullMsg}`);
+      await sleep(100);
+    }
+    return { result: `Report sent to team: ${fullMsg}` };
+  },
+
+  async set_team({ team, role, teammates }) {
+    teamConfig.team = team;
+    teamConfig.role = role || 'warrior';
+    teamConfig.teammates = teammates || [];
+    return { result: `Assigned to team ${team} as ${role}. Teammates: ${teammates?.join(', ') || 'none'}` };
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // Fair Play Toggle
+  // ═══════════════════════════════════════════════════════════════
+
+  async set_fair_play({ enabled }) {
+    fairPlayMode = !!enabled;
+    return { result: `Fair play mode: ${fairPlayMode ? 'ON (LOS, sound, reaction delay)' : 'OFF (god-mode perception)'}` };
+  },
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1196,6 +1794,25 @@ const httpServer = http.createServer(async (req, res) => {
         // Get pending commands queued by in-game chat
         const pending = commandQueue.filter(c => c.status === 'pending');
         return respond(res, 200, { ok: true, data: { commands: pending } });
+      }
+
+      if (path === '/sounds') {
+        return respond(res, 200, { ok: true, data: { sounds: soundEvents.slice(-10) } });
+      }
+
+      if (path === '/team') {
+        return respond(res, 200, { ok: true, data: teamConfig });
+      }
+
+      if (path === '/stats') {
+        return respond(res, 200, { ok: true, data: combatStats });
+      }
+
+      if (path === '/furnaces') {
+        return respond(res, 200, { ok: true, data: { furnaces: activeFurnaces.map(f => ({
+          ...f,
+          eta_seconds: f.estimatedDone ? Math.max(0, Math.round((f.estimatedDone - Date.now()) / 1000)) : null,
+        })) } });
       }
 
       if (path === '/task') {
@@ -1313,7 +1930,7 @@ setInterval(() => {
 
 httpServer.listen(config.api.port, () => {
   log(`╔═══════════════════════════════════════╗`);
-  log(`║     HermesCraft Bot Server v3.0      ║`);
+  log(`║     HermesCraft Bot Server v4.0      ║`);
   log(`╠═══════════════════════════════════════╣`);
   log(`║  API:  http://localhost:${config.api.port}          ║`);
   log(`║  MC:   ${config.mc.host}:${config.mc.port}                ║`);

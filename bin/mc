@@ -546,6 +546,175 @@ case "$CMD" in
         pretty "$(api_post '/task/cancel')"
         ;;
 
+    # ── Advanced Combat ────────────────────────────────────────
+    sneak)
+        ENABLE="${1:-true}"
+        if [ "$ENABLE" = "off" ] || [ "$ENABLE" = "false" ] || [ "$ENABLE" = "0" ]; then
+            pretty "$(api_post '/action/sneak' '{"enable":false}')"
+        else
+            pretty "$(api_post '/action/sneak' '{"enable":true}')"
+        fi
+        ;;
+
+    shield|block)
+        DUR="${1:-3}"
+        pretty "$(api_post '/action/shield_block' "{\"duration\":$DUR}")"
+        ;;
+
+    shoot|bow)
+        TARGET="${1:-}"
+        PREDICT="${2:-true}"
+        if [ -n "$TARGET" ]; then
+            pretty "$(api_post '/action/shoot' "{\"target\":\"$TARGET\",\"predict\":$PREDICT}")"
+        else
+            pretty "$(api_post '/action/shoot' "{\"predict\":$PREDICT}")"
+        fi
+        ;;
+
+    sprint_attack|sa)
+        TARGET="${1:-}"
+        if [ -n "$TARGET" ]; then
+            pretty "$(api_post '/action/sprint_attack' "{\"target\":\"$TARGET\"}")"
+        else
+            pretty "$(api_post '/action/sprint_attack' '{}')"
+        fi
+        ;;
+
+    crit|critical)
+        TARGET="${1:-}"
+        if [ -n "$TARGET" ]; then
+            pretty "$(api_post '/action/critical_hit' "{\"target\":\"$TARGET\"}")"
+        else
+            pretty "$(api_post '/action/critical_hit' '{}')"
+        fi
+        ;;
+
+    strafe)
+        TARGET="${1:-}"
+        DIR="${2:-random}"
+        DUR="${3:-5}"
+        DATA="{\"direction\":\"$DIR\",\"duration\":$DUR"
+        [ -n "$TARGET" ] && DATA="$DATA,\"target\":\"$TARGET\""
+        DATA="$DATA}"
+        pretty "$(api_post '/action/strafe' "$DATA")"
+        ;;
+
+    combo)
+        TARGET="${1:-}"
+        STYLE="${2:-aggressive}"
+        DATA="{\"style\":\"$STYLE\""
+        [ -n "$TARGET" ] && DATA="$DATA,\"target\":\"$TARGET\""
+        DATA="$DATA}"
+        pretty "$(api_post '/action/combo' "$DATA")"
+        ;;
+
+    bg_combo)
+        TARGET="${1:-}"
+        STYLE="${2:-aggressive}"
+        DATA="{\"style\":\"$STYLE\""
+        [ -n "$TARGET" ] && DATA="$DATA,\"target\":\"$TARGET\""
+        DATA="$DATA}"
+        pretty "$(api_post '/task/combo' "$DATA")"
+        ;;
+
+    bg_strafe)
+        TARGET="${1:-}"
+        DIR="${2:-random}"
+        DUR="${3:-10}"
+        DATA="{\"direction\":\"$DIR\",\"duration\":$DUR"
+        [ -n "$TARGET" ] && DATA="$DATA,\"target\":\"$TARGET\""
+        DATA="$DATA}"
+        pretty "$(api_post '/task/strafe' "$DATA")"
+        ;;
+
+    # ── Fire-and-Forget Smelting ──────────────────────────────
+    smelt_start|sstart)
+        INPUT="${1:?Usage: mc smelt_start INPUT [fuel] [count]}"
+        FUEL="${2:-}"
+        COUNT="${3:-1}"
+        DATA="{\"input\":\"$INPUT\",\"count\":$COUNT"
+        [ -n "$FUEL" ] && DATA="$DATA,\"fuel\":\"$FUEL\""
+        DATA="$DATA}"
+        pretty "$(api_post '/action/smelt_start' "$DATA")"
+        ;;
+
+    furnace_check|fc)
+        X="${1:?Usage: mc furnace_check X Y Z}"
+        Y="${2:?Usage: mc furnace_check X Y Z}"
+        Z="${3:?Usage: mc furnace_check X Y Z}"
+        pretty "$(api_post '/action/furnace_check' "{\"x\":$X,\"y\":$Y,\"z\":$Z}")"
+        ;;
+
+    furnace_take|ft)
+        X="${1:?Usage: mc furnace_take X Y Z}"
+        Y="${2:?Usage: mc furnace_take X Y Z}"
+        Z="${3:?Usage: mc furnace_take X Y Z}"
+        pretty "$(api_post '/action/furnace_take' "{\"x\":$X,\"y\":$Y,\"z\":$Z}")"
+        ;;
+
+    furnaces)
+        pretty "$(api_get '/furnaces')"
+        ;;
+
+    # ── Team System ───────────────────────────────────────────
+    team_chat|tc)
+        MSG="${1:?Usage: mc team_chat \"message\"}"
+        ESCAPED_MSG=$(python3 -c "import json,sys; print(json.dumps(sys.argv[1]))" "$MSG")
+        pretty "$(api_post '/action/team_chat' "{\"message\":$ESCAPED_MSG}")"
+        ;;
+
+    team_status|ts)
+        pretty "$(api_post '/action/team_status' '{}')"
+        ;;
+
+    rally)
+        X="${1:?Usage: mc rally X Y Z [message]}"
+        Y="${2:?Usage: mc rally X Y Z}"
+        Z="${3:?Usage: mc rally X Y Z}"
+        MSG="${4:-}"
+        DATA="{\"x\":$X,\"y\":$Y,\"z\":$Z"
+        [ -n "$MSG" ] && DATA="$DATA,\"message\":\"$MSG\""
+        DATA="$DATA}"
+        pretty "$(api_post '/action/rally' "$DATA")"
+        ;;
+
+    report)
+        MSG="${1:?Usage: mc report \"message\"}"
+        ESCAPED_MSG=$(python3 -c "import json,sys; print(json.dumps(sys.argv[1]))" "$MSG")
+        pretty "$(api_post '/action/report' "{\"message\":$ESCAPED_MSG}")"
+        ;;
+
+    set_team)
+        TEAM="${1:?Usage: mc set_team TEAM ROLE [teammate1,teammate2,...]}"
+        ROLE="${2:-warrior}"
+        MATES="${3:-}"
+        DATA="{\"team\":\"$TEAM\",\"role\":\"$ROLE\""
+        if [ -n "$MATES" ]; then
+            # Convert comma-separated to JSON array
+            MATES_JSON=$(python3 -c "import json,sys; print(json.dumps(sys.argv[1].split(',')))" "$MATES")
+            DATA="$DATA,\"teammates\":$MATES_JSON"
+        fi
+        DATA="$DATA}"
+        pretty "$(api_post '/action/set_team' "$DATA")"
+        ;;
+
+    sounds)
+        pretty "$(api_get '/sounds')"
+        ;;
+
+    stats)
+        pretty "$(api_get '/stats')"
+        ;;
+
+    fair_play)
+        ENABLED="${1:-true}"
+        if [ "$ENABLED" = "off" ] || [ "$ENABLED" = "false" ] || [ "$ENABLED" = "0" ]; then
+            pretty "$(api_post '/action/set_fair_play' '{"enabled":false}')"
+        else
+            pretty "$(api_post '/action/set_fair_play' '{"enabled":true}')"
+        fi
+        ;;
+
     # Vision
     screenshot|ss|look_around)
         OUTFILE="/tmp/mc_screenshot_$(date +%s).png"
@@ -616,6 +785,17 @@ COMBAT:
   mc eat                 Eat best food in inventory
   mc equip ITEM [slot]   Equip item (slot: hand, head, torso, legs, feet)
 
+ADVANCED COMBAT:
+  mc sneak [on|off]      Toggle sneak (hides nameplate, reduces detection)
+  mc shield [duration]   Block with shield for N seconds (default: 3)
+  mc shoot [target]      Shoot bow/crossbow at target (with prediction)
+  mc sprint_attack [tgt] Sprint + hit for extra knockback
+  mc crit [target]       Jump-attack for 150% damage (critical hit)
+  mc strafe [tgt] [dir] [dur]  Circle-strafe while attacking
+  mc combo [tgt] [style] Execute combo: aggressive/defensive/ranged/berserker
+  mc bg_combo [tgt] [s]  Combo in background
+  mc bg_strafe [tgt] [d] Strafe in background
+
 BUILDING:
   mc place BLOCK X Y Z   Place block at position
   mc interact X Y Z      Right-click/activate block (chests, doors, etc)
@@ -646,6 +826,22 @@ BACKGROUND TASKS (non-blocking):
   mc bg ACTION '{json}'    Any action in background
   mc task                  Check background task status
   mc cancel                Cancel current background task
+
+SMELTING (fire-and-forget):
+  mc smelt_start INPUT [fuel] [n]  Load furnace + leave immediately
+  mc furnace_check X Y Z          Check furnace status
+  mc furnace_take X Y Z            Collect finished output
+  mc furnaces                      List all tracked furnaces
+
+TEAM (10v10 arena):
+  mc set_team TEAM ROLE [mates]  Assign team (red/blue, warrior/ranger/etc)
+  mc team_chat "msg"             Send message to teammates only
+  mc team_status                 See all teammates' positions + health
+  mc rally X Y Z [msg]           Set team rally point
+  mc report "msg"                Send intel report to team
+  mc stats                       Kill/death/assist stats
+  mc sounds                      Recent sound events (fair play)
+  mc fair_play [on|off]          Toggle fair play mode (LOS, reaction delay)
 
 UTILITY:
   mc use                 Use held item

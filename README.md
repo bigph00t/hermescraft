@@ -1,273 +1,251 @@
-# HermesCraft
+# HermesCraft — AI Minecraft Agent + Arena
 
-**Open-source framework for AI agents in Minecraft.**
+Hermes agents play Minecraft through a CLI-controlled bot server. Each agent
+observes the world, makes decisions, and acts — mining, crafting, building,
+fighting, and communicating with other players.
 
-Connect any LLM to Minecraft. Mine, craft, fight, build, explore — autonomously or cooperatively with humans. Run multiple agents in the same world.
-
-Built on [Hermes Agent](https://github.com/NousResearch/hermes-agent) by Nous Research.
-
----
-
-## What Makes This Different
-
-| Feature | HermesCraft | Mindcraft | Voyager |
-|---------|-------------|-----------|---------|
-| Framework | **Hermes Agent** | Custom | Custom |
-| Multi-Agent | **Yes** | Limited | No |
-| Sustained Combat | **Fight/flee with retreat** | Single hit | None |
-| Death Recovery | **Navigate back + recover items** | None | None |
-| Location Memory | **Mark/recall system** | None | None |
-| Container Management | **Chest deposit/withdraw** | None | None |
-| Stuck Detection | **Auto-cancel + recovery** | None | None |
-| Cooperative Play | **Chat + follow + share** | Solo focus | Solo |
-| LLM Support | Any (local or cloud) | 18+ providers | GPT-4 only |
-| Persistent Memory | **Hermes memory across sessions** | None | Skill library |
-
-## Features
-
-- **37 Actions** — mine, craft, fight, build, navigate, eat, equip, smelt, interact with containers
-- **Sustained Combat** — `fight` action with auto-equip, attack loops, health-based retreat, flee from danger
-- **Death Recovery** — tracks death location + lost items, `deathpoint` auto-navigates back
-- **Container Management** — open chests, deposit/withdraw items programmatically
-- **Location Memory** — `mark`/`marks`/`go_mark` system with persistent JSON storage, auto-saves spawn and death points
-- **Multi-Agent** — run multiple bots with `multi_launch.sh`, each with its own LLM and personality
-- **Stuck Detection** — watchdog monitors position, auto-cancels stuck tasks
-- **Background Tasks** — long operations run async while agent stays responsive to chat
-- **Persistent Learning** — Hermes memory saves lessons across sessions (deaths, preferences, locations)
-- **Vision** — screenshots + AI analysis for build verification
-- **Web Search** — agent can Google recipes, strategies, anything mid-game
-
-## Quick Start
-
-```bash
-git clone https://github.com/bigph00t/hermescraft.git
-cd hermescraft && ./setup.sh
-
-# Open Minecraft, start a world, Open to LAN (note the port)
-MC_PORT=35901 ./hermescraft.sh
-```
-
-Talk to the AI in Minecraft chat:
-```
-hermes follow me
-hermes go mine some iron
-hermes build a shelter before night
-hermes there's a creeper behind you!
-```
+**v4.0** adds fair-play perception, advanced combat, fire-and-forget smelting,
+team coordination, and the Arena system for multi-agent PvP battles.
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────┐
-│           AI AGENT (Hermes)              │
-│  Any LLM · Memory · Web Search · Vision  │
-│  Runs `mc` CLI commands via terminal     │
-└─────────────┬───────────────────────────┘
-              │ bash commands
-              ▼
-┌─────────────────────────────────────────┐
-│           mc CLI (bin/mc)                │
-│  ~45 commands · human-readable output    │
-│  Translates commands → HTTP API calls    │
-└─────────────┬───────────────────────────┘
-              │ HTTP (localhost:3001)
-              ▼
-┌─────────────────────────────────────────┐
-│        Bot Server (bot/server.js)        │
-│  Mineflayer · Pathfinder · Auto-eat      │
-│  37 actions · Background tasks           │
-│  Stuck detection · Death tracking        │
-└─────────────┬───────────────────────────┘
-              │ Minecraft protocol
-              ▼
-┌─────────────────────────────────────────┐
-│        Minecraft Server (Java Ed.)       │
-│  Any version 1.8–1.21+ · LAN or server  │
-└─────────────────────────────────────────┘
+Hermes Agent ──mc CLI──► Bot Server (HTTP :3001) ──► Mineflayer ──► Minecraft
 ```
 
-The bot server is a dumb body. The AI agent is the brain. All decisions are made by the LLM.
+- **Bot Server** (`bot/server.js`): Node.js HTTP API wrapping Mineflayer with 55+ actions
+- **mc CLI** (`bin/mc`): Bash tool the agent calls via terminal
+- **Arena** (`arena.js`): Coordinator for team battles (spawns N bot servers, assigns teams)
 
-## Multi-Agent Mode
-
-Run multiple AI agents in one Minecraft world:
+## Quick Start
 
 ```bash
-# Launch 2 agents (Steve + Alex)
-./multi_launch.sh
+# 1. Install deps
+cd bot && npm install && cd ..
 
-# Launch 3 agents
-./multi_launch.sh "" 3
+# 2. Start Minecraft server (Java 1.21.x, offline mode)
+# ... your server setup ...
 
-# Or manually with custom names
-./hermescraft.sh --name Steve --port 3001 &
-./hermescraft.sh --name Alex --port 3002 &
+# 3. Start bot server
+node bot/server.js
+
+# 4. Play (from Hermes)
+mc status           # see the world
+mc collect oak_log 5  # mine some wood
+mc craft wooden_pickaxe
+mc chat "hello!"
 ```
 
-Agents coordinate through Minecraft's in-game chat. They see each other, share discoveries, and can cooperate or compete.
+## What's New in v4.0
+
+### Fair Play Mode (on by default)
+Bots no longer have X-ray vision. The perception system simulates realistic awareness:
+
+- **Line-of-Sight**: Entities behind solid blocks are invisible to the bot
+- **Sneak Detection**: Sneaking players only detected within 8 blocks (vs 48 normally)
+- **Sound System**: Mining/sprinting creates directional sound cues instead of exact positions
+- **Reaction Delay**: 100-300ms random delay on combat actions (human-like)
+
+Toggle: `mc fair_play on|off` or set `FAIR_PLAY=false` env var.
+
+### Advanced Combat (9 new actions)
+- `mc sneak on/off` — Hide nameplate, reduce detection (actually matters now!)
+- `mc shield [duration]` — Raise shield to block hits
+- `mc shoot [target]` — Bow with predictive aiming
+- `mc sprint_attack [target]` — Sprint + hit for extra knockback
+- `mc crit [target]` — Jump-attack for 150% damage
+- `mc strafe [target] [dir] [dur]` — Circle-strafe while attacking
+- `mc combo [target] [style]` — Pre-built sequences: aggressive/defensive/ranged/berserker
+- `mc bg_combo` / `mc bg_strafe` — Background versions
+
+### Fire-and-Forget Smelting
+No more standing at the furnace for 10 minutes:
+```bash
+mc smelt_start raw_iron coal 64   # Load furnace, returns immediately
+# ... go mine, fight, build for 10 minutes ...
+mc furnace_check 10 65 5          # Check progress
+mc furnace_take 10 65 5           # Collect when ready
+mc furnaces                       # See all tracked furnaces
+```
+
+### Team System
+```bash
+mc set_team red warrior "RedCmdr,RedRanger1,RedSupport1"
+mc team_chat "pushing north, follow me"
+mc team_status          # See teammates' positions + health
+mc rally 100 64 -200 "regroup here!"
+mc report "3 enemies at bridge"
+mc stats                # Kill/death/assist tracking
+```
+
+## Arena — Multi-Agent PvP
+
+Run 10v10 (or any size) battles between AI agents:
+
+```bash
+# Start the arena coordinator
+./arena_launch.sh 10        # 10v10 match
+
+# In another terminal:
+curl -X POST http://localhost:3100/setup    # Spawn all bots
+curl -X POST http://localhost:3100/start    # BEGIN BATTLE!
+curl http://localhost:3100/status            # Live scores
+curl http://localhost:3100/scoreboard        # Kill feed
+curl -X POST http://localhost:3100/stop      # End match
+```
+
+Each bot gets:
+- Its own server on ports 3001-3020
+- Team assignment (red/blue) and role (commander/warrior/ranger/support)
+- Fair play constraints (no wallhacks)
+- Team communication channel
+
+See `ARENA.md` for the full design document.
+See `souls/` for role-specific AI prompts.
 
 ## Full Command Reference
 
 ### Observation
 | Command | Description |
 |---------|-------------|
-| `mc status` | Health, inventory, position, nearby blocks/entities, chat |
-| `mc inventory` | Categorized inventory breakdown |
-| `mc nearby [radius]` | Blocks + entities in radius |
-| `mc read_chat [count]` | Recent chat messages |
-| `mc commands` | Pending player requests |
+| `mc status` | Full state: health, pos, inventory, nearby |
+| `mc inventory` | Categorized inventory |
+| `mc nearby [radius]` | Blocks + entities nearby |
+| `mc read_chat [n]` | Recent chat messages |
 | `mc health` | Quick connection check |
-| `mc find_blocks BLOCK [radius]` | Search for block positions |
-| `mc find_entities [type]` | Find mobs/players nearby |
-| `mc screenshot` | Capture game window for vision |
+| `mc sounds` | Recent sound events (fair play) |
+| `mc stats` | Combat kill/death/assist stats |
+| `mc furnaces` | Active furnace tracking |
 
 ### Movement
 | Command | Description |
 |---------|-------------|
-| `mc goto X Y Z` | Pathfind to exact position |
-| `mc goto_near X Y Z [range]` | Pathfind near position |
-| `mc follow PLAYER` | Follow a player continuously |
-| `mc look_at X Y Z` | Face coordinates |
-| `mc stop` | Cancel all movement/mining |
+| `mc goto X Y Z` | Navigate to position |
+| `mc goto_near X Y Z [r]` | Navigate near position |
+| `mc follow PLAYER` | Follow a player |
+| `mc look_at X Y Z` | Look at position |
+| `mc stop` | Stop all movement |
 
-### Mining
+### Mining & Crafting
 | Command | Description |
 |---------|-------------|
-| `mc collect BLOCK [count]` | Find + mine blocks (auto-pickup) |
+| `mc collect BLOCK [n]` | Find + mine N blocks |
 | `mc dig X Y Z` | Break specific block |
-| `mc pickup` | Grab nearby item drops |
-
-### Crafting
-| Command | Description |
-|---------|-------------|
-| `mc craft ITEM [count]` | Craft item (auto-finds table) |
-| `mc recipes ITEM` | Look up crafting recipe |
-| `mc smelt INPUT [fuel] [count]` | Smelt in nearby furnace |
+| `mc pickup` | Pick up nearby items |
+| `mc find_blocks BLOCK` | Find block locations |
+| `mc craft ITEM [n]` | Craft an item |
+| `mc recipes ITEM` | Look up recipe |
+| `mc smelt INPUT [fuel]` | Smelt (blocking, legacy) |
+| `mc smelt_start INPUT [fuel] [n]` | Load furnace, leave immediately |
+| `mc furnace_check X Y Z` | Check furnace status |
+| `mc furnace_take X Y Z` | Collect furnace output |
 
 ### Combat
 | Command | Description |
 |---------|-------------|
-| `mc fight [target] [retreat_hp] [duration]` | Sustained combat with auto-retreat |
-| `mc flee [distance]` | Sprint away from nearest hostile |
-| `mc attack [target]` | Single attack on nearest entity |
-| `mc eat` | Eat best food in inventory |
-| `mc equip ITEM [slot]` | Equip tool/weapon/armor |
+| `mc attack [target]` | Single hit |
+| `mc fight [target] [hp] [dur]` | Sustained combat |
+| `mc flee [distance]` | Flee from threats |
+| `mc eat` | Eat best food |
+| `mc equip ITEM [slot]` | Equip weapon/armor |
+| `mc sneak [on\|off]` | Toggle sneak (stealth) |
+| `mc shield [duration]` | Block with shield |
+| `mc shoot [target]` | Bow/crossbow with prediction |
+| `mc sprint_attack [target]` | Sprint hit (extra knockback) |
+| `mc crit [target]` | Jump-attack (150% damage) |
+| `mc strafe [tgt] [dir] [dur]` | Circle-strafe combat |
+| `mc combo [tgt] [style]` | Combat combo sequence |
 
-### Building
+### Building & Containers
 | Command | Description |
 |---------|-------------|
-| `mc place BLOCK X Y Z` | Place block at position |
-| `mc interact X Y Z` | Right-click block (doors, buttons) |
-| `mc close` | Close open screen/GUI |
+| `mc place BLOCK X Y Z` | Place a block |
+| `mc interact X Y Z` | Right-click a block |
+| `mc chest X Y Z` | List container contents |
+| `mc deposit ITEM X Y Z [n]` | Put item in container |
+| `mc withdraw ITEM X Y Z [n]` | Take item from container |
 
-### Containers
+### Team (Arena)
 | Command | Description |
 |---------|-------------|
-| `mc chest X Y Z` | List contents of chest/barrel |
-| `mc deposit ITEM X Y Z [count]` | Put items into container |
-| `mc withdraw ITEM X Y Z [count]` | Take items from container |
+| `mc set_team TEAM ROLE [mates]` | Join a team |
+| `mc team_chat "msg"` | Team-only message |
+| `mc team_status` | Teammate positions + health |
+| `mc rally X Y Z [msg]` | Set rally point |
+| `mc report "msg"` | Send intel to team |
 
-### Locations
+### Locations & Death
 | Command | Description |
 |---------|-------------|
-| `mc mark NAME [note]` | Save current position |
-| `mc marks` | List all saved locations |
+| `mc mark NAME [note]` | Save current location |
+| `mc marks` | List saved locations |
 | `mc go_mark NAME` | Navigate to saved location |
-| `mc unmark NAME` | Delete saved location |
-
-### Social
-| Command | Description |
-|---------|-------------|
-| `mc chat "message"` | Send chat message |
-| `mc chat_to PLAYER "message"` | Private whisper |
-
-### Death Recovery
-| Command | Description |
-|---------|-------------|
-| `mc deaths` | Death history + last death details |
-| `mc deathpoint` | Navigate to last death location |
+| `mc deaths` | Death count + last death |
+| `mc deathpoint` | Go to last death spot |
 
 ### Background Tasks
 | Command | Description |
 |---------|-------------|
-| `mc bg_collect BLOCK [count]` | Mine in background |
+| `mc bg_collect BLOCK [n]` | Mine in background |
 | `mc bg_goto X Y Z` | Navigate in background |
 | `mc bg_fight [target]` | Fight in background |
-| `mc task` | Check background task status |
-| `mc cancel` | Cancel running task |
+| `mc bg_combo [tgt] [style]` | Combo in background |
+| `mc bg_strafe [tgt] [dir]` | Strafe in background |
+| `mc task` | Check task status |
+| `mc cancel` | Cancel current task |
 
 ### Utility
 | Command | Description |
 |---------|-------------|
+| `mc chat "msg"` | Send chat message |
+| `mc chat_to PLAYER "msg"` | Whisper to player |
 | `mc use` | Use held item |
-| `mc toss ITEM [count]` | Drop items |
-| `mc sleep` | Sleep in nearby bed |
+| `mc toss ITEM [n]` | Drop items |
+| `mc sleep` | Sleep in bed |
 | `mc wait [seconds]` | Wait |
-| `mc connect` | (Re)connect to server |
+| `mc connect` | Reconnect bot |
+| `mc fair_play [on\|off]` | Toggle fair play mode |
 
-## Why Hermes Agent
-
-This project is built on [Hermes Agent](https://github.com/NousResearch/hermes-agent), the open-source autonomous agent framework by Nous Research:
-
-- **Full agent capabilities** — persistent memory, web search, vision, skills, delegation
-- **Any LLM backend** — local models (free), Claude, GPT-4, Gemini, anything
-- **SOUL personality system** — behavior shaped by a single markdown file
-- **Terminal tool integration** — agent runs `mc` commands naturally, no special wiring
-- **Memory across sessions** — agent remembers deaths, preferences, locations between restarts
-
-## Configuration
-
-```bash
-MC_HOST=localhost      # Minecraft server host
-MC_PORT=25565          # Server port (check LAN port)
-MC_USERNAME=HermesBot  # Bot name in-game
-API_PORT=3001          # Bot HTTP API port
-```
-
-## How to Add Features
-
-1. Add action to `bot/server.js` ACTIONS object
-2. Add CLI command to `bin/mc` case statement
-3. Update `SOUL-minecraft.md` if the AI needs to know about it
-
-That's it. Three files.
-
-## Project Structure
+## File Structure
 
 ```
 hermescraft/
-├── hermescraft.sh          Main launcher
-├── multi_launch.sh         Multi-agent launcher
-├── setup.sh                First-time setup
-├── SOUL-minecraft.md       Agent personality/behavior
 ├── bot/
-│   ├── server.js           Mineflayer bot + HTTP API
+│   ├── server.js          # Bot server (1950 lines, 55+ actions)
 │   └── package.json
 ├── bin/
-│   └── mc                  CLI wrapper (~45 commands)
-├── skills/                 Hermes skill files
-│   ├── minecraft-survival.md
-│   ├── minecraft-combat.md
-│   ├── minecraft-building.md
-│   ├── minecraft-farming.md
-│   └── minecraft-navigation.md
-└── profiles/               Custom SOUL files for multi-agent
+│   └── mc                 # CLI tool (866 lines)
+├── arena.js               # Match coordinator for PvP
+├── arena_launch.sh        # Launch script for arena
+├── souls/                 # Team role prompts
+│   ├── team-commander.md
+│   ├── team-warrior.md
+│   ├── team-ranger.md
+│   └── team-support.md
+├── skills/                # Minecraft skill docs
+├── data/                  # Locations, match history
+├── ARENA.md               # Arena design document
+├── SOUL-minecraft.md      # Solo play persona
+├── hermescraft.sh         # Solo play launcher
+├── multi_launch.sh        # Multi-bot launcher
+└── setup.sh               # Initial setup script
 ```
 
-## Requirements
+## Environment Variables
 
-- Node.js 18+
-- Python 3
-- [Hermes Agent](https://github.com/NousResearch/hermes-agent) (`pip install hermes-agent`)
-- Minecraft Java Edition (1.8–1.21+)
-
-## License
-
-MIT
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MC_HOST` | `localhost` | Minecraft server host |
+| `MC_PORT` | `25565` | Minecraft server port |
+| `MC_USERNAME` | `HermesBot` | Bot username |
+| `MC_AUTH` | `offline` | Auth type (offline/microsoft) |
+| `API_PORT` | `3001` | Bot HTTP API port |
+| `MC_API_URL` | `http://localhost:3001` | CLI target URL |
+| `FAIR_PLAY` | `true` | Enable LOS + sound + reaction delay |
+| `ARENA_PORT` | `3100` | Arena coordinator port |
 
 ## Credits
 
-- [Hermes Agent](https://github.com/NousResearch/hermes-agent) by Nous Research
-- [Mineflayer](https://github.com/PrismarineJS/mineflayer) bot library
-- [mineflayer-pathfinder](https://github.com/PrismarineJS/mineflayer-pathfinder)
-- mineflayer-armor-manager, mineflayer-auto-eat, mineflayer-collectblock
+Built by bigph00t with Hermes Agent.
+Powered by Mineflayer, mineflayer-pathfinder, mineflayer-armor-manager,
+mineflayer-auto-eat, and mineflayer-collectblock.
