@@ -833,8 +833,9 @@ public class ActionExecutor {
             return;
         }
 
-        // Final step: take crafting output
+        // Final step: take crafting output and close screen
         client.interactionManager.clickSlot(syncId, 0, 0, SlotActionType.QUICK_MOVE, player);
+        player.closeHandledScreen();
 
         ItemStack output = sa.craftRecipe.getResult(client.world.getRegistryManager());
         String craftedName = Registries.ITEM.getId(output.getItem()).getPath();
@@ -927,6 +928,7 @@ public class ActionExecutor {
                 sa.smeltStep++;
             }
             default -> {
+                if (client.player != null) client.player.closeHandledScreen();
                 String msg = (sa.smeltCollected != null ? sa.smeltCollected : "") + "Furnace active";
                 completeSustained(successResult(msg.trim()));
             }

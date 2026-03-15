@@ -220,6 +220,11 @@ async function tick() {
     return;
   }
 
+  // Auto-close stuck screens (crafting table, furnace, chest left open)
+  if (state.openScreen && state.openScreen.type) {
+    try { await executeAction({ type: 'close_screen' }); } catch {}
+  }
+
   // Check for death (with cooldown to prevent infinite re-detection)
   if (detectDeath(state) && (tickCount - lastDeathTick) > DEATH_COOLDOWN_TICKS) {
     deathCount++;
