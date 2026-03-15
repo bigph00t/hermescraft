@@ -150,6 +150,8 @@ if state:
             print(f\"  💬 <{msg['from']}> {msg['message']} ({msg['ago']} ago)\")
     if 'pending_commands' in state:
         print(f\"  ⚡ {state['pending_commands']} pending command(s) — run mc commands\")
+    if 'overheard_nearby' in state:
+        print(f\"  👂 {state['overheard_nearby']} overheard message(s) — run mc overhear\")
     if 'task' in state:
         t = state['task']
         print(f\"  🔄 Task running: {t['action']} ({t['elapsed']})\")
@@ -290,6 +292,11 @@ case "$CMD" in
     read_chat|messages|msg)
         COUNT="${1:-20}"
         pretty "$(api_get "/chat?count=$COUNT")"
+        ;;
+
+    overhear|overheard|eavesdrop)
+        COUNT="${1:-20}"
+        pretty "$(api_get "/overhear?count=$COUNT")"
         ;;
 
     # Movement
@@ -804,9 +811,11 @@ BUILDING:
   mc interact X Y Z      Right-click/activate block (chests, doors, etc)
 
 SOCIAL:
-  mc chat "message"      Send chat message in game
-  mc chat_to PLAYER "msg"  Whisper to a player (/msg)
-  mc follow PLAYER       Follow a player
+  mc chat "message"        Broadcast to ALL players
+  mc chat_to PLAYER "msg"  Private message (only PLAYER sees it)
+  mc chat_to "A,B" "msg"   Group message (only A and B see it)
+  mc overhear [count]      See overheard conversations between others
+  mc follow PLAYER         Follow a player
 
 CONTAINERS:
   mc chest X Y Z             List container contents

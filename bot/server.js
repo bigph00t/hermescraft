@@ -35,7 +35,9 @@ const collectBlock = collectBlockPkg.plugin;
 import minecraftData from 'minecraft-data';
 import { Vec3 } from 'vec3';
 
-const LOCATIONS_FILE = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'data', 'locations.json');
+// Per-bot locations file to prevent race conditions in multi-agent mode
+const DATA_DIR = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'data');
+const LOCATIONS_FILE = path.join(DATA_DIR, `locations-${(process.env.MC_USERNAME || 'HermesBot').toLowerCase()}.json`);
 
 function loadLocations() {
   try { return JSON.parse(fs.readFileSync(LOCATIONS_FILE, 'utf8')); }
@@ -131,48 +133,100 @@ let activeFurnaces = [];
 let isSneaking = false; // [{ x, y, z, input, count, startTime, estimatedDone }]
 
 // ═══════════════════════════════════════════════════════════════════
-// Chat Handling — ALL decisions made by the AI, not the bot
+// Chat Handling — Name-Routed Message System
+//
+// Messages are routed by prefix:
+//   "Name1,Name2: message"  → only Name1 and Name2 receive it
+//   "all: message"          → broadcast to everyone
+//   "message" (no prefix)   → broadcast to everyone (human player style)
+//
+// Received messages go to chatLog (visible via mc read_chat / mc status)
+// Other agents' private conversations go to overheardLog (mc overhear)
+// Direct mentions also go to commandQueue (mc commands)
 // ═══════════════════════════════════════════════════════════════════
 
-const HERMES_NAMES = ['hermes', 'hermesbot', 'bot'];
+let overheardLog = []; // messages between other agents we can "overhear"
 
-function isAddressedToBot(message) {
-  const lower = message.toLowerCase().trim();
-  return HERMES_NAMES.some(name => lower.startsWith(name));
+function getMyName() {
+  return config.mc.username.toLowerCase();
 }
 
-function stripBotName(message) {
-  const lower = message.toLowerCase().trim();
-  for (const name of HERMES_NAMES) {
-    if (lower.startsWith(name)) {
-      let rest = message.trim().slice(name.length).trim();
-      rest = rest.replace(/^[,!.:\s]+/, '').trim();
-      return rest;
+// Parse "Name1,Name2: message" format
+// Returns { targets: ['name1','name2'], body: 'message', isBroadcast: false }
+// or { targets: [], body: 'message', isBroadcast: true } for no-prefix / "all:"
+function parseMessageRouting(message) {
+  const trimmed = message.trim();
+  
+  // Check for "all: message" broadcast
+  const allMatch = trimmed.match(/^all\s*[:]\s*(.*)/i);
+  if (allMatch) {
+    return { targets: [], body: allMatch[1].trim(), isBroadcast: true };
+  }
+  
+  // Check for "Name1,Name2: message" pattern
+  // Names are alphanumeric, separated by commas, followed by colon
+  const routeMatch = trimmed.match(/^([A-Za-z0-9_]+(?:\s*,\s*[A-Za-z0-9_]+)*)\s*[:]\s*(.*)/);
+  if (routeMatch) {
+    const namesPart = routeMatch[1];
+    const body = routeMatch[2].trim();
+    const targets = namesPart.split(',').map(n => n.trim().toLowerCase()).filter(n => n.length > 0);
+    
+    // Sanity check: if "targets" look like normal English words that aren't player names,
+    // treat as broadcast (e.g. "Hello: world" shouldn't route to "hello")
+    // Known agent names for validation
+    const knownNames = ['genghis', 'cleopatra', 'tesla', 'pirate', 'monk', 'goblin', 
+                        'hermesbot', 'hermes', 'bot', 'all', getMyName()];
+    // Also accept any name that matches a nearby player
+    const hasValidTarget = targets.some(t => knownNames.includes(t) || 
+      (bot && Object.values(bot.entities).some(e => e.username?.toLowerCase() === t)));
+    
+    if (hasValidTarget && body.length > 0) {
+      return { targets, body, isBroadcast: false };
     }
   }
-  return message.trim();
+  
+  // No valid prefix — broadcast (human player message)
+  return { targets: [], body: trimmed, isBroadcast: true };
 }
 
-// No reactive commands — the AI handles EVERYTHING.
-// Bot just logs chat and queues messages addressed to it.
+// Check if this message is for us
+function isMessageForMe(routing) {
+  if (routing.isBroadcast) return true;
+  const myName = getMyName();
+  return routing.targets.some(t => t === myName || t === 'bot' || t === 'hermes');
+}
+
+// Handle incoming chat message with routing
 async function handleChat(username, message) {
-  if (!isAddressedToBot(message)) return;
-
-  const command = stripBotName(message);
-  if (!command) return;
-
-  log(`[Command] <${username}> ${command}`);
-
-  // Queue for the AI to handle
-  commandQueue.push({
-    time: Date.now(),
-    from: username,
-    command: command,
-    originalMessage: message,
-    status: 'pending',
-  });
-  if (commandQueue.length > MAX_QUEUE) commandQueue.shift();
-  log(`[Queued] ${username}: ${command}`);
+  const routing = parseMessageRouting(message);
+  const forMe = isMessageForMe(routing);
+  
+  if (forMe) {
+    // Message is for us — add to chatLog (visible in mc read_chat / mc status)
+    chatLog.push({ time: Date.now(), from: username, message: routing.body, 
+                   private: !routing.isBroadcast, targets: routing.targets.length > 0 ? routing.targets : undefined });
+    if (chatLog.length > MAX_LOG) chatLog.shift();
+    log(`[Chat${routing.isBroadcast ? '' : ' @me'}] <${username}> ${routing.body}`);
+    
+    // If directly addressed (not broadcast), also queue as command
+    if (!routing.isBroadcast) {
+      commandQueue.push({
+        time: Date.now(),
+        from: username,
+        command: routing.body,
+        originalMessage: message,
+        status: 'pending',
+      });
+      if (commandQueue.length > MAX_QUEUE) commandQueue.shift();
+      log(`[Queued] ${username}: ${routing.body}`);
+    }
+  } else {
+    // Message is NOT for us — overheard only
+    overheardLog.push({ time: Date.now(), from: username, message: routing.body,
+                        to: routing.targets });
+    if (overheardLog.length > MAX_LOG) overheardLog.shift();
+    log(`[Overheard] <${username}> → [${routing.targets.join(',')}] ${routing.body}`);
+  }
 }
 
 function log(msg) {
@@ -229,23 +283,24 @@ async function createBot() {
 
       // ── Reactive Events ──────────────────────────────
 
-      // Chat listener — reactive responses + logging
+      // Chat listener — name-routed message system
       bot.on('chat', (username, message) => {
         if (username === bot.username) return;
-        chatLog.push({ time: Date.now(), from: username, message });
-        if (chatLog.length > MAX_LOG) chatLog.shift();
-        log(`[Chat] <${username}> ${message}`);
-        // Handle commands addressed to the bot
+        // All routing (chatLog vs overheardLog, commandQueue) handled by handleChat
         handleChat(username, message).catch(e => log(`Chat handler error: ${e.message}`));
       });
 
       bot.on('whisper', (username, message) => {
         if (username === bot.username) return;
+        // Whispers are always for us — add directly to chatLog + commandQueue
         chatLog.push({ time: Date.now(), from: username, message, whisper: true });
         if (chatLog.length > MAX_LOG) chatLog.shift();
         log(`[Whisper] <${username}> ${message}`);
-        // Whispers are always addressed to us
-        handleChat(username, `hermes ${message}`).catch(e => log(`Whisper handler error: ${e.message}`));
+        commandQueue.push({
+          time: Date.now(), from: username, command: message,
+          originalMessage: message, status: 'pending',
+        });
+        if (commandQueue.length > MAX_QUEUE) commandQueue.shift();
       });
 
       // Health tracking + combat stats
@@ -471,6 +526,10 @@ function briefState() {
 
   if (recentChat.length > 0) state.new_chat = recentChat;
   if (pending.length > 0) state.pending_commands = pending.length;
+  
+  // Show count of overheard messages (other agents' private conversations)
+  const recentOverheard = overheardLog.filter(m => now - m.time < 60000).length;
+  if (recentOverheard > 0) state.overheard_nearby = recentOverheard;
   if (currentTask && currentTask.status === 'stuck') state.task_stuck = currentTask.error;
   if (currentTask && currentTask.status === 'running') {
     state.task = { action: currentTask.action, elapsed: Math.round((Date.now() - currentTask.started) / 1000) + 's' };
@@ -502,6 +561,8 @@ function getFullState() {
     .slice(0, 15)
     .map(e => ({
       type: e.name || e.mobType || e.displayName || 'unknown',
+      kind: e.type || (e.username ? 'player' : 'mob'),
+      username: e.username || undefined,
       distance: fmt(e.position.distanceTo(pos)),
       position: posObj(e.position),
       health: e.health ?? undefined,
@@ -569,7 +630,7 @@ function getFullState() {
     nearbyBlocks,
     notableBlocks,
     nearbyEntities: entities,
-    nearbyPlayers: entities.filter(e => e.type === 'player' || e.kind === 'player').map(p => ({ name: p.name || p.type, distance: p.distance, position: p.position })),
+    nearbyPlayers: entities.filter(e => e.kind === 'player').map(p => ({ name: p.username || p.type, distance: p.distance, position: p.position })),
     lookingAt,
     unreadChat: unreadChat.length > 0 ? unreadChat : undefined,
     deaths: deathLog.length,
@@ -1085,7 +1146,8 @@ const ACTIONS = {
   // ── Utility ──────────────────────────────────────
   async chat({ message }) {
     const b = ensureBot();
-    b.chat(message);
+    // Broadcast: prefix with "all: " so all agents receive it
+    b.chat(`all: ${message}`);
     return { result: `Sent: ${message}` };
   },
 
@@ -1208,8 +1270,10 @@ const ACTIONS = {
 
   async chat_to({ player, message }) {
     const b = ensureBot();
-    b.chat(`/msg ${player} ${message}`);
-    return { result: `Whispered to ${player}: ${message}` };
+    // Name-routed: "Player: message" — only that player's bot receives it
+    // Supports comma-separated for multi-target: "Player1,Player2: message"
+    b.chat(`${player}: ${message}`);
+    return { result: `To ${player}: ${message}` };
   },
 
   // ── Death Recovery ────────────────────────────────
@@ -1813,6 +1877,12 @@ const httpServer = http.createServer(async (req, res) => {
         const clear = url.searchParams.get('clear') === 'true';
         const msgs = chatLog.slice(-count);
         if (clear) chatLog.length = 0;
+        return respond(res, 200, { ok: true, data: { messages: msgs } });
+      }
+
+      if (path === '/overhear') {
+        const count = parseInt(url.searchParams.get('count') || '20');
+        const msgs = overheardLog.slice(-count);
         return respond(res, 200, { ok: true, data: { messages: msgs } });
       }
 
