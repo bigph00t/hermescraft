@@ -73,7 +73,7 @@ api_post() {
     local data
     if [ $# -ge 2 ]; then data="$2"; else data='{}'; fi
     local resp http_code
-    resp=$(curl -s --max-time 60 -w '\n%{http_code}' -X POST -H 'Content-Type: application/json' -d "$data" "${API}${path}" 2>/dev/null) || die "Bot server not responding at $API. Is it running? (cd bot && npm start)"
+    resp=$(curl -s --max-time 300 -w '\n%{http_code}' -X POST -H 'Content-Type: application/json' -d "$data" "${API}${path}" 2>/dev/null) || die "Bot server not responding at $API. Is it running? (cd bot && npm start)"
     http_code=$(echo "$resp" | tail -1)
     resp=$(echo "$resp" | sed '$d')
     if [ -z "$resp" ] || [ "$http_code" = "000" ]; then
@@ -132,6 +132,19 @@ if state:
     if 'isDay' in state: parts.append('☀ Day' if state['isDay'] else '☾ Night')
     if parts:
         print(f\"  [{' | '.join(parts)}]\")
+    # Show new chat that arrived during action
+    if 'new_chat' in state:
+        for msg in state['new_chat']:
+            print(f\"  💬 <{msg['from']}> {msg['message']} ({msg['ago']} ago)\")
+    if 'pending_commands' in state:
+        print(f\"  ⚡ {state['pending_commands']} pending command(s) — run mc commands\")
+    if 'task' in state:
+        t = state['task']
+        print(f\"  🔄 Task running: {t['action']} ({t['elapsed']})\")
+    if 'task_done' in state:
+        print(f\"  ✅ Task finished: {state['task_done']}\")
+    if 'task_error' in state:
+        print(f\"  ❌ Task failed: {state['task_error']}\")
 
 # Print data if present (for status/inventory/nearby)
 d = data.get('data')
@@ -424,6 +437,58 @@ case "$CMD" in
         pretty "$(api_post '/action/wait' "{\"seconds\":$SECS}")"
         ;;
 
+    # Background tasks
+    bg_collect)
+        BLOCK="${1:?Usage: mc bg_collect BLOCK [count]}"
+        COUNT="${2:-1}"
+        pretty "$(api_post '/task/collect' "{\"block\":\"$BLOCK\",\"count\":$COUNT}")"
+        ;;
+
+    bg_goto)
+        X="${1:?Usage: mc bg_goto X Y Z}"
+        Y="${2:?Usage: mc bg_goto X Y Z}"
+        Z="${3:?Usage: mc bg_goto X Y Z}"
+        pretty "$(api_post '/task/goto' "{\"x\":$X,\"y\":$Y,\"z\":$Z}")"
+        ;;
+
+    bg)
+        ACTION="${1:?Usage: mc bg ACTION [args as JSON]}"
+        shift
+        DATA="${1:-{}}"
+        pretty "$(api_post "/task/$ACTION" "$DATA")"
+        ;;
+
+    task)
+        pretty "$(api_get '/task')"
+        ;;
+
+    cancel)
+        pretty "$(api_post '/task/cancel')"
+        ;;
+
+    # Vision
+    screenshot|ss|look_around)
+        OUTFILE="/tmp/mc_screenshot_$(date +%s).png"
+        # Try to find and screenshot the Minecraft window
+        WINID=$(xdotool search --name "Minecraft" 2>/dev/null | head -1)
+        if [ -z "$WINID" ]; then
+            echo "ERROR: Can't find Minecraft window"
+            exit 1
+        fi
+        # Activate window briefly, screenshot, return focus
+        PREV_WIN=$(xdotool getactivewindow 2>/dev/null || true)
+        xdotool windowactivate --sync "$WINID" 2>/dev/null
+        sleep 0.3
+        scrot -u "$OUTFILE" 2>/dev/null || scrot "$OUTFILE" 2>/dev/null
+        [ -n "$PREV_WIN" ] && xdotool windowactivate "$PREV_WIN" 2>/dev/null
+        if [ -f "$OUTFILE" ]; then
+            echo "$OUTFILE"
+        else
+            echo "ERROR: Screenshot failed"
+            exit 1
+        fi
+        ;;
+
     # Connection
     connect|reconnect)
         pretty "$(api_post '/connect')"
@@ -475,6 +540,13 @@ BUILDING:
 SOCIAL:
   mc chat "message"      Send chat message in game
   mc follow PLAYER       Follow a player
+
+BACKGROUND TASKS (non-blocking):
+  mc bg_collect BLOCK [n]  Collect in background (returns immediately)
+  mc bg_goto X Y Z         Navigate in background
+  mc bg ACTION '{json}'    Any action in background
+  mc task                  Check background task status
+  mc cancel                Cancel current background task
 
 UTILITY:
   mc use                 Use held item
