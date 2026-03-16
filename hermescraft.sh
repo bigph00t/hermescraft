@@ -19,11 +19,18 @@ if ! command -v hermes &>/dev/null; then
     exit 1
 fi
 
-# Check bridge is running
+# Check bridge is running — prompt for port if not
 if ! curl -sf "$BRIDGE_URL/state" >/dev/null 2>&1; then
-    echo "ERROR: HermesBridge not responding at $BRIDGE_URL"
-    echo "Launch Minecraft with the HermesBridge mod and load into a world first."
-    exit 1
+    echo "HermesBridge not responding at $BRIDGE_URL"
+    read -rp "Enter bridge port (or press Enter to retry 3001): " PORT_INPUT
+    if [ -n "$PORT_INPUT" ]; then
+        BRIDGE_URL="http://localhost:$PORT_INPUT"
+    fi
+    if ! curl -sf "$BRIDGE_URL/state" >/dev/null 2>&1; then
+        echo "ERROR: Still no response at $BRIDGE_URL"
+        echo "Make sure Minecraft is running with HermesBridge mod and you're in a world."
+        exit 1
+    fi
 fi
 
 # Install MCP server deps if needed
