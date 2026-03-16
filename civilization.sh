@@ -24,14 +24,8 @@ BIN_DIR="$SCRIPT_DIR/bin"
 PROMPT_DIR="$SCRIPT_DIR/prompts"
 SOUL_FILE="$SCRIPT_DIR/SOUL-civilization.md"
 
-# Prefer Anthropic/Sonnet for civilization runs when available.
-if [ -z "${ANTHROPIC_API_KEY:-}" ] && [ -f "$HOME/.hermes/.env" ] && grep -q '^ANTHROPIC_API_KEY=' "$HOME/.hermes/.env"; then
-  export ANTHROPIC_API_KEY="$(python3 -c 'from pathlib import Path; p=Path.home()/".hermes"/".env"; 
-for line in p.read_text().splitlines():
-    if line.startswith("ANTHROPIC_API_KEY="):
-        print(line.split("=",1)[1]); break')"
-fi
-
+# Preserve the currently working Anthropic env from the calling shell.
+# Do not override it with stale on-disk values.
 MC_HOST="${MC_HOST:-localhost}"
 MC_PORT="${MC_PORT:-12345}"
 BASE_API_PORT=3001
