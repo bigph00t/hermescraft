@@ -1,15 +1,14 @@
 node_modules/
 *.log
+*.pid
+*.mp4
 agent/data/
+agent/skills/minecraft-*/
 .env
-package-lock.json
 
 # Gradle / Java build
 mod/.gradle/
 mod/build/
-mod/gradle/
-mod/gradlew
-mod/gradlew.bat
 mod/.idea/
 *.class
 *.jar

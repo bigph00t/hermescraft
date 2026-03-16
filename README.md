@@ -11,7 +11,8 @@ Built on [Hermes Agent](https://github.com/NousResearch/hermes-agent) by Nous Re
 [![MCP](https://img.shields.io/badge/Protocol-MCP-00A67E)](https://modelcontextprotocol.io)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-[DEMO VIDEO](vid1.mp4)
+<!-- Upload vid1.mp4 to YouTube and replace this link -->
+[DEMO VIDEO](https://github.com/bigph00t/hermescraft/releases)
 
 ---
 
@@ -85,7 +86,7 @@ Built on [Hermes Agent](https://github.com/NousResearch/hermes-agent) by Nous Re
 **Two ways to run the agent:**
 
 1. **Direct mode** (`start.sh`) -- Node.js agent loop talks to vLLM with native Hermes tool calling. Fastest, lowest latency.
-2. **Hermes Agent mode** (`hermescraft.sh`) -- Uses the official Hermes Agent CLI with MCP protocol. The MCP server (`mcp-server/index.js`) wraps the bridge as 27 discoverable tools.
+2. **Hermes Agent mode** (`hermescraft.sh`) -- Uses the official Hermes Agent CLI with MCP protocol. The MCP server (`mcp-server/index.js`) wraps the bridge as 27 discoverable tools. Use `steve-start.sh` to launch with the Steve persona.
 
 ---
 
@@ -119,6 +120,15 @@ The agent wakes up in a new world with nothing but its fists and starts playing.
 HERMESCRAFT_MODEL=anthropic/claude-sonnet-4 ./hermescraft.sh "Survive 100 days"
 ```
 
+### Steve Persona
+
+Launch the agent as Steve -- a practical survival buddy who responds to players:
+
+```bash
+./steve-start.sh
+./steve-start.sh "Build a village and farm wheat"
+```
+
 ### Multi-Agent Mode
 
 Run multiple agents with different LLMs in the same world:
@@ -128,7 +138,7 @@ Run multiple agents with different LLMs in the same world:
 ./start.sh
 
 # Terminal 2: Different model on port 3002 (different Minecraft instance)
-HERMESCRAFT_BRIDGE=http://localhost:3002 ./hermescraft.sh --gameloop
+HERMESCRAFT_BRIDGE=http://localhost:3002 ./hermescraft.sh "Build a castle"
 ```
 
 ---
@@ -320,10 +330,10 @@ hermescraft/
 |   |   +-- BaritoneIntegration.java # Pathfinding bridge
 |
 +-- hermescraft.sh              # Main launcher (Hermes Agent mode)
++-- steve-start.sh              # Launch as Steve persona
 +-- start.sh                    # Direct mode launcher (Node.js agent)
-+-- gameloop.sh                 # Game loop shell wrapper
-+-- gameloop.py                 # Game loop Python driver
-+-- SOUL-minecraft.md           # Agent personality file
++-- SOUL-minecraft.md           # Hermes persona (God of Cunning)
++-- SOUL-steve.md               # Steve persona (practical survival buddy)
 +-- vllm.sh                     # vLLM server startup script
 +-- README.md
 ```
