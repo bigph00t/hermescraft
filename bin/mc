@@ -9,6 +9,7 @@
 #   mc status                    # full game state
 #   mc inventory                 # categorized inventory
 #   mc nearby                    # blocks + entities nearby
+#   mc scene 16                  # fair-play scene summary from current viewpoint
 #   mc chat "hello world"        # send chat message
 #   mc read_chat                 # read recent messages
 #   mc collect oak_log 5         # mine 5 oak logs
@@ -277,9 +278,75 @@ case "$CMD" in
         pretty "$(api_get '/inventory')"
         ;;
 
-    nearby|look|n)
+    nearby|n)
         RADIUS="${1:-32}"
         pretty "$(api_get "/nearby?radius=$RADIUS")"
+        ;;
+
+    map|m)
+        RADIUS="${1:-16}"
+        RESULT=$(api_get "/map?radius=$RADIUS")
+        # Extract the map string and print it raw (not JSON-pretty)
+        python3 -c "
+import json, sys
+try:
+    d = json.loads(sys.argv[1])
+    data = d.get('data', d)
+    if 'map' in data:
+        print(data['map'])
+        print()
+        print(data.get('legend', ''))
+        print()
+        print(f\"Center: {data.get('center', '?')}  Scale: {data.get('scale', '?')}\")
+        if data.get('entities_on_map'):
+            print()
+            for e in data['entities_on_map']:
+                print(f'  {e}')
+    else:
+        print(json.dumps(data, indent=2))
+except: print(sys.argv[1])
+" "$RESULT"
+        ;;
+
+    look|survey)
+        RESULT=$(api_get "/look")
+        python3 -c "
+import json, sys
+try:
+    d = json.loads(sys.argv[1])
+    data = d.get('data', d)
+    print(data.get('description', json.dumps(data, indent=2)))
+except: print(sys.argv[1])
+" "$RESULT"
+        ;;
+
+    scene|perceive|vision)
+        RANGE="${1:-16}"
+        RESULT=$(api_get "/scene?range=$RANGE")
+        python3 -c "
+import json, sys
+try:
+    d = json.loads(sys.argv[1])
+    data = d.get('data', d)
+    print(data.get('summary', json.dumps(data, indent=2)))
+    if data.get('visible_blocks'):
+        print('\nVisible blocks:')
+        for b in data['visible_blocks'][:8]:
+            print(f\"  {b['name']} x{b['count']} nearest:{b['nearest_distance']}m sectors:{','.join(b['sectors'])}\")
+    if data.get('visible_entities'):
+        print('\nVisible entities:')
+        for e in data['visible_entities'][:8]:
+            print(f\"  {e['type']} {e['distance']}m {e['bearing']}\")
+    if data.get('hazards'):
+        print('\nHazards:')
+        for h in data['hazards']:
+            print(f\"  {h}\")
+    if data.get('memory_hints'):
+        print('\nRemembered nearby:')
+        for m in data['memory_hints']:
+            print(f\"  {m}\")
+except: print(sys.argv[1])
+" "$RESULT"
         ;;
 
     chat|say)
@@ -297,6 +364,10 @@ case "$CMD" in
     overhear|overheard|eavesdrop)
         COUNT="${1:-20}"
         pretty "$(api_get "/overhear?count=$COUNT")"
+        ;;
+
+    social)
+        pretty "$(api_get '/social')"
         ;;
 
     # Movement
@@ -726,7 +797,7 @@ case "$CMD" in
         ;;
 
     # Vision
-    screenshot|ss|look_around)
+    screenshot|ss)
         OUTFILE="/tmp/mc_screenshot_$(date +%s).png"
         # Try to find and screenshot the Minecraft window
         WINID=$(xdotool search --name "Minecraft" 2>/dev/null | head -1)
@@ -748,6 +819,20 @@ case "$CMD" in
         fi
         ;;
 
+    screenshot_meta|ssmeta)
+        OUTFILE=$("$0" screenshot)
+        SCENE=$(api_get '/scene?range=16')
+        STATUS=$(api_get '/status')
+        python3 -c "
+import json, sys
+print(json.dumps({
+  'image_path': sys.argv[1],
+  'scene': json.loads(sys.argv[2]).get('data', {}),
+  'status': json.loads(sys.argv[3]).get('data', {}),
+}, indent=2))
+" "$OUTFILE" "$SCENE" "$STATUS"
+        ;;
+
     # Connection
     connect|reconnect)
         pretty "$(api_post '/connect')"
@@ -766,7 +851,11 @@ OBSERVATION:
   mc status              Full game state (health, pos, inventory, nearby)
   mc inventory           Categorized inventory
   mc nearby [radius]     Blocks + entities nearby (default: 32)
+  mc map [radius]        ASCII top-down map of surroundings (default: 16)
+  mc look                Narrative description of what you see around you
+  mc scene [radius]      Fair-play scene summary from current viewpoint
   mc read_chat [count]   Read recent chat messages
+  mc social              Social summary + recent interaction events
   mc health              Quick connection + health check
 
 MOVEMENT:

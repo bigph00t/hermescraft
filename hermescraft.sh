@@ -15,6 +15,12 @@
 
 set -euo pipefail
 
+# Claude Code sets ANTHROPIC_API_KEY="" (empty) in subprocesses, which shadows
+# hermes's own .env. Always load the key directly from ~/.hermes/.env.
+_HERMES_KEY=$(grep "^ANTHROPIC_API_KEY=" "$HOME/.hermes/.env" 2>/dev/null | head -1 | cut -d= -f2-)
+[ -n "$_HERMES_KEY" ] && export ANTHROPIC_API_KEY="$_HERMES_KEY"
+unset _HERMES_KEY
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BOT_DIR="$SCRIPT_DIR/bot"
 BIN_DIR="$SCRIPT_DIR/bin"
@@ -176,4 +182,8 @@ Play naturally — mine, craft, explore, build, fight mobs, chat with the player
 Start by running \`mc status\`."
 fi
 
-exec $HERMES chat --yolo -q "$PROMPT"
+$HERMES chat --yolo -q "$PROMPT"
+EXIT_CODE=$?
+cleanup
+trap - EXIT INT TERM
+exit $EXIT_CODE

@@ -1,7 +1,41 @@
 node_modules/
+bot/node_modules/
 __pycache__/
 *.pyc
 .env
 /tmp/
 *.log
 *.pid
+*.tmp
+.DS_Store
+
+# Minecraft / Paper runtime artifacts
+server/logs/
+server/crash-reports/
+server/cache/
+server/plugins/
+!server/start.sh
+server/config/
+server/libraries/
+server/versions/
+server/hermescraft-world/
+server/hermescraft-world_nether/
+server/hermescraft-world_the_end/
+server/*.jar
+server/*.json
+server/*.yml
+server/server.properties
+server/eula.txt
+server/session.lock
+server/usercache.json
+server/*.dat_old
+server/*/session.lock
+
+# Local agent runtime state
+data/locations-*.json
+!data/locations.json
+
+# Editor / screenshots
+*.swp
+*.swo
+/tmp/mc_screenshot_*.png

@@ -40,7 +40,7 @@ Repeat forever:
 - Craft fails → `mc recipes ITEM` to check requirements
 - Can't find blocks → move to new area, try again
 - Screen stuck open → `mc close`
-- Confused about surroundings → `mc screenshot` + vision_analyze
+- Confused about surroundings → `mc scene`, then `mc screenshot_meta` + vision_analyze if still unsure
 
 ## Working With the Player
 - **They're your friend.** Chat naturally. Be yourself.
@@ -56,7 +56,7 @@ Repeat forever:
 - Clear area with `mc dig` before building.
 - Use varied materials — logs for frame, planks for walls, cobblestone for base.
 - Build ON the ground, not floating. Place crafting tables INSIDE buildings.
-- Use `mc screenshot` + vision_analyze to check how builds look.
+- Use `mc scene` first, then `mc screenshot_meta` + vision_analyze to check how builds look and verify layout.
 - If unsure about a build style, `web_search` for ideas.
 
 ## Background Tasks
@@ -88,14 +88,14 @@ Save important info using the memory tool:
 - Keep entries compact — 2200 char limit total.
 
 ## Vision
-Take screenshots with `mc screenshot` and analyze with vision_analyze:
+Start with `mc scene` for fair-play perception. When you need extra spatial certainty, run `mc screenshot_meta` and analyze the returned image path with vision_analyze:
 - Verify builds look good before telling the player it's done
 - Check surroundings when stuck or confused
-- Show the player what you see when they ask
+- Inspect damage/terrain after combat or explosions
 
 ## Commands Reference
 
-**Observe**: `mc status`, `mc inventory`, `mc nearby [radius]`, `mc read_chat [count]`, `mc commands`, `mc health`, `mc find_blocks BLOCK [radius] [count]`, `mc find_entities TYPE [radius]`, `mc screenshot`
+**Observe**: `mc status`, `mc inventory`, `mc nearby [radius]`, `mc scene [radius]`, `mc read_chat [count]`, `mc commands`, `mc social`, `mc health`, `mc find_blocks BLOCK [radius] [count]`, `mc find_entities TYPE [radius]`, `mc screenshot_meta`
 
 **Move**: `mc goto X Y Z`, `mc goto_near X Y Z [range]`, `mc follow PLAYER`, `mc look_at X Y Z`, `mc stop`
 

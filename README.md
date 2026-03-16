@@ -1,295 +1,306 @@
-# HermesCraft — AI Agents Living in Minecraft
+# HermesCraft
 
-**Hermes Hackathon Submission** by bigph00t
+An embodied social AI system for Minecraft.
 
-Multiple autonomous [Hermes Agent](https://github.com/NousResearch/hermes-agent) instances inhabiting a shared Minecraft world. Each agent has its own persistent identity, memory, goals, and personality. They mine, build, fight, trade, scheme, form alliances, betray each other, and interact like real humans — not scripted bots following waypoints.
+HermesCraft uses the same underlying Hermes agent stack in two scales:
+- Companion Mode: one in-world AI friend that chats, helps, remembers, and plays with you
+- Civilization Mode: multiple persistent agents with personalities, private/public chat, memory, and emergent social dynamics
 
-## What Makes This Different
+This is the core thesis:
+from one friend to a civilization.
 
-This isn't a bot framework. Each agent is a **full Hermes Agent instance** with:
+Built for the Nous Hermes hackathon.
 
-- **Persistent memory** — remembers past encounters, grudges, alliances, base locations across sessions
-- **Real personality** — not "helpful AI assistant" but a character with wants, flaws, and opinions
-- **Name-routed chat** — agents can have private conversations, group chats, or broadcasts. No RP spirals from everyone seeing everything
-- **80/20 gameplay/chat ratio** — agents PLAY THE GAME (mine, build, fight) with brief social interactions, not endless roleplaying
-- **Emergent behavior** — no scripted interactions. Alliances form, betrayals happen, wars start organically
+## Why this exists
+
+Most Minecraft AI projects are either:
+- solo task bots
+- scripted NPCs
+- or benchmark agents with too much privileged world knowledge
+
+HermesCraft is trying to feel alive in-world instead:
+- embodied in a Minecraft body
+- partial, fair-play perception instead of x-ray omniscience
+- persistent memory across sessions
+- natural chat with human players
+- social routing between agents at larger scale
+
+## Two ways to experience HermesCraft
+
+### 1) Companion Mode
+
+Fire up one Hermes and play with it like a friend.
+
+What it can do today:
+- talk with you in Minecraft chat
+- follow you, build with you, gather, craft, fight, explore
+- remember player preferences and world facts through Hermes memory
+- inspect surroundings with `mc look`, `mc map`, `mc scene`
+- use screenshot + vision workflows for build/layout verification
+
+Best use cases:
+- “help me build a cabin”
+- “follow me into this cave”
+- “gather wood while I mine stone”
+- “hang out and survive together”
+
+### 2) Civilization Mode
+
+Launch multiple Hermes agents into the same world and let the same architecture scale into a social simulation.
+
+What makes this interesting:
+- isolated HERMES_HOME per agent
+- separate memory + sessions per character
+- personality prompts and hidden agendas
+- public chat, direct messages, overhearing, command queues
+- fair-play perception and local world understanding
+- emergent alliances, tension, division of labor, and story
+
+This is the mode that leans toward the MiroFish / generative society angle.
+
+## Core features
+
+### Embodied gameplay
+- Mineflayer bot body per agent
+- movement, mining, crafting, smelting, chest interaction, combat, fleeing, marks, death recovery
+- background tasks so agents stay chat-responsive during longer actions
+
+### Fair-play perception
+- line-of-sight filtering for entities
+- sound events as approximate directional hints
+- `mc look` for natural language surroundings
+- `mc map` for ASCII spatial understanding
+- `mc scene` for current-view fair-play scene summary
+- `mc screenshot_meta` for screenshot + synchronized scene/state metadata
+
+### Social systems
+- public broadcast chat
+- direct and group DMs via routed chat
+- overhearing nearby private conversations
+- queued in-game commands for human requests
+- social summary endpoint for recent interaction history
+
+### Persistent identity
+- per-agent memory
+- per-agent sessions
+- per-agent SOUL / behavior prompts
+- per-agent saved locations
 
 ## Architecture
 
+```text
+Human player(s)
+      │
+      ▼
+Minecraft world / Paper server / LAN world
+      │
+      ▼
+Mineflayer bot server (one per body)
+  - fair-play perception
+  - HTTP control API
+  - social routing / task control
+      │
+      ▼
+mc CLI
+  - shell interface for Hermes
+      │
+      ▼
+Hermes Agent
+  - planning
+  - memory
+  - web / vision tools
+  - SOUL-driven behavior
 ```
-┌──────────────────────────────────────────────┐
-│              Minecraft Server                │
-│         (Paper/Fabric/Vanilla, offline mode)  │
-└──────────────────┬───────────────────────────┘
-                   │ N connections
-     ┌─────────────┼─────────────┐
-     ▼             ▼             ▼
-┌─────────┐  ┌─────────┐  ┌─────────┐
-│ Bot Srv  │  │ Bot Srv  │  │ Bot Srv  │  × N  (Mineflayer HTTP APIs)
-│ :3001    │  │ :3002    │  │ :3003    │
-│ Genghis  │  │Cleopatra │  │  Tesla   │
-└────┬─────┘  └────┬─────┘  └────┬─────┘
-     │             │             │
-     ▼             ▼             ▼
-┌─────────┐  ┌─────────┐  ┌─────────┐
-│ Hermes  │  │ Hermes  │  │ Hermes  │  × N  (each with own HERMES_HOME)
-│ Agent   │  │ Agent   │  │ Agent   │
-│~/.hermes│  │~/.hermes│  │~/.hermes│
-│-genghis │  │-cleopat │  │ -tesla  │
-└─────────┘  └─────────┘  └─────────┘
-```
 
-Each bot server is a Node.js HTTP API wrapping [Mineflayer](https://github.com/PrismarineJS/mineflayer).
-Each Hermes Agent controls its bot via the `mc` CLI tool.
-Each agent has its own `HERMES_HOME` directory with persistent memory and session history.
+In Companion Mode, that stack runs once.
+In Civilization Mode, it runs once per agent.
 
-## Quick Start
+## Quickstart
 
-### Prerequisites
+## Prerequisites
+- Node.js 18+
+- Python 3
+- Java (for bundled Paper server flow)
+- Hermes CLI installed and authenticated
+- Minecraft Java Edition world/server or singleplayer LAN world
 
-- **Node.js ≥18** — for the bot servers
-- **[Hermes Agent](https://github.com/NousResearch/hermes-agent)** — `pip install hermes-agent`
-- **Minecraft Java Edition** server (1.20+, offline mode) or singleplayer with "Open to LAN"
-- **An LLM API key** — configured in your hermes config (OpenRouter, Anthropic, OpenAI, etc.)
-
-### Setup
+Run setup:
 
 ```bash
-git clone https://github.com/bigph00t/hermescraft.git
-cd hermescraft
+cd ~/hermescraft
 ./setup.sh
 ```
 
-### Single Agent (play together)
+## Companion Mode
 
-Start Minecraft, open to LAN (or run a server), then:
+Start a single companion:
 
 ```bash
-# Play with one Hermes agent
+cd ~/hermescraft
 MC_PORT=12345 ./hermescraft.sh
-
-# Give it a goal
-MC_PORT=12345 ./hermescraft.sh "Build me a log cabin"
 ```
 
-Talk to the agent in Minecraft chat. It reads and responds.
-
-### Civilization Mode (6 autonomous agents)
+If you already have a world open to LAN, set the LAN port:
 
 ```bash
-# Launch 6 agents with unique personalities
-./civilization.sh --port 12345
-
-# Launch fewer agents
-./civilization.sh --port 12345 --agents 3
-
-# Use a specific model
-./civilization.sh --port 12345 --model claude-sonnet-4 --provider anthropic
-
-# Start just the bot servers (for manual agent control)
-./civilization.sh --port 12345 --bots-only
+MC_PORT=36467 ./hermescraft.sh
 ```
 
-### Monitoring
+In-game examples:
+- `hermes follow me`
+- `hermes build me a small cabin here`
+- `hermes gather oak logs`
+- `hermes what do you see?`
+
+## Civilization Mode
+
+Launch the multi-agent simulation:
 
 ```bash
-# Watch agent logs
-tail -f /tmp/agent-genghis.log
-tail -f /tmp/agent-cleopatra.log
-
-# Read in-game chat from any bot's view
-MC_API_URL=http://localhost:3001 mc read_chat
-
-# Check agent memory
-cat ~/.hermes-genghis/memories/MEMORY.md
-
-# Manual control of any bot
-MC_API_URL=http://localhost:3001 mc status
-MC_API_URL=http://localhost:3002 mc inventory
-```
-
-## The Cast (Default Characters)
-
-| Agent | Personality | Behavior |
-|-------|------------|----------|
-| **Genghis** | Ruthless warlord, broken English | Claims territory, demands tribute, builds forts |
-| **Cleopatra** | Cunning diplomat queen | Trades, schemes, manipulates, builds beautiful things |
-| **Tesla** | Mad inventor, excited bursts | Builds workshops, crafts tools, trades tech for materials |
-| **Pirate** | Chaotic buccaneer | Steals, raids bases, never stays in one place, hidden stashes |
-| **Monk** | Zen peacekeeper, brief proverbs | Builds shrines, gives freely, mediates conflicts, rage mode if builds destroyed |
-| **Goblin** | Chaotic gremlin | Hoards shinies, digs holes, follows people, steals trinkets |
-
-## Name-Routed Chat System
-
-The key innovation preventing infinite AI conversation loops:
-
-```
-mc chat "hello everyone"           # Broadcast — ALL agents see it
-mc chat_to Tesla "got iron?"       # Private — ONLY Tesla sees it
-mc chat_to "Pirate,Goblin" "raid?" # Group — only Pirate and Goblin see it
-mc overhear                        # Eavesdrop on nearby private conversations
-```
-
-**How it works:** When an agent sends a message, it's prefixed with target names.
-The bot server routes each message only to the addressed recipients. Other agents
-see it in their "overheard" log but NOT in their main chat — so they don't react to
-every message flying around.
-
-This means:
-- Cleopatra can privately scheme with Pirate without Genghis knowing
-- Genghis can broadcast a threat that everyone hears
-- Tesla and Monk can trade quietly without attracting the Pirate
-- An agent can eavesdrop (`mc overhear`) if they're suspicious
-
-## Custom Characters
-
-Create your own agent by adding a prompt file in `prompts/`:
-
-```bash
-# Create prompts/viking.md with personality + first moves + goals
-# Then launch with the existing system:
+cd ~/hermescraft
 ./civilization.sh --port 12345
 ```
 
-Prompt template (see existing prompts for examples):
-```markdown
-# You are Viking
-
-A fierce Norse warrior. Short, direct speech. ...
-
-## YOUR PERSONALITY
-- How they talk (keep messages under 50 chars)
-- What they value
-- How they treat others
-
-## YOUR OPINIONS OF OTHERS
-- What they think of each character
-
-## YOUR FIRST MOVES
-1. mc status — look around
-2. Head in a direction — mc bg_goto X Y Z
-3. Collect resources, craft tools
-4. Build something that fits the character
-
-## YOUR ONGOING GOALS
-- Long-term ambitions
-- Social strategies
-- Building projects
-```
-
-Edit `civilization.sh` to add your new agent to the `ALL_AGENTS` array.
-
-## Manual Bot Control
-
-The `mc` CLI controls any bot server:
+Useful variants:
 
 ```bash
-export MC_API_URL=http://localhost:3001  # point to a specific bot
-
-# Observation
-mc status              # full state: health, inventory, nearby, chat
-mc inventory           # detailed inventory
-mc nearby              # blocks + entities nearby
-mc read_chat           # messages addressed to you
-mc overhear            # overheard conversations between others
-
-# Movement
-mc goto 100 64 -200    # walk to coordinates
-mc follow PlayerName   # follow someone
-mc stop                # stop moving
-
-# Mining & Crafting
-mc collect oak_log 5   # mine 5 oak logs
-mc craft stone_pickaxe # craft an item
-mc recipes furnace     # look up crafting recipe
-mc dig 10 65 5         # break a specific block
-mc pickup              # grab item drops
-
-# Combat
-mc fight zombie        # sustained combat
-mc sprint_attack Steve # sprint + knockback hit
-mc flee 20             # run away
-mc eat                 # eat best food
-mc equip iron_sword    # equip item
-
-# Building
-mc place cobblestone 10 65 5  # place a block
-mc interact 10 65 5           # open chest/door/etc
-
-# Social
-mc chat "hello"              # broadcast to all
-mc chat_to Pirate "got loot" # private message
-mc overhear                  # eavesdrop
-
-# Background Tasks (non-blocking)
-mc bg_collect oak_log 20  # mine in background
-mc bg_goto 100 64 -200    # travel in background
-mc task                   # check progress
-mc cancel                 # cancel task
-
-# Locations
-mc mark base "my home"   # save location
-mc marks                 # list all saved spots
-mc go_mark base          # navigate to saved spot
+./civilization.sh --bots-only
+./civilization.sh --agents-only
+./civilization.sh --agents 3
+./civilization.sh --model claude-sonnet-4-20250514
 ```
 
-## File Structure
+Current cast:
+- Marcus
+- Sarah
+- Jin
+- Dave
+- Lisa
+- Tommy
+- Elena
 
-```
-hermescraft/
-├── bot/
-│   ├── server.js          # Mineflayer HTTP API (2000+ lines, 60+ actions)
-│   └── package.json
-├── bin/
-│   └── mc                 # CLI tool for controlling bots
-├── prompts/               # Character personalities
-│   ├── genghis.md
-│   ├── cleopatra.md
-│   ├── tesla.md
-│   ├── pirate.md
-│   ├── monk.md
-│   └── goblin.md
-├── souls/                 # Team role prompts (for arena mode)
-│   ├── team-commander.md
-│   ├── team-warrior.md
-│   ├── team-ranger.md
-│   └── team-support.md
-├── data/                  # Per-bot locations and state
-├── SOUL-minecraft.md      # Soul for single-agent play-with-human mode
-├── SOUL-civilization.md   # Soul for multi-agent autonomous mode
-├── hermescraft.sh         # Single agent launcher
-├── civilization.sh        # Multi-agent civilization launcher
-├── arena.js               # PvP match coordinator
-├── arena_launch.sh        # Arena battle launcher
-├── battle_3v3.sh          # 3v3 team battle launcher
-├── setup.sh               # One-command setup
-└── README.md
+## Server reset / crash map
+
+If you want to use the included Paper server flow:
+
+```bash
+cd ~/hermescraft/server
+MAP_ZIP="/path/to/The Crash zip" ./start.sh --reset
+./start.sh
 ```
 
-## Environment Variables
+`server/start.sh --reset` requires Python package `nbtlib`.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MC_HOST` | `localhost` | Minecraft server host |
-| `MC_PORT` | `12345` | Minecraft server port |
-| `MC_USERNAME` | `HermesBot` | Bot username |
-| `API_PORT` | `3001` | Bot HTTP API port |
-| `MC_API_URL` | `http://localhost:3001` | CLI target (set per-bot) |
+## Useful `mc` commands
 
-## How It Works (Technical)
+Observation:
+```bash
+mc status
+mc nearby 24
+mc map 16
+mc look
+mc scene 16
+mc social
+mc read_chat
+mc commands
+```
 
-1. **Bot Server** (`bot/server.js`): Mineflayer bot wrapped in an HTTP API. Handles perception (fair-play LOS, sound simulation), combat (sprint attacks, combos, shield), navigation (pathfinder), crafting, building, and the name-routed chat system.
+Action:
+```bash
+mc bg_collect oak_log 5
+mc craft stone_pickaxe
+mc fight zombie
+mc flee 16
+mc chat "hello"
+mc chat_to Marcus "meet by the river"
+```
 
-2. **mc CLI** (`bin/mc`): Bash script that calls the bot HTTP API. Human-readable output by default, `--json` for machine output. This is what the Hermes agent calls via `terminal()`.
+Vision:
+```bash
+mc screenshot_meta
+```
 
-3. **Hermes Agent**: Each agent runs `hermes chat --yolo -q "prompt"` with its own `HERMES_HOME`. The SOUL file (SOUL-civilization.md) controls behavior: gameplay loop, chat rules, social awareness, memory management. The character prompt (prompts/*.md) defines personality, goals, and opinions.
+That returns a screenshot path plus synchronized scene/state metadata so Hermes can call `vision_analyze` without losing context.
 
-4. **Chat Routing**: Messages are prefixed with target names (`"Tesla: got iron?"`). The bot server parses the prefix and routes: addressed messages go to `chatLog`, others go to `overheardLog`. This prevents the RP spiral where 6 agents all react to every message.
+## Fairness and non-xray design
 
-5. **Memory**: Each agent has persistent memory via Hermes's memory system (`~/.hermes-<name>/memories/MEMORY.md`). They save base locations, relationships, grudges, deals, and resource spots. `session_search` lets them recall past encounters.
+HermesCraft is intentionally trying to avoid god-mode world access.
 
-## Credits
+In fair-play mode:
+- entities are filtered by distance + line of sight
+- sound events are directional hints, not exact coordinates
+- `mc scene` reports what is visible in the current view cone plus remembered landmarks
+- resource finding in fair mode is biased toward visible blocks instead of omniscient scans
+- unknown areas should stay unknown until inspected
 
-Built by bigph00t with [Hermes Agent](https://github.com/NousResearch/hermes-agent) for the Hermes Hackathon.
+This is important for both believability and demo integrity.
 
-Powered by [Mineflayer](https://github.com/PrismarineJS/mineflayer) and the Mineflayer plugin ecosystem.
+## Repo guide
+
+- `hermescraft.sh` — single-agent companion launcher
+- `civilization.sh` — multi-agent civilization launcher
+- `bot/server.js` — Mineflayer HTTP bot server
+- `bot/lib/` — testable routing/perception helpers
+- `bot/test/` — unit tests for helper logic
+- `bin/mc` — CLI for observation and action
+- `SOUL-minecraft.md` — companion behavior rules
+- `SOUL-civilization.md` — civilization behavior rules
+- `prompts/` — per-character prompts
+- `docs/COMPANION_MODE.md` — companion mode notes
+- `docs/CIVILIZATION_MODE.md` — civilization mode notes
+- `docs/DEMO_THREAD.md` — thread/video submission plan
+
+## Demo-friendly observability
+
+For hackathon demos, the important thing is not just that it works, but that viewers can tell why it works.
+
+HermesCraft now exposes:
+- current scene summary
+- social summary / recent events
+- private vs public communication patterns
+- per-agent logs
+- per-agent memory stores
+
+This helps turn “a bunch of bots did stuff” into a legible AI story.
+
+## Testing
+
+Bot helper tests:
+
+```bash
+cd bot
+npm test
+```
+
+Sanity checks:
+
+```bash
+node --check bot/server.js
+bash -n civilization.sh
+bash -n hermescraft.sh
+bash -n setup.sh
+bash -n server/start.sh
+```
+
+## Known limitations
+
+Current focus is strong early/mid-game survival, companion interaction, and small-society dynamics — not full endgame autonomy.
+
+Still rough / in-progress areas:
+- complex building taste still benefits from screenshot + vision loops
+- longer-term social simulation needs more explicit town-level memory and replay tooling
+- public clean-room reproducibility is improving, but still assumes a reasonably configured local Minecraft/Hermes environment
+
+## Why this is interesting beyond Minecraft
+
+Minecraft is just the proving ground.
+
+The deeper idea is an embodied AI architecture that works in two human-legible scales:
+- one-on-one companionship
+- many-agent social worlds
+
+If the same agent stack can feel personal at one scale and emergent at another, that is a strong pattern for future game AI, virtual companions, and persistent social agents.
+
+## License
+
+MIT

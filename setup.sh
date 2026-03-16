@@ -72,9 +72,20 @@ else
     ERRORS=$((ERRORS + 1))
 fi
 
-# curl + python3
+# curl + python3 + java
 command -v curl &>/dev/null && echo "    ✓ curl" || { echo "    ✗ curl required"; ERRORS=$((ERRORS + 1)); }
 command -v python3 &>/dev/null && echo "    ✓ python3" || { echo "    ✗ python3 required"; ERRORS=$((ERRORS + 1)); }
+if command -v java &>/dev/null; then
+    echo "    ✓ java $(java -version 2>&1 | head -1)"
+else
+    echo "    ✗ java required for Paper server"
+    ERRORS=$((ERRORS + 1))
+fi
+if python3 -c "import nbtlib" 2>/dev/null; then
+    echo "    ✓ python nbtlib"
+else
+    echo "    ⚠ python package nbtlib missing (needed for server/start.sh --reset)"
+fi
 
 if [ $ERRORS -gt 0 ]; then
     echo ""
@@ -134,7 +145,7 @@ echo ""
 echo "  SINGLE AGENT (play with Hermes):"
 echo "    MC_PORT=12345 ./hermescraft.sh"
 echo ""
-echo "  CIVILIZATION (6 autonomous agents):"
+echo "  CIVILIZATION (7 autonomous agents):"
 echo "    ./civilization.sh --port 12345"
 echo ""
 echo "  Start Minecraft first (server or singleplayer + Open to LAN)."

@@ -9,7 +9,7 @@
 #   - Session history that carries across restarts
 #
 # Usage:
-#   ./civilization.sh                   # launch all 6 on port 12345
+#   ./civilization.sh                   # launch all 7 on port 12345
 #   ./civilization.sh --port 25565      # custom MC port
 #   ./civilization.sh --bots-only       # just start bot servers
 #   ./civilization.sh --agents-only     # agents only (bots already running)
@@ -37,7 +37,7 @@ ALL_AGENTS=(
   "Dave:west"
   "Lisa:north"
   "Tommy:southeast"
-  "Mia:southwest"
+  "Elena:northwest"
 )
 
 PIDS=()
@@ -63,7 +63,7 @@ while [[ $# -gt 0 ]]; do
       echo ""
       echo "Options:"
       echo "  --port PORT       Minecraft server port (default: 12345)"
-      echo "  --agents N        Number of agents to launch (default: 6)"
+      echo "  --agents N        Number of agents to launch (default: 7)"
       echo "  --model MODEL     LLM model to use (default: hermes default)"
       echo "  --provider PROV   LLM provider (openrouter, anthropic, etc)"
       echo "  --bots-only       Start bot servers only"
@@ -142,6 +142,7 @@ if [ "$AGENTS_ONLY" = false ]; then
   echo ""
   echo "  Waiting for connections..."
   sleep 5
+  FAILED=()
   for i in "${!AGENTS[@]}"; do
     IFS=':' read -r name direction <<< "${AGENTS[$i]}"
     PORT=$((BASE_API_PORT + i))
@@ -150,8 +151,37 @@ if [ "$AGENTS_ONLY" = false ]; then
       echo "    ✓ $name connected"
     else
       echo "    ✗ $name failed to connect (check /tmp/bot-${name,,}.log)"
+      FAILED+=("$name")
     fi
   done
+  if [ ${#FAILED[@]} -gt 0 ]; then
+    echo ""
+    echo "  ✗ Aborting agent launch. These bot bodies are not connected: ${FAILED[*]}"
+    echo "    Fix the Minecraft/server connection first, then rerun ./civilization.sh"
+    exit 1
+  fi
+fi
+
+if [ "$AGENTS_ONLY" = true ]; then
+  echo ""
+  echo "  Validating existing bot servers before agent launch..."
+  FAILED=()
+  for i in "${!AGENTS[@]}"; do
+    IFS=':' read -r name direction <<< "${AGENTS[$i]}"
+    PORT=$((BASE_API_PORT + i))
+    CONN=$(curl -sf "http://localhost:$PORT/health" 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('connected',False))" 2>/dev/null || echo "False")
+    if [ "$CONN" = "True" ]; then
+      echo "    ✓ $name bot connected on port $PORT"
+    else
+      echo "    ✗ $name bot missing/disconnected on port $PORT"
+      FAILED+=("$name")
+    fi
+  done
+  if [ ${#FAILED[@]} -gt 0 ]; then
+    echo ""
+    echo "  ✗ Aborting agent launch. These existing bot bodies are not ready: ${FAILED[*]}"
+    exit 1
+  fi
 fi
 
 [ "$BOTS_ONLY" = true ] && { echo ""; echo "  Bot servers running. Press Ctrl+C to stop."; wait; exit 0; }
@@ -167,10 +197,27 @@ for i in "${!AGENTS[@]}"; do
   PROMPT_FILE="$PROMPT_DIR/${name_lower}.md"
 
   # Create agent home if needed
-  mkdir -p "$AGENT_HOME/memories"
+  mkdir -p "$AGENT_HOME/memories" "$AGENT_HOME/sessions"
 
   # Install SOUL.md = SOUL-civilization.md (behavior rules)
   cp "$SOUL_FILE" "$AGENT_HOME/SOUL.md"
+
+  # Copy base config and adjust for autonomous play
+  if [ -f "$HOME/.hermes/config.yaml" ]; then
+    cp "$HOME/.hermes/config.yaml" "$AGENT_HOME/config.yaml"
+    # Bump max_iterations so agents live longer
+    sed -i 's/max_iterations: [0-9]*/max_iterations: 200/' "$AGENT_HOME/config.yaml"
+    # Default to sonnet to avoid $$$ with 7 agents on opus
+    sed -i 's/default: claude-opus-4-6/default: claude-sonnet-4-20250514/' "$AGENT_HOME/config.yaml"
+    # Enable memory for each agent
+    sed -i 's/memory_enabled: false/memory_enabled: true/' "$AGENT_HOME/config.yaml"
+    sed -i 's/user_profile_enabled: false/user_profile_enabled: true/' "$AGENT_HOME/config.yaml"
+  fi
+
+  # Link auth files from main hermes
+  for f in .env auth.json auth.lock; do
+    [ -f "$HOME/.hermes/$f" ] && ln -sf "$HOME/.hermes/$f" "$AGENT_HOME/$f" 2>/dev/null
+  done
 
   echo "    ✓ $name → $AGENT_HOME"
 done
@@ -204,7 +251,7 @@ for i in "${!AGENTS[@]}"; do
     > "/tmp/agent-${name_lower}.log" 2>&1 &
   PIDS+=($!)
 
-  sleep 3  # stagger launches to avoid LLM rate limits
+  sleep 5  # stagger launches to avoid LLM rate limits
 done
 
 echo ""

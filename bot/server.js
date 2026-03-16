@@ -34,6 +34,24 @@ import collectBlockPkg from 'mineflayer-collectblock';
 const collectBlock = collectBlockPkg.plugin;
 import minecraftData from 'minecraft-data';
 import { Vec3 } from 'vec3';
+import {
+  buildKnownNames,
+  parseMessageRouting,
+  isMessageForMe,
+  broadcastMentionsMe,
+  stripMentionPrefix,
+  applySocialEvent,
+  summarizeSocialGraph,
+} from './lib/chat.js';
+import {
+  yawPitchToDir,
+  bearingFromDelta,
+  classifySector,
+  angleDiffDegrees,
+  makeBlockMemoryKey,
+  summarizeVisibleBlocks,
+  summarizeSceneText,
+} from './lib/perception.js';
 
 // Per-bot locations file to prevent race conditions in multi-agent mode
 const DATA_DIR = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'data');
@@ -88,6 +106,7 @@ let deathLog = [];
 let commandQueue = []; // complex commands for Hermes to process
 let currentTask = null; // background task state
 let lastDeath = null;
+let hardcoreDead = false; // Once true, no reconnect — permanent death
 let lastHealth = 20;
 let reconnectAttempts = 0;
 const MAX_LOG = 100;
@@ -146,84 +165,52 @@ let isSneaking = false; // [{ x, y, z, input, count, startTime, estimatedDone }]
 // ═══════════════════════════════════════════════════════════════════
 
 let overheardLog = []; // messages between other agents we can "overhear"
+let socialGraph = {};
+let socialEvents = [];
+let observedBlocks = new Map();
 
 function getMyName() {
   return config.mc.username.toLowerCase();
 }
 
-// Parse "Name1,Name2: message" format
-// Returns { targets: ['name1','name2'], body: 'message', isBroadcast: false }
-// or { targets: [], body: 'message', isBroadcast: true } for no-prefix / "all:"
-function parseMessageRouting(message) {
-  const trimmed = message.trim();
-  
-  // Check for "all: message" broadcast
-  const allMatch = trimmed.match(/^all\s*[:]\s*(.*)/i);
-  if (allMatch) {
-    return { targets: [], body: allMatch[1].trim(), isBroadcast: true };
-  }
-  
-  // Check for "Name1,Name2: message" pattern
-  // Names are alphanumeric, separated by commas, followed by colon
-  const routeMatch = trimmed.match(/^([A-Za-z0-9_]+(?:\s*,\s*[A-Za-z0-9_]+)*)\s*[:]\s*(.*)/);
-  if (routeMatch) {
-    const namesPart = routeMatch[1];
-    const body = routeMatch[2].trim();
-    const targets = namesPart.split(',').map(n => n.trim().toLowerCase()).filter(n => n.length > 0);
-    
-    // Sanity check: if "targets" look like normal English words that aren't player names,
-    // treat as broadcast (e.g. "Hello: world" shouldn't route to "hello")
-    // Known agent names for validation
-    const knownNames = ['genghis', 'cleopatra', 'tesla', 'pirate', 'monk', 'goblin',
-                        'marcus', 'sarah', 'jin', 'dave', 'lisa', 'tommy', 'mia',
-                        'hermesbot', 'hermes', 'bot', 'all', getMyName()];
-    // Also accept any name that matches a nearby player
-    const hasValidTarget = targets.some(t => knownNames.includes(t) || 
-      (bot && Object.values(bot.entities).some(e => e.username?.toLowerCase() === t)));
-    
-    if (hasValidTarget && body.length > 0) {
-      return { targets, body, isBroadcast: false };
-    }
-  }
-  
-  // No valid prefix — broadcast (human player message)
-  return { targets: [], body: trimmed, isBroadcast: true };
+function getNearbyPlayerNames() {
+  if (!bot) return [];
+  return Object.values(bot.entities || {})
+    .map((entity) => entity.username)
+    .filter(Boolean);
 }
 
-// Check if this message is for us
-function isMessageForMe(routing) {
-  if (routing.isBroadcast) return true;
-  const myName = getMyName();
-  return routing.targets.some(t => t === myName || t === 'bot' || t === 'hermes');
+function rememberSocialEvent(event) {
+  const withTime = { time: Date.now(), ...event };
+  socialEvents.push(withTime);
+  socialEvents = socialEvents.filter((entry) => Date.now() - entry.time < 30 * 60 * 1000).slice(-200);
+  if (withTime.actor) applySocialEvent(socialGraph, withTime);
 }
 
-// Check if a broadcast message starts with our name (human player addressing us without colon)
-// e.g. "hermes build a house" or "Genghis come here"
-function broadcastMentionsMe(messageBody) {
-  const lower = messageBody.toLowerCase().trim();
-  const myName = getMyName();
-  // Check if message starts with our name
-  if (lower.startsWith(myName)) return myName;
-  // Also check common aliases
-  if (myName !== 'hermesbot' && lower.startsWith('hermes')) return 'hermes';
-  if (lower.startsWith('bot')) return 'bot';
-  return null;
-}
-
-// Strip the bot name prefix from a broadcast mention
-function stripMentionPrefix(messageBody, matchedName) {
-  return messageBody.trim().slice(matchedName.length).replace(/^[,!.:\s]+/, '').trim();
+function getMemoryHints(limit = 4) {
+  const hints = [...observedBlocks.values()]
+    .sort((a, b) => b.lastSeen - a.lastSeen)
+    .slice(0, limit)
+    .map((entry) => `${entry.name} ${entry.bearing} ${entry.distance}m (${Math.round((Date.now() - entry.lastSeen) / 1000)}s ago)`);
+  return hints;
 }
 
 // Handle incoming chat message with routing
 async function handleChat(username, message) {
-  const routing = parseMessageRouting(message);
-  const forMe = isMessageForMe(routing);
+  const knownNames = buildKnownNames(getMyName(), getNearbyPlayerNames());
+  const routing = parseMessageRouting(message, { knownNames });
+  const forMe = isMessageForMe(routing, getMyName());
   
   if (forMe) {
     // Message is for us — add to chatLog (visible in mc read_chat / mc status)
-    chatLog.push({ time: Date.now(), from: username, message: routing.body, 
-                   private: !routing.isBroadcast, targets: routing.targets.length > 0 ? routing.targets : undefined });
+    chatLog.push({
+      time: Date.now(),
+      from: username,
+      message: routing.body,
+      private: !routing.isBroadcast,
+      channel: routing.channel,
+      targets: routing.targets.length > 0 ? routing.targets : undefined,
+    });
     if (chatLog.length > MAX_LOG) chatLog.shift();
     log(`[Chat${routing.isBroadcast ? '' : ' @me'}] <${username}> ${routing.body}`);
     
@@ -233,35 +220,41 @@ async function handleChat(username, message) {
         time: Date.now(),
         from: username,
         command: routing.body,
+        channel: routing.channel,
         originalMessage: message,
         status: 'pending',
       });
+      rememberSocialEvent({ actor: username, kind: 'heard', channel: routing.channel, command: true, message: routing.body });
       if (commandQueue.length > MAX_QUEUE) commandQueue.shift();
       log(`[Queued] ${username}: ${routing.body}`);
     } else {
       // Broadcast but mentions our name at start? Also queue as command.
-      // This handles human players typing "hermes build a house" without the colon.
-      const mention = broadcastMentionsMe(routing.body);
+      const mention = broadcastMentionsMe(routing.body, getMyName());
       if (mention) {
         const command = stripMentionPrefix(routing.body, mention);
         if (command) {
           commandQueue.push({
             time: Date.now(),
             from: username,
-            command: command,
+            command,
+            channel: 'public_mention',
             originalMessage: message,
             status: 'pending',
           });
+          rememberSocialEvent({ actor: username, kind: 'heard', channel: 'public_mention', command: true, message: command });
           if (commandQueue.length > MAX_QUEUE) commandQueue.shift();
           log(`[Queued via mention] ${username}: ${command}`);
         }
+      } else {
+        rememberSocialEvent({ actor: username, kind: 'heard', channel: routing.channel, message: routing.body });
       }
     }
   } else {
     // Message is NOT for us — overheard only
     overheardLog.push({ time: Date.now(), from: username, message: routing.body,
-                        to: routing.targets });
+                        channel: routing.channel, to: routing.targets });
     if (overheardLog.length > MAX_LOG) overheardLog.shift();
+    rememberSocialEvent({ actor: username, kind: 'heard', channel: `overheard_${routing.channel}`, message: routing.body });
     log(`[Overheard] <${username}> → [${routing.targets.join(',')}] ${routing.body}`);
   }
 }
@@ -382,6 +375,20 @@ async function createBot() {
         const entry = { time: Date.now(), position: posObj() };
         deathLog.push(entry);
         const locs = loadLocations(); locs['death_'+deathLog.length]={...posObj(),saved:new Date().toISOString()};saveLocations(locs);
+        
+        // Check if hardcore mode — if so, this is PERMANENT death
+        if (bot.game?.hardcore || hardcoreDead) {
+          hardcoreDead = true;
+          log('☠ HARDCORE DEATH! This character is PERMANENTLY DEAD. No reconnect.');
+          // Add a final chat message to the log so the agent knows
+          chatLog.push({ 
+            time: Date.now(), 
+            from: 'SYSTEM', 
+            message: 'YOU DIED IN HARDCORE MODE. You are permanently dead. Your story is over.',
+            whisper: false 
+          });
+          return; // Don't respawn, don't reconnect
+        }
         log('DIED! Respawning...');
       });
 
@@ -397,6 +404,13 @@ async function createBot() {
         botReady = false;
         positionHistory = []; // clear stuck detection history
         if (bot?._soundCheckInterval) { clearInterval(bot._soundCheckInterval); bot._soundCheckInterval = null; }
+        
+        // In hardcore mode, death = permanent. Don't reconnect.
+        if (hardcoreDead) {
+          log('☠ Hardcore death — staying disconnected. RIP.');
+          return;
+        }
+        
         const delay = Math.min(5000 * Math.pow(2, reconnectAttempts), 60000);
         reconnectAttempts++;
         log(`Reconnecting in ${delay / 1000}s (attempt ${reconnectAttempts})...`);
@@ -502,6 +516,130 @@ function filterEntitiesFairPlay(entities) {
   return entities.filter(e => canDetectEntity(e));
 }
 
+function eyePosition(entity = bot?.entity) {
+  if (!entity?.position) return null;
+  return entity.position.offset(0, (entity.height || 1.62) * 0.85, 0);
+}
+
+function raycastFirstSolid(origin, direction, maxDistance = 16, step = 0.75) {
+  for (let distance = step; distance <= maxDistance; distance += step) {
+    const sample = new Vec3(
+      origin.x + direction.x * distance,
+      origin.y + direction.y * distance,
+      origin.z + direction.z * distance,
+    );
+    const block = bot.blockAt(new Vec3(Math.floor(sample.x), Math.floor(sample.y), Math.floor(sample.z)));
+    if (block && block.boundingBox === 'block' && block.name !== 'air' && block.name !== 'cave_air') {
+      return { block, distance };
+    }
+  }
+  return null;
+}
+
+function rememberObservedBlock(entry) {
+  observedBlocks.set(makeBlockMemoryKey(entry.position, entry.name), {
+    ...entry,
+    lastSeen: Date.now(),
+  });
+  if (observedBlocks.size > 200) {
+    const oldest = [...observedBlocks.entries()].sort((a, b) => a[1].lastSeen - b[1].lastSeen).slice(0, observedBlocks.size - 200);
+    oldest.forEach(([key]) => observedBlocks.delete(key));
+  }
+}
+
+function scanVisibleBlocks({ range = 16, horizontalFov = 100, verticalFov = 36, horizontalRays = 7, verticalRays = 3 } = {}) {
+  const b = ensureBot();
+  const origin = eyePosition(b.entity);
+  const hits = [];
+  const seen = new Set();
+  const baseYawDeg = (b.entity.yaw * 180) / Math.PI;
+  const basePitchDeg = (b.entity.pitch * 180) / Math.PI;
+
+  for (let yi = 0; yi < verticalRays; yi++) {
+    const pitchOffset = verticalRays === 1 ? 0 : -verticalFov / 2 + (verticalFov * yi) / (verticalRays - 1);
+    for (let xi = 0; xi < horizontalRays; xi++) {
+      const yawOffset = horizontalRays === 1 ? 0 : -horizontalFov / 2 + (horizontalFov * xi) / (horizontalRays - 1);
+      const yaw = ((baseYawDeg + yawOffset) * Math.PI) / 180;
+      const pitch = ((basePitchDeg + pitchOffset) * Math.PI) / 180;
+      const hit = raycastFirstSolid(origin, yawPitchToDir(yaw, pitch), range);
+      if (!hit) continue;
+      const key = `${hit.block.name}@${hit.block.position.x},${hit.block.position.y},${hit.block.position.z}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const dx = hit.block.position.x - b.entity.position.x;
+      const dz = hit.block.position.z - b.entity.position.z;
+      const bearing = bearingFromDelta(dx, dz);
+      const relativeAngle = angleDiffDegrees(baseYawDeg, (Math.atan2(dx, -dz) * 180) / Math.PI);
+      const sector = classifySector(relativeAngle);
+      const entry = {
+        name: hit.block.name,
+        position: posObj(hit.block.position),
+        distance: fmt(hit.distance),
+        bearing,
+        sector,
+      };
+      hits.push(entry);
+      rememberObservedBlock(entry);
+    }
+  }
+
+  return hits.sort((a, b) => a.distance - b.distance);
+}
+
+function detectHazardsFromVisibleBlocks(blocks) {
+  return blocks
+    .filter((block) => ['lava', 'flowing_lava', 'fire', 'campfire'].includes(block.name))
+    .slice(0, 5)
+    .map((block) => `${block.name} ${block.sector} ${block.distance}m`);
+}
+
+function buildSceneSummary({ range = 16 } = {}) {
+  const b = ensureBot();
+  const visibleBlocks = fairPlayMode ? scanVisibleBlocks({ range }) : scanVisibleBlocks({ range: Math.min(range, 24), horizontalFov: 140, verticalFov: 50, horizontalRays: 9, verticalRays: 4 });
+  const pos = b.entity.position;
+  const visibleEntities = filterEntitiesFairPlay(Object.values(b.entities)
+    .filter((entity) => entity !== b.entity && entity.position.distanceTo(pos) <= Math.min(range + 8, 24)))
+    .sort((a, c) => a.position.distanceTo(pos) - c.position.distanceTo(pos))
+    .slice(0, 8)
+    .map((entity) => ({
+      type: entity.username || entity.name || entity.displayName || 'unknown',
+      distance: fmt(entity.position.distanceTo(pos)),
+      bearing: bearingFromDelta(entity.position.x - pos.x, entity.position.z - pos.z),
+      kind: entity.type || (entity.username ? 'player' : 'mob'),
+      health: entity.health ?? undefined,
+    }));
+  const lookingAt = b.blockAtCursor?.(5);
+  const hazards = detectHazardsFromVisibleBlocks(visibleBlocks);
+  const summary = summarizeSceneText({
+    lookingAt: lookingAt ? { name: lookingAt.name, position: posObj(lookingAt.position) } : null,
+    visibleBlocks,
+    visibleEntities,
+    hazards,
+    sounds: soundEvents.slice(-5),
+    memoryHints: getMemoryHints(),
+  });
+
+  return {
+    summary,
+    visible_blocks: summarizeVisibleBlocks(visibleBlocks),
+    visible_block_hits: visibleBlocks,
+    visible_entities: visibleEntities,
+    hazards,
+    looking_at: lookingAt ? { name: lookingAt.name, position: posObj(lookingAt.position) } : null,
+    sounds: soundEvents.slice(-5),
+    memory_hints: getMemoryHints(),
+    fair_play: fairPlayMode,
+    range,
+  };
+}
+
+function findVisibleBlocksByName(blockName, { range = 16, count = 10 } = {}) {
+  const needle = String(blockName || '').toLowerCase();
+  return scanVisibleBlocks({ range })
+    .filter((entry) => entry.name.toLowerCase() === needle)
+    .slice(0, count);
+}
+
 function addSoundEvent(type, position, radius) {
   if (!bot || !botReady) return;
   const dist = bot.entity.position.distanceTo(position);
@@ -563,6 +701,9 @@ function briefState() {
 
   if (recentChat.length > 0) state.new_chat = recentChat;
   if (pending.length > 0) state.pending_commands = pending.length;
+  const recentSocial = socialEvents.filter((entry) => now - entry.time < 60000).slice(-3)
+    .map((entry) => `${entry.actor} ${entry.kind} via ${entry.channel}`);
+  if (recentSocial.length > 0) state.social = recentSocial;
   
   // Show count of overheard messages (other agents' private conversations)
   const recentOverheard = overheardLog.filter(m => now - m.time < 60000).length;
@@ -637,6 +778,7 @@ function getFullState() {
     .map(([name, count]) => ({ name, count }));
 
   // What we're looking at
+  const scene = buildSceneSummary({ range: 16 });
   const target = b.blockAtCursor?.(5);
   const lookingAt = target ? { name: target.name, position: posObj(target.position) } : null;
 
@@ -677,6 +819,8 @@ function getFullState() {
     isSneaking: isSneaking,
     // Fair play: sound events (directional hints without exact positions)
     sounds: soundEvents.length > 0 ? soundEvents.slice(-5) : undefined,
+    scene,
+    social_summary: summarizeSocialGraph(socialGraph),
     // Team info
     team: teamConfig.team ? {
       name: teamConfig.team,
@@ -693,6 +837,8 @@ function getFullState() {
       estimatedDone: f.estimatedDone ? Math.max(0, Math.round((f.estimatedDone - Date.now()) / 1000)) + 's' : 'unknown',
     })) : undefined,
     fairPlay: fairPlayMode,
+    hardcore: bot.game?.hardcore || false,
+    permanentlyDead: hardcoreDead,
   };
 }
 
@@ -764,6 +910,312 @@ function getNearby(radius = 32) {
 
   return { entities, blocks, scanRadius: scanR };
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// Spatial Awareness — ASCII Map + Narrative Description
+// ═══════════════════════════════════════════════════════════════════
+
+// Generate a top-down ASCII map of the area around the bot
+// This gives agents SPATIAL understanding — where things are relative to them
+function generateMap(radius = 16) {
+  const b = ensureBot();
+  const pos = b.entity.position;
+  const mapSize = Math.min(radius, 24); // cap at 24 for readability
+  const step = mapSize > 16 ? 2 : 1; // downsample for large radii
+  const gridR = Math.floor(mapSize / step);
+  
+  // Build a 2D grid (top-down, X=east, Z=south in MC)
+  // Grid is [row][col] where row=north→south (Z), col=west→east (X)
+  const grid = [];
+  const heightMap = [];
+  for (let rz = -gridR; rz <= gridR; rz++) {
+    const row = [];
+    const hrow = [];
+    for (let rx = -gridR; rx <= gridR; rx++) {
+      const wx = Math.floor(pos.x) + rx * step;
+      const wz = Math.floor(pos.z) + rz * step;
+      // Find surface block (scan down from above)
+      let surfaceBlock = null;
+      let surfaceY = 0;
+      for (let dy = 8; dy >= -8; dy--) {
+        const wy = Math.floor(pos.y) + dy;
+        const block = b.blockAt(new Vec3(wx, wy, wz));
+        if (block && block.name !== 'air' && block.name !== 'cave_air') {
+          surfaceBlock = block;
+          surfaceY = wy;
+          break;
+        }
+      }
+      row.push(surfaceBlock);
+      hrow.push(surfaceY);
+    }
+    grid.push(row);
+    heightMap.push(hrow);
+  }
+  
+  // Map block types to characters
+  function blockChar(block, y) {
+    if (!block) return ' ';
+    const n = block.name;
+    if (n === 'water' || n === 'flowing_water') return '~';
+    if (n === 'lava' || n === 'flowing_lava') return '!';
+    if (n.includes('log') || n.includes('wood')) return 'T';
+    if (n.includes('leaves')) return '*';
+    if (n.includes('ore')) return '$';
+    if (n === 'sand' || n === 'sandstone') return '.';
+    if (n === 'gravel') return ',';
+    if (n === 'grass_block') return '.';
+    if (n === 'dirt' || n === 'coarse_dirt') return '.';
+    if (n.includes('stone') || n === 'cobblestone') return '#';
+    if (n === 'deepslate' || n.includes('deepslate')) return '#';
+    if (n.includes('plank') || n.includes('slab') || n.includes('stair')) return '=';
+    if (n === 'crafting_table') return 'C';
+    if (n === 'furnace' || n === 'blast_furnace') return 'F';
+    if (n === 'chest' || n === 'barrel') return 'B';
+    if (n.includes('door')) return 'D';
+    if (n === 'torch' || n === 'wall_torch' || n === 'lantern') return 'i';
+    if (n === 'snow' || n === 'snow_block') return 'o';
+    if (n.includes('ice')) return '-';
+    if (n.includes('flower') || n.includes('tulip') || n.includes('daisy') || n === 'dandelion' || n === 'poppy') return '+';
+    if (n === 'tall_grass' || n === 'short_grass' || n === 'fern') return '"';
+    if (n === 'cactus') return 'I';
+    if (n === 'sugar_cane' || n === 'bamboo') return '|';
+    if (n === 'farmland' || n === 'wheat' || n.includes('crop')) return '%';
+    if (n === 'bed' || n.includes('bed')) return 'b';
+    return '.';
+  }
+  
+  // Place entities on the map
+  const entityMarkers = {};
+  Object.values(b.entities).forEach(e => {
+    if (e === b.entity) return;
+    const dx = Math.round((e.position.x - pos.x) / step);
+    const dz = Math.round((e.position.z - pos.z) / step);
+    if (Math.abs(dx) <= gridR && Math.abs(dz) <= gridR) {
+      const key = `${dz + gridR},${dx + gridR}`;
+      if (e.type === 'player' || e.username) {
+        entityMarkers[key] = '@'; // players
+      } else if (e.name && (e.name.includes('zombie') || e.name.includes('skeleton') || 
+                 e.name.includes('creeper') || e.name.includes('spider') || e.name.includes('enderman'))) {
+        entityMarkers[key] = 'X'; // hostile mobs
+      } else if (e.type === 'mob') {
+        entityMarkers[key] = 'a'; // passive mobs (animals)
+      }
+    }
+  });
+  
+  // Build the ASCII string
+  const lines = [];
+  lines.push('     ' + 'N');
+  lines.push('     ' + '|');
+  
+  const width = gridR * 2 + 1;
+  for (let rz = 0; rz < grid.length; rz++) {
+    let line = '';
+    if (rz === gridR) {
+      line += 'W -- ';
+    } else {
+      line += '     ';
+    }
+    for (let rx = 0; rx < grid[rz].length; rx++) {
+      if (rz === gridR && rx === gridR) {
+        line += 'P'; // Player position
+      } else {
+        const key = `${rz},${rx}`;
+        if (entityMarkers[key]) {
+          line += entityMarkers[key];
+        } else {
+          line += blockChar(grid[rz][rx], heightMap[rz][rx]);
+        }
+      }
+    }
+    if (rz === gridR) {
+      line += ' -- E';
+    }
+    lines.push(line);
+  }
+  
+  lines.push('     ' + '|');
+  lines.push('     ' + 'S');
+  
+  // Legend for what's on the map
+  const legend = [];
+  legend.push('P=you @=player X=hostile a=animal');
+  legend.push('T=tree ~=water !=lava $=ore #=stone');
+  legend.push('C=craft F=furnace B=chest D=door b=bed');
+  legend.push('=wall/floor .=ground "=grass +=flower');
+  
+  // Collect entity labels
+  const entityLabels = [];
+  Object.values(b.entities).forEach(e => {
+    if (e === b.entity) return;
+    const dist = e.position.distanceTo(pos);
+    if (dist > mapSize) return;
+    const dx = e.position.x - pos.x;
+    const dz = e.position.z - pos.z;
+    const dir = getCardinal(dx, dz);
+    if (e.username) {
+      entityLabels.push(`${e.username} (${dir}, ${fmt(dist)}m)`);
+    } else if (e.name) {
+      entityLabels.push(`${e.name} (${dir}, ${fmt(dist)}m)`);
+    }
+  });
+  
+  return {
+    map: lines.join('\n'),
+    legend: legend.join('\n'),
+    entities_on_map: entityLabels.slice(0, 15),
+    center: posObj(),
+    radius: mapSize,
+    scale: step > 1 ? `1 char = ${step} blocks` : '1 char = 1 block',
+  };
+}
+
+function getCardinal(dx, dz) {
+  // MC: +X=east, +Z=south
+  const angle = Math.atan2(dx, -dz) * 180 / Math.PI; // 0=north
+  if (angle > -22.5 && angle <= 22.5) return 'N';
+  if (angle > 22.5 && angle <= 67.5) return 'NE';
+  if (angle > 67.5 && angle <= 112.5) return 'E';
+  if (angle > 112.5 && angle <= 157.5) return 'SE';
+  if (angle > 157.5 || angle <= -157.5) return 'S';
+  if (angle > -157.5 && angle <= -112.5) return 'SW';
+  if (angle > -112.5 && angle <= -67.5) return 'W';
+  return 'NW';
+}
+
+// Generate a narrative description of surroundings — like what a human would SEE
+function generateLookAround() {
+  const b = ensureBot();
+  const pos = b.entity.position;
+  const parts = [];
+  
+  // Time and weather
+  const time = b.time.timeOfDay;
+  const phase = time < 3000 ? 'early morning' : time < 6000 ? 'morning' : time < 9000 ? 'midday' : 
+                time < 12000 ? 'afternoon' : time < 13500 ? 'sunset' : time < 18000 ? 'evening' : 'night';
+  parts.push(`It's ${phase}${b.isRaining ? ', raining' : ''}.`);
+  
+  // Immediate terrain
+  const biome = b.blockAt(pos)?.biome?.name || 'unknown';
+  const ground = b.blockAt(pos.offset(0, -1, 0))?.name || 'unknown';
+  parts.push(`Standing on ${ground} in ${biome.replace(/_/g, ' ')}.`);
+  
+  // Height context (above/below ground level approximation)
+  const y = Math.floor(pos.y);
+  if (y > 90) parts.push(`High up (Y:${y}).`);
+  else if (y < 50) parts.push(`Underground (Y:${y}).`);
+  else parts.push(`Y:${y}.`);
+  
+  // Scan each cardinal direction for notable features
+  const directions = [
+    { name: 'North', dx: 0, dz: -1 },
+    { name: 'East', dx: 1, dz: 0 },
+    { name: 'South', dx: 0, dz: 1 },
+    { name: 'West', dx: -1, dz: 0 },
+  ];
+  
+  for (const dir of directions) {
+    const features = [];
+    let hasWater = false, hasTrees = false, hasStone = false, hasBuilding = false;
+    let terrainDelta = 0;
+    
+    for (let dist = 2; dist <= 20; dist += 2) {
+      const wx = Math.floor(pos.x) + dir.dx * dist;
+      const wz = Math.floor(pos.z) + dir.dz * dist;
+      
+      // Check a column
+      for (let dy = -4; dy <= 10; dy++) {
+        const block = b.blockAt(new Vec3(wx, Math.floor(pos.y) + dy, wz));
+        if (!block || block.name === 'air') continue;
+        if (block.name === 'water' || block.name === 'flowing_water') hasWater = true;
+        if (block.name.includes('log')) hasTrees = true;
+        if (block.name.includes('plank') || block.name.includes('stair') || block.name === 'cobblestone_wall') hasBuilding = true;
+        if (dy > 4 && block.name !== 'leaves' && block.name !== 'air') terrainDelta++;
+      }
+      
+      // Check surface height difference
+      for (let sy = 20; sy >= -10; sy--) {
+        const block = b.blockAt(new Vec3(wx, Math.floor(pos.y) + sy, wz));
+        if (block && block.name !== 'air' && block.name !== 'cave_air' && block.name !== 'leaves') {
+          const surfaceY = Math.floor(pos.y) + sy;
+          if (Math.abs(surfaceY - pos.y) > 5) {
+            if (surfaceY > pos.y + 5) hasStone = true; // cliff/hill
+          }
+          break;
+        }
+      }
+    }
+    
+    const desc = [];
+    if (hasBuilding) desc.push('structures');
+    if (hasTrees) desc.push('trees');
+    if (hasWater) desc.push('water');
+    if (hasStone) desc.push('high ground');
+    if (desc.length > 0) {
+      features.push(`${dir.name}: ${desc.join(', ')}`);
+    } else {
+      features.push(`${dir.name}: open terrain`);
+    }
+    parts.push(...features);
+  }
+  
+  // Nearby players with directions
+  const players = Object.values(b.entities)
+    .filter(e => e !== b.entity && e.username && e.position.distanceTo(pos) < 40)
+    .sort((a, c) => a.position.distanceTo(pos) - c.position.distanceTo(pos));
+  
+  if (players.length > 0) {
+    const playerDescs = players.map(p => {
+      const dx = p.position.x - pos.x;
+      const dz = p.position.z - pos.z;
+      return `${p.username} ${getCardinal(dx, dz)} ${fmt(p.position.distanceTo(pos))}m`;
+    });
+    parts.push(`Players: ${playerDescs.join(', ')}`);
+  }
+  
+  // Nearby threats
+  const threats = Object.values(b.entities)
+    .filter(e => {
+      if (e === b.entity || e.type !== 'mob') return false;
+      const hostile = ['zombie', 'skeleton', 'creeper', 'spider', 'witch', 'enderman', 'drowned', 'phantom'];
+      return hostile.some(h => (e.name || '').includes(h)) && e.position.distanceTo(pos) < 20;
+    })
+    .sort((a, c) => a.position.distanceTo(pos) - c.position.distanceTo(pos));
+  
+  if (threats.length > 0) {
+    const threatDescs = threats.slice(0, 5).map(t => {
+      const dx = t.position.x - pos.x;
+      const dz = t.position.z - pos.z;
+      return `${t.name} ${getCardinal(dx, dz)} ${fmt(t.position.distanceTo(pos))}m`;
+    });
+    parts.push(`⚠ THREATS: ${threatDescs.join(', ')}`);
+  }
+  
+  // Nearby animals (food)
+  const animals = Object.values(b.entities)
+    .filter(e => {
+      if (e === b.entity || e.type !== 'mob') return false;
+      const passive = ['cow', 'pig', 'sheep', 'chicken', 'rabbit', 'horse', 'donkey'];
+      return passive.some(a => (e.name || '').includes(a)) && e.position.distanceTo(pos) < 25;
+    });
+  
+  if (animals.length > 0) {
+    const animalCounts = {};
+    animals.forEach(a => { animalCounts[a.name] = (animalCounts[a.name] || 0) + 1; });
+    const animalDesc = Object.entries(animalCounts).map(([n, c]) => `${c}x${n}`).join(', ');
+    parts.push(`Animals nearby: ${animalDesc}`);
+  }
+  
+  return {
+    description: parts.join(' '),
+    position: posObj(),
+    biome: biome.replace(/_/g, ' '),
+    time_phase: phase,
+    light_level: b.blockAt(pos)?.light || 0,
+  };
+}
+
 
 // ═══════════════════════════════════════════════════════════════════
 // Actions
@@ -838,13 +1290,19 @@ const ACTIONS = {
     // Cap at 20 per call — chat piggybacks on the response so AI sees it
     const batchSize = Math.min(count, 20);
 
-    const found = b.findBlocks({
-      matching: blockType.id,
-      maxDistance: 64,
-      count: batchSize * 3, // find extras so we can skip bad ones
-    });
+    const found = fairPlayMode
+      ? findVisibleBlocksByName(block, { range: 16, count: batchSize * 3 }).map((entry) => new Vec3(entry.position.x, entry.position.y, entry.position.z))
+      : b.findBlocks({
+          matching: blockType.id,
+          maxDistance: 64,
+          count: batchSize * 3,
+        });
 
-    if (found.length === 0) throw new Error(`No ${block} found within 64 blocks.`);
+    if (found.length === 0) {
+      throw new Error(fairPlayMode
+        ? `Can't see any ${block} right now. Turn, move, or use mc scene/mc look before collecting.`
+        : `No ${block} found within 64 blocks.`);
+    }
 
     // Filter out blocks directly under the bot (never dig straight down!)
     const botPos = b.entity.position;
@@ -942,20 +1400,33 @@ const ACTIONS = {
     const blockType = mcData.blocksByName[block];
     if (!blockType) throw new Error(`Unknown block "${block}".`);
 
-    const found = b.findBlocks({
-      matching: blockType.id,
-      maxDistance: Math.min(radius, 64),
-      count: count,
-    });
+    const found = fairPlayMode
+      ? findVisibleBlocksByName(block, { range: Math.min(radius, 24), count })
+      : b.findBlocks({
+          matching: blockType.id,
+          maxDistance: Math.min(radius, 64),
+          count,
+        }).map((p) => ({ position: { x: p.x, y: p.y, z: p.z }, distance: fmt(b.entity.position.distanceTo(p)) }));
 
-    if (found.length === 0) return { result: `No ${block} found within ${radius} blocks.`, locations: [] };
+    if (found.length === 0) {
+      return {
+        result: fairPlayMode
+          ? `No visible ${block} in the current view cone. Turn, move, or use mc scene to inspect.`
+          : `No ${block} found within ${radius} blocks.`,
+        locations: [],
+      };
+    }
 
-    const locations = found.map(p => ({
-      x: p.x, y: p.y, z: p.z,
-      distance: fmt(b.entity.position.distanceTo(p)),
+    const locations = found.map((entry) => ({
+      x: entry.position.x,
+      y: entry.position.y,
+      z: entry.position.z,
+      distance: entry.distance,
+      bearing: entry.bearing,
+      sector: entry.sector,
     }));
 
-    return { result: `Found ${found.length} ${block}`, locations };
+    return { result: fairPlayMode ? `Found ${found.length} visible ${block}` : `Found ${found.length} ${block}`, locations };
   },
 
   // ── Find entities ────────────────────────────────
@@ -999,6 +1470,7 @@ const ACTIONS = {
     const pending = commandQueue.filter(c => c.status === 'pending');
     if (index >= pending.length) return { result: 'No pending command at that index.' };
     pending[index].status = 'completed';
+    rememberSocialEvent({ actor: pending[index].from, kind: 'completed_command', channel: pending[index].channel || 'direct', message: pending[index].command });
     return { result: `Marked command as completed: "${pending[index].command}"` };
   },
 
@@ -1214,6 +1686,7 @@ const ACTIONS = {
     const b = ensureBot();
     // Broadcast: prefix with "all: " so all agents receive it
     b.chat(`all: ${message}`);
+    rememberSocialEvent({ actor: getMyName(), kind: 'sent', channel: 'public', message });
     return { result: `Sent: ${message}` };
   },
 
@@ -1339,6 +1812,7 @@ const ACTIONS = {
     // Name-routed: "Player: message" — only that player's bot receives it
     // Supports comma-separated for multi-target: "Player1,Player2: message"
     b.chat(`${player}: ${message}`);
+    rememberSocialEvent({ actor: getMyName(), target: player, kind: 'sent', channel: String(player).includes(',') ? 'group_dm' : 'direct', message });
     return { result: `To ${player}: ${message}` };
   },
 
@@ -1936,6 +2410,26 @@ const httpServer = http.createServer(async (req, res) => {
       if (path === '/nearby') {
         const radius = parseInt(url.searchParams.get('radius') || '32');
         return respond(res, 200, { ok: true, data: getNearby(radius) });
+      }
+
+      // ASCII top-down map of surroundings
+      if (path === '/map') {
+        const radius = parseInt(url.searchParams.get('radius') || '16');
+        return respond(res, 200, { ok: true, data: generateMap(radius) });
+      }
+
+      // Narrative description of what you see (human-readable)
+      if (path === '/look') {
+        return respond(res, 200, { ok: true, data: generateLookAround() });
+      }
+
+      if (path === '/scene') {
+        const range = parseInt(url.searchParams.get('range') || '16');
+        return respond(res, 200, { ok: true, data: buildSceneSummary({ range: Math.min(range, 24) }) });
+      }
+
+      if (path === '/social') {
+        return respond(res, 200, { ok: true, data: { summary: summarizeSocialGraph(socialGraph), recent_events: socialEvents.slice(-20) } });
       }
 
       if (path === '/chat') {
