@@ -130,9 +130,9 @@ else
     echo "      export PATH=\"\$HOME/.local/bin:\$PATH\""
 fi
 
-# Ensure scripts are executable
-chmod +x "$SCRIPT_DIR/hermescraft.sh" "$SCRIPT_DIR/civilization.sh" "$BIN_DIR/mc" 2>/dev/null || true
-chmod +x "$SCRIPT_DIR/arena_launch.sh" "$SCRIPT_DIR/battle_3v3.sh" 2>/dev/null || true
+# Ensure primary scripts are executable
+chmod +x "$SCRIPT_DIR/hermescraft.sh" "$SCRIPT_DIR/civilization.sh" "$SCRIPT_DIR/landfolk.sh" "$BIN_DIR/mc" 2>/dev/null || true
+chmod +x "$SCRIPT_DIR/scripts/run-landfolk-agent.sh" "$SCRIPT_DIR/scripts/run-landfolk-bots.sh" 2>/dev/null || true
 
 # Create data directory
 mkdir -p "$SCRIPT_DIR/data"
