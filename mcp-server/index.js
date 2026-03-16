@@ -300,6 +300,20 @@ server.tool('mc_chat', 'Send a chat message or command (prefix commands with /)'
 
 server.tool('mc_wait', 'Do nothing for a moment (useful to wait for game events)', {}, async () => actionTool({ type: 'wait' }));
 
+// ============ CHAT READING ============
+
+server.tool('mc_read_chat', 'Read recent chat messages from players and the server', {}, async () => {
+  try {
+    const res = await fetch(`${BRIDGE_URL}/chat`);
+    if (!res.ok) return { content: [{ type: 'text', text: 'Chat not available (mod may need update)' }] };
+    const data = await res.json();
+    const formatted = data.map(m => `<${m.sender || 'Player'}> ${m.text}`).join('\n');
+    return { content: [{ type: 'text', text: formatted || 'No recent chat messages.' }] };
+  } catch {
+    return { content: [{ type: 'text', text: 'Chat endpoint not available.' }] };
+  }
+});
+
 // --- Start server ---
 
 const transport = new StdioServerTransport();

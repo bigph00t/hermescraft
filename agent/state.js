@@ -115,6 +115,14 @@ export function summarizeState(state) {
     lines.push(`Looking at: ${state.lookingAt} (dist: ${state.lookingAtDist || '?'})`);
   }
 
+  // Recent chat messages
+  if (state.recentChat && state.recentChat.length > 0) {
+    lines.push('Recent chat:');
+    for (const msg of state.recentChat.slice(-5)) {
+      lines.push(`  <${msg.sender || 'Player'}> ${msg.text}`);
+    }
+  }
+
   // Navigation status — detect movement to infer Baritone is working
   if (navigateActive) {
     if (stateHistory.length >= 2) {

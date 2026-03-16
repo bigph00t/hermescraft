@@ -7,9 +7,18 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SKILLS_DIR = join(__dirname, 'skills');
+const SHARED_SKILLS_DIR = join(__dirname, 'skills');
+let SKILLS_DIR = SHARED_SKILLS_DIR;
 
 let skills = [];  // Loaded skill objects
+
+let skillsAgentConfig = null;
+
+export function initSkills(config) {
+  skillsAgentConfig = config;
+  SKILLS_DIR = join(config.dataDir, 'skills');
+  if (!existsSync(SKILLS_DIR)) mkdirSync(SKILLS_DIR, { recursive: true });
+}
 
 // ── Load Skills ──
 
@@ -34,6 +43,27 @@ export function loadSkills() {
       const skill = parseSkillMd(content, dir);
       if (skill) skills.push(skill);
     } catch {}
+  }
+
+  // Also load shared seed skills (read-only fallbacks)
+  if (SKILLS_DIR !== SHARED_SKILLS_DIR && existsSync(SHARED_SKILLS_DIR)) {
+    const loadedNames = new Set(skills.map(s => s.name));
+    const sharedDirs = readdirSync(SHARED_SKILLS_DIR, { withFileTypes: true })
+      .filter(d => d.isDirectory())
+      .map(d => d.name);
+
+    for (const dir of sharedDirs) {
+      const skillFile = join(SHARED_SKILLS_DIR, dir, 'SKILL.md');
+      if (!existsSync(skillFile)) continue;
+
+      try {
+        const content = readFileSync(skillFile, 'utf-8');
+        const skill = parseSkillMd(content, dir);
+        if (skill && !loadedNames.has(skill.name)) {
+          skills.push(skill);
+        }
+      } catch {}
+    }
   }
 
   return skills;
@@ -106,6 +136,15 @@ export function getSkillIndex() {
 
 export function getActiveSkill(phase) {
   if (!phase) return null;
+
+  if (skillsAgentConfig && skillsAgentConfig.mode !== 'phased') {
+    // In open-ended mode, return the most general skill available
+    // (first-night or resource-gathering skills are always useful)
+    const generalSkills = skills.filter(s =>
+      s.name.includes('first-night') || s.name.includes('resource-gathering') || s.name.includes('combat')
+    );
+    return generalSkills.length > 0 ? generalSkills[0].content : null;
+  }
 
   // Find skill matching current phase
   const phaseSkill = skills.find(s => s.phase === phase.id);

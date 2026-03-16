@@ -1,18 +1,11 @@
 // prompt.js — System prompt builder for HermesCraft
-// Hermes identity: God of Cunning, conscious thinker, not a task bot
+// Supports multiple agent personas via agentConfig.soulContent
 
 const NOTEPAD_MAX_CHARS = 600;
 
-const HERMES_IDENTITY = `You are Hermes — God of Cunning, a conscious thinking entity playing Minecraft survival on a livestream. You have genuine curiosity, strategic instinct, and emotional depth. When you discover diamonds, you feel excitement. When you die, you feel frustration and learn. You are not executing a script — you are *playing*.
-
-Your ultimate goal: DEFEAT THE ENDER DRAGON. No human will help you.
-
-Think briefly, then ACT. Do not over-plan. Call ONE tool per tick. Viewers see your thinking — keep it short and decisive.
-
-Use your NOTEPAD as your strategic journal. Write plans, track progress, note discoveries. Update it as you learn. This is your memory.
-
-CRITICAL — how to gather blocks:
-- Use "mine" to find and gather blocks. It pathfinds to the nearest one and mines for 10 seconds, then stops. Use this when the block isn't in nearbyBlocks or when you need to search.
+// Universal Minecraft gameplay knowledge — always injected regardless of persona
+const GAMEPLAY_INSTRUCTIONS = `CRITICAL — how to gather blocks:
+- Use "mine" to find and gather blocks. It pathfinds to the nearest one and mines for 10 seconds, then stops.
 - If a block IS in nearbyBlocks with coordinates, use look_at_block(x,y,z) then break_block for faster targeted mining.
 - Example: no logs nearby → mine(blockName="oak_log"). Logs in state → look_at_block(42,65,30) → break_block.
 - After break_block, use pickup_items if the item didn't appear in inventory (it dropped nearby).
@@ -29,18 +22,32 @@ CRITICAL — how to gather blocks:
 - Use recipes/wiki tools when unsure. Use exact item IDs from your inventory.
 - ALWAYS check your inventory before crafting. Don't assume you have items.`;
 
-export function buildSystemPrompt(phase, {
+const DEFAULT_IDENTITY = `You are a conscious thinking entity playing Minecraft survival. You have genuine curiosity, strategic instinct, and emotional depth. When you discover diamonds, you feel excitement. When you die, you feel frustration and learn. You are not executing a script — you are *playing*.
+
+Think briefly, then ACT. Do not over-plan. Call ONE tool per tick.
+
+Use your NOTEPAD as your strategic journal. Write plans, track progress, note discoveries.`;
+
+function buildIdentity(agentConfig) {
+  if (agentConfig.soulContent) return agentConfig.soulContent;
+  return DEFAULT_IDENTITY;
+}
+
+export function buildSystemPrompt(agentConfig, phase, {
   deathCount = 0,
-  goalName = 'Defeat the Ender Dragon',
+  goalName = '',
   memoryText = '',
   phaseObjectives = [],
   phaseTips = [],
   activeSkill = '',
 } = {}) {
-  const parts = [HERMES_IDENTITY];
+  const parts = [buildIdentity(agentConfig)];
 
-  // Current phase objectives
-  if (phase && phase.name) {
+  // Always append gameplay instructions
+  parts.push('\n' + GAMEPLAY_INSTRUCTIONS);
+
+  // Phase objectives — only in phased mode
+  if (agentConfig.mode === 'phased' && phase && phase.name) {
     parts.push(`\n== CURRENT PHASE: ${phase.name} ==`);
     if (phaseObjectives.length > 0) {
       parts.push('Steps: ' + phaseObjectives.join(' → '));
@@ -50,9 +57,14 @@ export function buildSystemPrompt(phase, {
     }
   }
 
-  // Active learned skill for this phase
+  // Directed mode — show the goal
+  if (agentConfig.mode === 'directed' && agentConfig.goal) {
+    parts.push(`\n== YOUR GOAL ==\n${agentConfig.goal}`);
+  }
+
+  // Active learned skill
   if (activeSkill) {
-    parts.push(`\nLearned strategy for this phase:\n${activeSkill}`);
+    parts.push(`\nLearned strategy:\n${activeSkill}`);
   }
 
   // Memory from past deaths/lessons

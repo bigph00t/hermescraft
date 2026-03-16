@@ -1,5 +1,13 @@
 // goals.js — 7-phase Ender Dragon strategy
 
+let agentMode = 'phased';
+let agentGoal = null;
+
+export function initGoalSystem(agentConfig) {
+  agentMode = agentConfig.mode || 'phased';
+  agentGoal = agentConfig.goal || null;
+}
+
 function getItemName(i) {
   return (i.item || i.name || '').replace('minecraft:', '');
 }
@@ -16,6 +24,28 @@ function countItem(inventory, name) {
   return inventory
     .filter(i => getItemName(i).includes(name))
     .reduce((sum, i) => sum + i.count, 0);
+}
+
+const OPEN_PHASE = {
+  id: 0,
+  name: 'Open World',
+  description: 'Explore, survive, build, and respond to the world around you.',
+  objectives: [],
+  tips: [],
+  completionCheck: () => false,
+  progress: () => 0,
+};
+
+function getDirectedPhase() {
+  return {
+    id: 0,
+    name: 'Player Goal',
+    description: agentGoal || 'Follow player instructions.',
+    objectives: agentGoal ? [agentGoal] : [],
+    tips: [],
+    completionCheck: () => false,
+    progress: () => 0,
+  };
 }
 
 const PHASES = [
@@ -303,6 +333,8 @@ export function getPhases() {
 }
 
 export function getCurrentPhase(state) {
+  if (agentMode === 'open_ended') return OPEN_PHASE;
+  if (agentMode === 'directed') return getDirectedPhase();
   for (const phase of PHASES) {
     if (!phase.completionCheck(state)) {
       return phase;
@@ -330,6 +362,7 @@ export function checkPhaseTransition(prevPhase, state) {
 // ── Progress Detail — itemized breakdown for LLM prompt ──
 
 export function getProgressDetail(phase, state) {
+  if (agentMode !== 'phased') return null;
   const inv = state.inventory || [];
   const completed = [];
   const remaining = [];
@@ -422,9 +455,14 @@ export function setGoal(goalText) {
 }
 
 export function getGoalName() {
+  if (agentMode === 'open_ended') return 'Open-Ended Survival';
+  if (agentMode === 'directed') return agentGoal || 'Player Goal';
+  if (customGoal) return customGoal;
   return activeGoalName;
 }
 
 export function isCustomGoal() {
   return customGoal !== null;
 }
+
+export function getAgentMode() { return agentMode; }

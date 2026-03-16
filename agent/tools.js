@@ -331,6 +331,17 @@ export const GAME_TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'read_chat',
+      description: 'Read recent chat messages from players and the server. Returns the last 10 messages. Use this to check if a player said something to you.',
+      parameters: {
+        type: 'object',
+        properties: {},
+      },
+    },
+  },
 ];
 
 // Inject a 'reason' field so the model explains each action (visible to viewers)

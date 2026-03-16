@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
-# Launch HermesCraft as Steve persona
+# Launch HermesCraft as Steve persona — open-ended survival mode
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Use Steve's SOUL
-export HERMESCRAFT_SOUL="$SCRIPT_DIR/SOUL-steve.md"
+# Steve config
+export AGENT_NAME="Steve"
+export AGENT_MODE="open_ended"
+export AGENT_SOUL="$SCRIPT_DIR/SOUL-steve.md"
 
-# Launch with Steve's default goal
-exec "$SCRIPT_DIR/hermescraft.sh" "${1:-Survive and thrive in this world. Build a home, gather resources, and explore.}"
+# Launch via start.sh (direct mode) or hermescraft.sh (Hermes Agent mode)
+if [ "${1:-}" = "--hermes" ]; then
+    shift
+    exec "$SCRIPT_DIR/hermescraft.sh" "${1:-Survive and thrive in this world.}"
+else
+    exec "$SCRIPT_DIR/start.sh"
+fi

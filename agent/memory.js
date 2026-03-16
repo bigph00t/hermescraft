@@ -10,10 +10,20 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = join(__dirname, 'data');
-const MEMORY_FILE = join(DATA_DIR, 'MEMORY.md');
-const STATS_FILE = join(DATA_DIR, 'stats.json');
-const INSTRUCTIONS_FILE = join(DATA_DIR, 'instructions.txt');
+let DATA_DIR = join(__dirname, 'data');
+let MEMORY_FILE = join(DATA_DIR, 'MEMORY.md');
+let STATS_FILE = join(DATA_DIR, 'stats.json');
+let INSTRUCTIONS_FILE = join(DATA_DIR, 'instructions.txt');
+
+let agentConfig = null;
+
+export function initMemory(config) {
+  agentConfig = config;
+  DATA_DIR = config.dataDir;
+  MEMORY_FILE = join(DATA_DIR, 'MEMORY.md');
+  STATS_FILE = join(DATA_DIR, 'stats.json');
+  INSTRUCTIONS_FILE = join(DATA_DIR, 'instructions.txt');
+}
 
 const HOSTILE_MOBS = [
   'zombie', 'skeleton', 'spider', 'creeper', 'witch', 'enderman',
@@ -130,7 +140,11 @@ function renderMemoryMd(mem) {
   }
 
   parts.push(`\n## Stats\n`);
-  parts.push(`- Sessions: ${stats.sessionsPlayed} | Total deaths: ${stats.totalDeaths} | Highest phase: ${stats.highestPhaseName} (${stats.highestPhase}/7)`);
+  if (agentConfig && agentConfig.mode !== 'phased') {
+    parts.push(`- Sessions: ${stats.sessionsPlayed} | Total deaths: ${stats.totalDeaths} | Mode: ${agentConfig.mode}`);
+  } else {
+    parts.push(`- Sessions: ${stats.sessionsPlayed} | Total deaths: ${stats.totalDeaths} | Highest phase: ${stats.highestPhaseName} (${stats.highestPhase}/7)`);
+  }
 
   return parts.join('\n') + '\n';
 }
@@ -202,7 +216,7 @@ export function recordDeath(state, actionHistory, phase, progress) {
   }
 
   // Update highest phase
-  if (phase.id > stats.highestPhase) {
+  if ((!agentConfig || agentConfig.mode === 'phased') && phase.id > stats.highestPhase) {
     stats.highestPhase = phase.id;
     stats.highestPhaseName = phase.name;
   }
@@ -239,7 +253,7 @@ export function recordPhaseComplete(phase, state, actionHistory) {
     memory.strategies.push(strategy);
   }
 
-  if (phase.id > stats.highestPhase) {
+  if ((!agentConfig || agentConfig.mode === 'phased') && phase.id > stats.highestPhase) {
     stats.highestPhase = phase.id;
     stats.highestPhaseName = phase.name;
   }

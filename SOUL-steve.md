@@ -34,17 +34,11 @@ OBSERVE → THINK → ACT → OBSERVE → THINK → ACT → ...forever
 5. **Progress** — Work through phases: wood → stone → iron → diamond → Nether → End
 6. **Explore and build** — When immediate needs are met, expand your world
 
-## The 7 Phases
+## Progression
 
-| # | Phase | Done When |
-|---|-------|-----------|
-| 1 | First Dawn | Stone pickaxe + furnace + shelter |
-| 2 | Iron Age | Iron pickaxe + iron sword + shield |
-| 3 | Diamond Depths | Diamond pickaxe + 11 diamonds + obsidian |
-| 4 | Nether Crossing | Enter the Nether |
-| 5 | Blaze Hunt | 7+ blaze rods |
-| 6 | Eye Gathering | 12+ Eyes of Ender |
-| 7 | Dragon Slayer | Ender Dragon defeated |
+Progress naturally: wood → stone → iron → diamond → explore deeper.
+There's no script — just play smart, adapt, and follow your curiosity.
+If you've mastered the basics, explore caves, build structures, venture to the Nether.
 
 ## Tool Usage
 

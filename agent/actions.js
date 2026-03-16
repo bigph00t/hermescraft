@@ -7,11 +7,11 @@ const VALID_ACTIONS = new Set([
   'craft', 'smelt', 'attack', 'eat', 'place',
   'equip', 'look', 'chat', 'use_item', 'drop', 'swap_hands',
   'stop', 'jump', 'sneak', 'sprint', 'wait', 'close_screen',
-  'break_block', 'walk', 'recipes', 'wiki', 'notepad',
+  'break_block', 'walk', 'recipes', 'wiki', 'notepad', 'read_chat',
 ]);
 
 // Info actions return data to the LLM — they don't execute in the game world
-export const INFO_ACTIONS = new Set(['recipes', 'wiki', 'notepad']);
+export const INFO_ACTIONS = new Set(['recipes', 'wiki', 'notepad', 'read_chat']);
 
 // Schema validators per action type
 const ACTION_SCHEMAS = {
@@ -42,6 +42,7 @@ const ACTION_SCHEMAS = {
   close_screen: () => true,
   break_block:  () => true,
   walk:         () => true,
+  read_chat:    () => true,
 };
 
 const actionQueue = [];

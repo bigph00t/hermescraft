@@ -67,9 +67,9 @@ export function logHeader(phase, state, { progress = 0, deathCount = 0, skillCou
 
 // ── Reasoning (the star of the show for viewers) ──
 
-export function logReasoning(text) {
+export function logReasoning(text, agentName = 'Agent') {
   console.log('');
-  console.log(`  ${CYAN}${BOLD}💭 Hermes:${RESET}`);
+  console.log(`  ${CYAN}${BOLD}💭 ${agentName}:${RESET}`);
   // Word-wrap at ~85 chars for readability, indented
   const lines = text.split('\n');
   for (const line of lines) {
@@ -171,11 +171,14 @@ export function logPhaseChange(oldPhase, newPhase, isRegression = false) {
 // ── Session Stats Line ──
 
 export function logSessionStats(stats) {
+  const phaseText = stats.mode && stats.mode !== 'phased'
+    ? `Mode: ${stats.mode}`
+    : `Phase ${stats.highestPhase}/7`;
   const parts = [
     `Session ${stats.sessionsPlayed}`,
     `☠${stats.totalDeaths}`,
     `Actions: ${stats.totalActions}`,
-    `Phase ${stats.highestPhase}/7`,
+    phaseText,
     `${stats.uptimeMin}m`,
   ];
   console.log(`${GRAY}  ${parts.join('  │  ')}${RESET}`);
@@ -184,25 +187,43 @@ export function logSessionStats(stats) {
 // ── Startup Banner ──
 
 export function logStartupBanner(config) {
-  const model = config.model || 'Hermes';
+  const agentName = config.agentName || 'Hermes';
+  const model = config.model || 'default';
   const mode = config.toolCalling ? 'Native Tool Calling' : 'Text Fallback';
+  const agentMode = config.mode || 'phased';
   const session = config.session || 1;
   const lessons = config.lessons || 0;
   const skills = config.skills || 0;
   const goal = config.goal || 'Defeat the Ender Dragon';
-  const highestPhase = config.highestPhase || 'First Night (1/7)';
+  const highestPhase = config.highestPhase || 'N/A';
 
+  // ASCII Art Header
   console.log(`\n${BOLD}${MAGENTA}`);
+  console.log('  ╦ ╦╔═╗╦═╗╔╦╗╔═╗╔═╗╔═╗╦═╗╔═╗╔═╗╔╦╗');
+  console.log('  ╠═╣║╣ ╠╦╝║║║║╣ ╚═╗║  ╠╦╝╠═╣╠╣  ║ ');
+  console.log('  ╩ ╩╚═╝╩╚═╩ ╩╚═╝╚═╝╚═╝╩╚═╩ ╩╚   ╩ ');
+  console.log(`${RESET}`);
+
+  const modeLabel = agentMode === 'phased' ? 'Dragon Quest'
+    : agentMode === 'directed' ? 'Directed'
+    : 'Open World';
+
+  console.log(`${BOLD}${MAGENTA}`);
   console.log('  ╔══════════════════════════════════════╗');
-  console.log('  ║         HERMESCRAFT  AGENT           ║');
-  console.log('  ║   God of Cunning Plays Minecraft     ║');
+  console.log(`  ║  ${agentName.toUpperCase().padEnd(16)} ${modeLabel.padEnd(18)}║`);
   console.log(`  ╠══════════════════════════════════════╣${RESET}`);
   console.log(`  ${MAGENTA}║${RESET}  Model: ${CYAN}${model}${RESET}`);
-  console.log(`  ${MAGENTA}║${RESET}  Mode:  ${mode === 'Native Tool Calling' ? GREEN : YELLOW}${mode}${RESET}`);
+  console.log(`  ${MAGENTA}║${RESET}  Tools: ${mode === 'Native Tool Calling' ? GREEN : YELLOW}${mode}${RESET}`);
   console.log(`  ${MAGENTA}║${RESET}  Session: ${WHITE}${session}${RESET}`);
   console.log(`  ${MAGENTA}║${RESET}  Memory: ${WHITE}${lessons} lessons, ${skills} skills${RESET}`);
-  console.log(`  ${MAGENTA}║${RESET}  Goal: ${YELLOW}${goal}${RESET}`);
-  console.log(`  ${MAGENTA}║${RESET}  Highest: ${GREEN}${highestPhase}${RESET}`);
+  if (agentMode === 'phased') {
+    console.log(`  ${MAGENTA}║${RESET}  Goal: ${YELLOW}${goal}${RESET}`);
+    console.log(`  ${MAGENTA}║${RESET}  Highest: ${GREEN}${highestPhase}${RESET}`);
+  } else if (agentMode === 'directed') {
+    console.log(`  ${MAGENTA}║${RESET}  Goal: ${YELLOW}${goal}${RESET}`);
+  } else {
+    console.log(`  ${MAGENTA}║${RESET}  Mode: ${GREEN}Open World — explore, survive, build${RESET}`);
+  }
   console.log(`  ${BOLD}${MAGENTA}╚══════════════════════════════════════╝${RESET}\n`);
 }
 

@@ -6,19 +6,21 @@ import { fetchState, summarizeState, detectDeath, setNavigating } from './state.
 import { queryLLM, clearConversation, getTemperature, isToolCallingEnabled, completeToolCall } from './llm.js';
 import { executeAction, validateAction, INFO_ACTIONS } from './actions.js';
 import { fetchRecipes } from './state.js';
+import { loadAgentConfig } from './config.js';
 import {
+  initGoalSystem, getAgentMode,
   getCurrentPhase, checkPhaseTransition, getPhaseProgress,
   getProgressDetail, getGoalName, setGoal, isCustomGoal,
 } from './goals.js';
 import { buildSystemPrompt, buildUserMessage } from './prompt.js';
 import {
-  loadMemory, saveMemory, recordDeath as memRecordDeath,
+  initMemory, loadMemory, saveMemory, recordDeath as memRecordDeath,
   recordPhaseComplete, recordAction, getRelevantLessons,
   getMemoryForPrompt, getSessionStats, getStats, getMemory,
   readInstructions, writeSessionEntry, periodicSave,
 } from './memory.js';
 import {
-  loadSkills, getSkillIndex, getActiveSkill,
+  initSkills, loadSkills, getSkillIndex, getActiveSkill,
   createSkillFromPhase, recordSkillOutcome, getSkillCount,
 } from './skills.js';
 import {
@@ -43,6 +45,9 @@ process.on('uncaughtException', (err) => {
   try { periodicSave(); } catch {}
   // Don't exit — let the loop continue if possible
 });
+
+// Agent config (set in main, used in tick)
+let _agentConfig = null;
 
 // Agent state
 let deathCount = 0;
@@ -161,11 +166,12 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname_idx = dirname(fileURLToPath(import.meta.url));
-const NOTEPAD_FILE = join(__dirname_idx, 'data', 'notepad.txt');
+let NOTEPAD_FILE = join(__dirname_idx, 'data', 'notepad.txt');
 
 function readNotepad() {
   try {
-    if (!existsSync(join(__dirname_idx, 'data'))) mkdirSync(join(__dirname_idx, 'data'), { recursive: true });
+    const dir = dirname(NOTEPAD_FILE);
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     if (existsSync(NOTEPAD_FILE)) return readFileSync(NOTEPAD_FILE, 'utf-8');
   } catch {}
   return '';
@@ -173,7 +179,8 @@ function readNotepad() {
 
 function writeNotepad(content) {
   try {
-    if (!existsSync(join(__dirname_idx, 'data'))) mkdirSync(join(__dirname_idx, 'data'), { recursive: true });
+    const dir = dirname(NOTEPAD_FILE);
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     writeFileSync(NOTEPAD_FILE, content, 'utf-8');
   } catch {}
 }
@@ -327,7 +334,9 @@ async function tick() {
 
   // Periodic stats + failure tracker cleanup
   if (tickCount % STATS_LOG_INTERVAL === 0) {
-    logSessionStats(getSessionStats());
+    const sessionStats = getSessionStats();
+    sessionStats.mode = _agentConfig.mode;
+    logSessionStats(sessionStats);
     periodicSave();
     pruneFailureTracker();
   }
@@ -363,7 +372,7 @@ async function tick() {
 
   const notepadContent = readNotepad();
 
-  const systemPrompt = buildSystemPrompt(currentPhase, {
+  const systemPrompt = buildSystemPrompt(_agentConfig, currentPhase, {
     deathCount,
     goalName: getGoalName(),
     memoryText,
@@ -400,7 +409,7 @@ async function tick() {
   // Strip any remaining <think> tags for clean display
   displayReasoning = displayReasoning.replace(/<\/?think>/g, '').trim();
   if (displayReasoning) {
-    logReasoning(displayReasoning);
+    logReasoning(displayReasoning, _agentConfig.name);
   }
 
   // 3. ACT — execute the action
@@ -432,6 +441,14 @@ async function tick() {
       infoResult = await handleRecipesLookup(response.action.item);
     } else if (actionType === 'wiki') {
       infoResult = await handleWikiLookup(response.action.query);
+    } else if (actionType === 'read_chat') {
+      try {
+        const MOD_URL = process.env.MOD_URL || 'http://localhost:3001';
+        const chatRes = await fetch(`${MOD_URL}/chat`, { signal: AbortSignal.timeout(5000) });
+        infoResult = chatRes.ok ? await chatRes.text() : 'Chat not available (mod may need update)';
+      } catch {
+        infoResult = 'Chat not available (mod may need update)';
+      }
     }
     logInfo(`[${actionType}] ${infoResult}`);
     // Complete tool call protocol so model sees result in history
@@ -519,12 +536,26 @@ function sleep(ms) {
 }
 
 async function main() {
+  // Load agent configuration
+  const agentConfig = loadAgentConfig();
+  _agentConfig = agentConfig;
+
+  // Initialize subsystems with per-agent config
+  initMemory(agentConfig);
+  initSkills(agentConfig);
+  initGoalSystem(agentConfig);
+
+  // Set per-agent notepad path
+  NOTEPAD_FILE = join(agentConfig.dataDir, 'notepad.txt');
+
   // Load persistent state
   const { memory, stats } = loadMemory();
   const skills = loadSkills();
 
   // Startup banner
   logStartupBanner({
+    agentName: agentConfig.name,
+    mode: agentConfig.mode,
     model: process.env.MODEL_NAME || 'Doradus/Hermes-4.3-36B-FP8',
     toolCalling: isToolCallingEnabled(),
     session: stats.sessionsPlayed,
