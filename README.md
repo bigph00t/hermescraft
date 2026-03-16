@@ -163,35 +163,33 @@ cd ~/hermescraft
 
 ## Landfolk Mode
 
-For a more playful singleplayer/LAN world, launch a 5-character cast:
-- Steve — your normal Minecraft buddy
-- Reed — wants a fishing shack on the water
-- Moss — gardens, paths, and living greenery
-- Flint — caves, stone, and mining routes
-- Ember — hearths, furnaces, and forge energy
+The primary demo mode. Launch a 5-character cast into any Minecraft LAN world:
+
+- **Steve** — your normal Minecraft buddy, does whatever needs doing
+- **Reed** — wants a fishing shack on the water, loves building by the shore
+- **Moss** — gardens, paths, and living greenery — makes rough places feel lived in
+- **Flint** — caves, stone, and mining routes — the one who goes underground
+- **Ember** — hearths, furnaces, and forge energy — keeps everyone warm and fed
 
 ```bash
 cd ~/hermescraft
-./landfolk.sh --port <LAN_PORT>
+./start.sh <LAN_PORT>
 ```
 
-Useful variants:
+Open your world to LAN in Minecraft, get the port from the chat, then:
 
 ```bash
-./civilization.sh --bots-only
-./civilization.sh --agents-only
-./civilization.sh --agents 3
-./civilization.sh --model claude-sonnet-4-20250514
+./start.sh 12345
 ```
 
-Current cast:
-- Marcus
-- Sarah
-- Jin
-- Dave
-- Lisa
-- Tommy
-- Elena
+This starts all 5 bot bodies, waits for them to connect, then spawns 5 agent terminals.
+
+Each agent has:
+- Isolated HERMES_HOME with its own memory, sessions, SOUL
+- Private DM support via `/msg` (native Minecraft whisper)
+- Proximity-filtered public chat (distant agents don't hear each other)
+- Loop detection so stuck agents notice and try something different
+- Water hazard awareness (agents know when they're drowning)
 
 ## Server reset / crash map
 
@@ -226,7 +224,9 @@ mc craft stone_pickaxe
 mc fight zombie
 mc flee 16
 mc chat "hello"
-mc chat_to Marcus "meet by the river"
+mc whisper Reed "meet me by the river"
+mc fill oak_planks 100 64 100 105 64 105        # place a 5x5 floor
+mc fill oak_planks 100 65 100 105 68 105 hollow  # place hollow walls/roof
 ```
 
 Vision:

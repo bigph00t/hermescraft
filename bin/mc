@@ -490,11 +490,18 @@ except: print(sys.argv[1])
         pretty "$(api_post '/action/flee' "{\"distance\":${1:-16}}")"
         ;;
 
-    chat_to|whisper)
+    chat_to)
         PLAYER="${1:?Usage: mc chat_to PLAYER \"message\"}"
         MSG="${2:?Usage: mc chat_to PLAYER \"message\"}"
         ESCAPED_MSG=$(python3 -c "import json,sys; print(json.dumps(sys.argv[1]))" "$MSG")
         pretty "$(api_post '/action/chat_to' "{\"player\":\"$PLAYER\",\"message\":$ESCAPED_MSG}")"
+        ;;
+
+    whisper|msg|dm)
+        PLAYER="${1:?Usage: mc whisper PLAYER \"message\"}"
+        MSG="${2:?Usage: mc whisper PLAYER \"message\"}"
+        ESCAPED_MSG=$(python3 -c "import json,sys; print(json.dumps(sys.argv[1]))" "$MSG")
+        pretty "$(api_post '/action/whisper' "{\"player\":\"$PLAYER\",\"message\":$ESCAPED_MSG}")"
         ;;
 
     eat|e)
@@ -514,6 +521,19 @@ except: print(sys.argv[1])
         Y="${3:?Usage: mc place BLOCK X Y Z}"
         Z="${4:?Usage: mc place BLOCK X Y Z}"
         pretty "$(api_post '/action/place' "{\"block\":\"$BLOCK\",\"x\":$X,\"y\":$Y,\"z\":$Z}")"
+        ;;
+
+    fill)
+        BLOCK="${1:?Usage: mc fill BLOCK X1 Y1 Z1 X2 Y2 Z2 [hollow]}"
+        X1="${2:?Usage: mc fill BLOCK X1 Y1 Z1 X2 Y2 Z2 [hollow]}"
+        Y1="${3:?Usage: mc fill BLOCK X1 Y1 Z1 X2 Y2 Z2 [hollow]}"
+        Z1="${4:?Usage: mc fill BLOCK X1 Y1 Z1 X2 Y2 Z2 [hollow]}"
+        X2="${5:?Usage: mc fill BLOCK X1 Y1 Z1 X2 Y2 Z2 [hollow]}"
+        Y2="${6:?Usage: mc fill BLOCK X1 Y1 Z1 X2 Y2 Z2 [hollow]}"
+        Z2="${7:?Usage: mc fill BLOCK X1 Y1 Z1 X2 Y2 Z2 [hollow]}"
+        HOLLOW="${8:-false}"
+        ESCAPED_BLOCK=$(python3 -c "import json,sys; print(json.dumps(sys.argv[1]))" "$BLOCK")
+        pretty "$(api_post '/task/place_fill' "{\"block\":$ESCAPED_BLOCK,\"x1\":$X1,\"y1\":$Y1,\"z1\":$Z1,\"x2\":$X2,\"y2\":$Y2,\"z2\":$Z2,\"hollow\":$HOLLOW}")"
         ;;
 
     interact|use_block)
@@ -896,13 +916,13 @@ ADVANCED COMBAT:
   mc bg_strafe [tgt] [d] Strafe in background
 
 BUILDING:
-  mc place BLOCK X Y Z   Place block at position
-  mc interact X Y Z      Right-click/activate block (chests, doors, etc)
+  mc place BLOCK X Y Z                     Place single block
+  mc fill BLOCK X1 Y1 Z1 X2 Y2 Z2 [hollow] Fill rectangular area (hollow=true for walls/shells)
+  mc interact X Y Z                        Right-click/activate block (chests, doors, etc)
 
 SOCIAL:
-  mc chat "message"        Broadcast to ALL players
-  mc chat_to PLAYER "msg"  Private message (only PLAYER sees it)
-  mc chat_to "A,B" "msg"   Group message (only A and B see it)
+  mc chat "message"        Say something publicly (nearby players hear it)
+  mc whisper PLAYER "msg"  Private /msg — only PLAYER sees it
   mc overhear [count]      See overheard conversations between others
   mc follow PLAYER         Follow a player
 

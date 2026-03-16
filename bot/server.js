@@ -35,6 +35,7 @@ const collectBlock = collectBlockPkg.plugin;
 import minecraftData from 'minecraft-data';
 import { Vec3 } from 'vec3';
 import {
+  CURRENT_CAST,
   buildKnownNames,
   parseMessageRouting,
   isMessageForMe,
@@ -111,6 +112,10 @@ let lastHealth = 20;
 let reconnectAttempts = 0;
 const MAX_LOG = 100;
 const MAX_QUEUE = 20;
+
+// Rolling buffer of recent action outcomes for loop detection
+let actionHistory = []; // { action, status, time }
+const MAX_ACTION_HISTORY = 10;
 
 // ═══════════════════════════════════════════════════════════════════
 // Fair Play Mode — perception constraints for realistic gameplay
@@ -199,8 +204,27 @@ function getMemoryHints(limit = 4) {
 async function handleChat(username, message) {
   const knownNames = buildKnownNames(getMyName(), getNearbyPlayerNames());
   const routing = parseMessageRouting(message, { knownNames });
-  const forMe = isMessageForMe(routing, getMyName());
-  
+  let forMe = isMessageForMe(routing, getMyName());
+
+  // Proximity filter: broadcasts from other known agents only heard when nearby.
+  // Human players are not in CURRENT_CAST so they always pass through.
+  if (forMe && routing.isBroadcast && bot && botReady) {
+    const senderLower = username.toLowerCase();
+    const isOtherAgent = CURRENT_CAST.includes(senderLower) && senderLower !== getMyName().toLowerCase();
+    if (isOtherAgent) {
+      const senderEntity = Object.values(bot.entities || {}).find(
+        e => e.username && e.username.toLowerCase() === senderLower
+      );
+      const dist = senderEntity ? bot.entity.position.distanceTo(senderEntity.position) : Infinity;
+      if (dist > FAIR_PLAY.LOS_ENTITY_RANGE) {
+        overheardLog.push({ time: Date.now(), from: username, message: routing.body, channel: 'distant_broadcast', to: [] });
+        if (overheardLog.length > MAX_LOG) overheardLog.shift();
+        rememberSocialEvent({ actor: username, kind: 'heard', channel: 'overheard_distant', message: routing.body });
+        return;
+      }
+    }
+  }
+
   if (forMe) {
     // Message is for us — add to chatLog (visible in mc read_chat / mc status)
     chatLog.push({
@@ -681,11 +705,22 @@ async function reactionDelay() {
 function briefState() {
   if (!bot || !botReady) return null;
 
-  // Grab recent chat (last 30s) so AI sees messages that arrived during action
+  // Grab recent chat so AI sees messages that arrived during action.
+  // Direct messages (whispers, name-routed DMs) are shown fully.
+  // Nearby broadcasts are capped at 2 most recent to reduce cascade noise.
   const now = Date.now();
-  const recentChat = chatLog
-    .filter(m => now - m.time < 30000 && m.from !== bot.username)
-    .map(m => ({ from: m.from, message: m.message, ago: Math.round((now - m.time) / 1000) + 's' }));
+  const recentAll = chatLog
+    .filter(m => now - m.time < 30000 && m.from !== bot.username);
+  const directMsgs = recentAll.filter(m => m.private || m.whisper);
+  const broadcastMsgs = recentAll.filter(m => !m.private && !m.whisper).slice(-2);
+  const recentChat = [...directMsgs, ...broadcastMsgs]
+    .sort((a, b) => a.time - b.time)
+    .map(m => ({
+      from: m.from,
+      message: m.message,
+      ago: Math.round((now - m.time) / 1000) + 's',
+      ...(m.private || m.whisper ? { direct: true } : {}),
+    }));
 
   // Grab pending commands
   const pending = commandQueue.filter(c => c.status === 'pending');
@@ -704,7 +739,18 @@ function briefState() {
   const recentSocial = socialEvents.filter((entry) => now - entry.time < 60000).slice(-3)
     .map((entry) => `${entry.actor} ${entry.kind} via ${entry.channel}`);
   if (recentSocial.length > 0) state.social = recentSocial;
-  
+
+  // Water hazard — surfaces immediately so agent can react
+  if (bot.entity.isInWater) {
+    state.hazard = 'SUBMERGED in water — mc stop then mc jump to swim up, navigate to shore';
+  }
+
+  // Repeated-failure loop detection
+  const recent3 = actionHistory.slice(-3);
+  if (recent3.length === 3 && recent3.every(e => e.status !== 'done' && e.action === recent3[0].action)) {
+    state.action_loop = `You've tried "${recent3[0].action}" 3 times and failed — check mc inventory first, then try something different`;
+  }
+
   // Show count of overheard messages (other agents' private conversations)
   const recentOverheard = overheardLog.filter(m => now - m.time < 60000).length;
   if (recentOverheard > 0) state.overheard_nearby = recentOverheard;
@@ -1664,6 +1710,57 @@ const ACTIONS = {
     throw new Error(`No solid block adjacent to ${x}, ${y}, ${z} to place against.`);
   },
 
+  async place_fill({ block: blockName, x1, y1, z1, x2, y2, z2, hollow = false }) {
+    const b = ensureBot();
+    const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+    const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+    const minZ = Math.min(z1, z2), maxZ = Math.max(z1, z2);
+    const total = (maxX - minX + 1) * (maxY - minY + 1) * (maxZ - minZ + 1);
+    if (total > 500) throw new Error(`Area too large (${total} blocks, max 500). Split into smaller fills.`);
+
+    // Build position list, hollow only places outer shell
+    const positions = [];
+    for (let y = minY; y <= maxY; y++) {
+      for (let x = minX; x <= maxX; x++) {
+        for (let z = minZ; z <= maxZ; z++) {
+          if (hollow) {
+            const onEdge = x === minX || x === maxX || y === minY || y === maxY || z === minZ || z === maxZ;
+            if (!onEdge) continue;
+          }
+          positions.push({ x, y, z });
+        }
+      }
+    }
+
+    const offsets = [[0, -1, 0], [0, 1, 0], [1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1]];
+    let placed = 0;
+    for (const pos of positions) {
+      // Skip if block already there
+      const existing = b.blockAt(new Vec3(pos.x, pos.y, pos.z));
+      if (existing && existing.name !== 'air' && existing.name !== 'cave_air') continue;
+
+      const item = b.inventory.items().find(i => i.name === blockName);
+      if (!item) throw new Error(`Out of ${blockName} (placed ${placed}/${positions.length})`);
+      await b.equip(item, 'hand');
+
+      if (b.entity.position.distanceTo(new Vec3(pos.x, pos.y, pos.z)) > 4.5) {
+        try { await b.pathfinder.goto(new goals.GoalNear(pos.x, pos.y, pos.z, 3)); } catch {}
+      }
+
+      for (const [dx, dy, dz] of offsets) {
+        const ref = b.blockAt(new Vec3(pos.x + dx, pos.y + dy, pos.z + dz));
+        if (ref && ref.name !== 'air' && ref.name !== 'cave_air') {
+          try {
+            await b.placeBlock(ref, new Vec3(-dx, -dy, -dz));
+            placed++;
+          } catch {}
+          break;
+        }
+      }
+    }
+    return { result: `Placed ${placed}/${positions.length} ${blockName} blocks (${hollow ? 'hollow' : 'solid'})` };
+  },
+
   async interact({ x, y, z }) {
     const b = ensureBot();
     const block = b.blockAt(new Vec3(x, y, z));
@@ -1684,8 +1781,7 @@ const ACTIONS = {
   // ── Utility ──────────────────────────────────────
   async chat({ message }) {
     const b = ensureBot();
-    // Broadcast: prefix with "all: " so all agents receive it
-    b.chat(`all: ${message}`);
+    b.chat(message);
     rememberSocialEvent({ actor: getMyName(), kind: 'sent', channel: 'public', message });
     return { result: `Sent: ${message}` };
   },
@@ -1809,11 +1905,17 @@ const ACTIONS = {
 
   async chat_to({ player, message }) {
     const b = ensureBot();
-    // Name-routed: "Player: message" — only that player's bot receives it
-    // Supports comma-separated for multi-target: "Player1,Player2: message"
-    b.chat(`${player}: ${message}`);
-    rememberSocialEvent({ actor: getMyName(), target: player, kind: 'sent', channel: String(player).includes(',') ? 'group_dm' : 'direct', message });
-    return { result: `To ${player}: ${message}` };
+    // Alias for whisper — use native /msg for true server-side private message
+    b.chat(`/msg ${player} ${message}`);
+    rememberSocialEvent({ actor: getMyName(), target: player, kind: 'sent', channel: 'whisper', message });
+    return { result: `[→${player}]: ${message}` };
+  },
+
+  async whisper({ player, message }) {
+    const b = ensureBot();
+    b.chat(`/msg ${player} ${message}`);
+    rememberSocialEvent({ actor: getMyName(), target: player, kind: 'sent', channel: 'whisper', message });
+    return { result: `[→${player}]: ${message}` };
   },
 
   // ── Death Recovery ────────────────────────────────
@@ -2525,11 +2627,15 @@ const httpServer = http.createServer(async (req, res) => {
             currentTask.status = 'done';
             currentTask.result = result;
           }
+          actionHistory.push({ action: actionName, status: 'done', time: Date.now() });
+          if (actionHistory.length > MAX_ACTION_HISTORY) actionHistory.shift();
         }).catch(err => {
           if (currentTask && currentTask.id === taskId && currentTask.status === 'running') {
             currentTask.status = 'error';
             currentTask.error = err.message;
           }
+          actionHistory.push({ action: actionName, status: 'error', time: Date.now() });
+          if (actionHistory.length > MAX_ACTION_HISTORY) actionHistory.shift();
         });
         return respond(res, 200, { ok: true, task_id: taskId, status: 'started', state: briefState() });
       }
@@ -2553,6 +2659,8 @@ const httpServer = http.createServer(async (req, res) => {
       }
 
       const result = await actionFn(body);
+      actionHistory.push({ action: actionName, status: 'done', time: Date.now() });
+      if (actionHistory.length > MAX_ACTION_HISTORY) actionHistory.shift();
       return respond(res, 200, { ok: true, ...result, state: briefState() });
     }
 
