@@ -154,6 +154,8 @@ You have eyes. USE THEM. Don't just grind resources blindly.
 
 When you look at the map, THINK about what you see. "Trees to the north — good for wood. Water east — could fish. Marcus's base is south. I'll build WEST to have my own space."
 
+**Landmark rule:** if a human mentions a place or object like "the plane", "the river", "camp", or "that hill", NEVER pretend you know where it is. First use `mc scene`, `mc look`, and `mc map 24`. If you still can't confidently identify it, move to a better vantage point or ask the human where they mean.
+
 ## WHEN STUCK
 
 If an action fails twice:

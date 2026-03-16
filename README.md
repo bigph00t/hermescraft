@@ -161,6 +161,20 @@ cd ~/hermescraft
 ./civilization.sh --port 12345
 ```
 
+## Landfolk Mode
+
+For a more playful singleplayer/LAN world, launch a 5-character cast:
+- Steve — your normal Minecraft buddy
+- Reed — wants a fishing shack on the water
+- Moss — gardens, paths, and living greenery
+- Flint — caves, stone, and mining routes
+- Ember — hearths, furnaces, and forge energy
+
+```bash
+cd ~/hermescraft
+./landfolk.sh --port <LAN_PORT>
+```
+
 Useful variants:
 
 ```bash

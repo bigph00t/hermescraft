@@ -24,6 +24,14 @@ BIN_DIR="$SCRIPT_DIR/bin"
 PROMPT_DIR="$SCRIPT_DIR/prompts"
 SOUL_FILE="$SCRIPT_DIR/SOUL-civilization.md"
 
+# Prefer Anthropic/Sonnet for civilization runs when available.
+if [ -z "${ANTHROPIC_API_KEY:-}" ] && [ -f "$HOME/.hermes/.env" ] && grep -q '^ANTHROPIC_API_KEY=' "$HOME/.hermes/.env"; then
+  export ANTHROPIC_API_KEY="$(python3 -c 'from pathlib import Path; p=Path.home()/".hermes"/".env"; 
+for line in p.read_text().splitlines():
+    if line.startswith("ANTHROPIC_API_KEY="):
+        print(line.split("=",1)[1]); break')"
+fi
+
 MC_HOST="${MC_HOST:-localhost}"
 MC_PORT="${MC_PORT:-12345}"
 BASE_API_PORT=3001
@@ -76,6 +84,12 @@ while [[ $# -gt 0 ]]; do
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
+
+# Default to Sonnet for civilization unless explicitly overridden.
+if [ -z "$MODEL" ] && [ -z "$PROVIDER" ] && [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+  MODEL="claude-sonnet-4-20250514"
+  PROVIDER="anthropic"
+fi
 
 # Use only the first N agents
 AGENTS=("${ALL_AGENTS[@]:0:$NUM_AGENTS}")
@@ -237,17 +251,16 @@ for i in "${!AGENTS[@]}"; do
   # Read the character prompt
   PROMPT=$(cat "$PROMPT_FILE")
 
-  # Build hermes command
-  HERMES_CMD="$HERMES chat --yolo -q"
-  [ -n "$MODEL" ] && HERMES_CMD="$HERMES_CMD -m $MODEL"
-  [ -n "$PROVIDER" ] && HERMES_CMD="$HERMES_CMD --provider $PROVIDER"
-
   echo "  🧠 $name (port:$PORT, home:$AGENT_HOME)"
+
+  HERMES_ARGS=(chat --yolo -q "$PROMPT")
+  [ -n "$MODEL" ] && HERMES_ARGS+=(-m "$MODEL")
+  [ -n "$PROVIDER" ] && HERMES_ARGS+=(--provider "$PROVIDER")
 
   HERMES_HOME="$AGENT_HOME" \
   MC_API_URL="http://localhost:$PORT" \
   MC_USERNAME="$name" \
-    $HERMES_CMD "$PROMPT" \
+    "$HERMES" "${HERMES_ARGS[@]}" \
     > "/tmp/agent-${name_lower}.log" 2>&1 &
   PIDS+=($!)
 

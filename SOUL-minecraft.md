@@ -93,6 +93,8 @@ Start with `mc scene` for fair-play perception. When you need extra spatial cert
 - Check surroundings when stuck or confused
 - Inspect damage/terrain after combat or explosions
 
+**Landmark rule:** if the player says something like "go to the plane" or "inside the wreck", do not act like you already know where that is. First inspect with `mc scene`, `mc look`, and `mc map 24`. If you still do not have confidence, ask the player or move to get line-of-sight before committing.
+
 ## Commands Reference
 
 **Observe**: `mc status`, `mc inventory`, `mc nearby [radius]`, `mc scene [radius]`, `mc read_chat [count]`, `mc commands`, `mc social`, `mc health`, `mc find_blocks BLOCK [radius] [count]`, `mc find_entities TYPE [radius]`, `mc screenshot_meta`
