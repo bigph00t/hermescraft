@@ -14,9 +14,10 @@ Single buddy:
 MC_PORT=<LAN_PORT> ./hermescraft.sh
 ```
 
-Landfolk cast:
+Landfolk cast (recommended stable path):
 ```bash
-./landfolk.sh --port <LAN_PORT>
+./scripts/run-landfolk-bots.sh <LAN_PORT>
+# then launch each agent in its own terminal with scripts/run-landfolk-agent.sh
 ```
 
 Civilization cast:
@@ -28,7 +29,7 @@ Civilization cast:
 
 For actual playing, start with:
 - `hermescraft.sh` if you want one close companion
-- `landfolk.sh` if you want a small cast of flavorful in-world characters
+- the direct Landfolk pattern (`run-landfolk-bots.sh` + `run-landfolk-agent.sh`) if you want a small cast of flavorful in-world characters
 
 ## Good in-game tests
 - ask Steve to follow you

@@ -1,216 +1,231 @@
 # HermesCraft
 
-An embodied social AI system for Minecraft.
+HermesCraft brings Hermes agents into Minecraft as embodied players.
 
-HermesCraft uses the same underlying Hermes agent stack in two scales:
-- Companion Mode: one in-world AI friend that chats, helps, remembers, and plays with you
-- Civilization Mode: multiple persistent agents with personalities, private/public chat, memory, and emergent social dynamics
+A Hermes agent can join your world, chat with you in-game, follow you, gather resources, build, fight, remember what happened, and learn your preferences over time. The same architecture also scales to multi-agent worlds, where many Hermes agents share the same server, privately message each other, and gradually become characters in the world.
 
-This is the core thesis:
-from one friend to a civilization.
+Core idea:
+- one agent feels like a companion
+- many agents can make a world feel alive
 
 Built for the Nous Hermes hackathon.
 
-## Why this exists
+## What HermesCraft actually is
 
-Most Minecraft AI projects are either:
-- solo task bots
+This is not a fake NPC framework and not a separate custom agent runtime.
+
+Each character is a real Hermes agent with:
+- its own `HERMES_HOME`
+- its own memory and sessions
+- its own SOUL / prompt
+- its own Minecraft bot body
+- the normal Hermes tool stack
+- the Minecraft `mc` interface for acting in-world
+
+Architecture:
+
+```text
+Hermes Agent
+  -> terminal/tool use
+  -> mc CLI
+  -> bot/server.js HTTP API
+  -> Mineflayer bot body
+  -> Minecraft world
+```
+
+That is true for one companion and for multi-agent worlds.
+
+## Why this is interesting
+
+Most Minecraft AI projects are one of these:
+- benchmark agents
 - scripted NPCs
-- or benchmark agents with too much privileged world knowledge
+- bots with too much privileged world knowledge
 
-HermesCraft is trying to feel alive in-world instead:
-- embodied in a Minecraft body
-- partial, fair-play perception instead of x-ray omniscience
-- persistent memory across sessions
-- natural chat with human players
-- social routing between agents at larger scale
+HermesCraft is trying to be something else:
+- embodied instead of disembodied
+- fair instead of x-ray omniscient
+- persistent instead of sessionless
+- social instead of purely task-oriented
+- usable by normal players in a real Minecraft world
 
-## Two ways to experience HermesCraft
+Long term, this points toward MiroFish-style agent societies — but in a physical sandbox world with terrain, resources, danger, geography, and human players.
+
+## Main modes
 
 ### 1) Companion Mode
 
-Fire up one Hermes and play with it like a friend.
+Run one Hermes agent as an in-world Minecraft friend.
 
-What it can do today:
-- talk with you in Minecraft chat
-- follow you, build with you, gather, craft, fight, explore
-- remember player preferences and world facts through Hermes memory
-- inspect surroundings with `mc look`, `mc map`, `mc scene`
-- use screenshot + vision workflows for build/layout verification
+What it can do:
+- chat with you in Minecraft
+- follow you around
+- help gather resources
+- help build
+- scout the area
+- fight / flee / survive with you
+- remember what happened across sessions
+- adapt to your preferences over time
 
-Best use cases:
-- “help me build a cabin”
-- “follow me into this cave”
-- “gather wood while I mine stone”
-- “hang out and survive together”
+Good use cases:
+- "follow me"
+- "help me build a house"
+- "gather wood while I mine stone"
+- "come explore this cave with me"
 
 ### 2) Civilization Mode
 
-Launch multiple Hermes agents into the same world and let the same architecture scale into a social simulation.
+Run multiple Hermes agents in the same world.
 
-What makes this interesting:
-- isolated HERMES_HOME per agent
-- separate memory + sessions per character
-- personality prompts and hidden agendas
-- public chat, direct messages, overhearing, command queues
+What makes it interesting:
+- separate memory and identity per character
+- public chat, private DMs, overhearing, commands
 - fair-play perception and local world understanding
-- emergent alliances, tension, division of labor, and story
+- emergent routines, alliances, tension, division of labor
+- the world starts to feel inhabited
 
-This is the mode that leans toward the MiroFish / generative society angle.
+### 3) Landfolk Mode
+
+A small 5-character cast for a player's LAN world.
+
+Current cast:
+- Steve — your normal Minecraft buddy
+- Reed — wants to build a fishing shack on the water
+- Moss — makes paths, gardens, and cozy green spaces
+- Flint — gravitates toward caves, stone, and mining routes
+- Ember — builds hearth/forge energy around camp
+
+This is meant to make a normal personal world feel more alive without going all the way to a full civilization sim.
+
+Important: the most reliable way to run Landfolk right now is direct per-agent Hermes launches after the bot bodies are connected. Convenience wrappers are still secondary.
 
 ## Core features
 
 ### Embodied gameplay
-- Mineflayer bot body per agent
-- movement, mining, crafting, smelting, chest interaction, combat, fleeing, marks, death recovery
-- background tasks so agents stay chat-responsive during longer actions
+- movement and pathfinding
+- mining and collection
+- crafting and smelting
+- chest interaction
+- combat / fleeing
+- location marking and return
+- background tasks so agents can keep checking chat
 
 ### Fair-play perception
 - line-of-sight filtering for entities
-- sound events as approximate directional hints
-- `mc look` for natural language surroundings
+- directional sound hints
+- `mc look` for natural-language surroundings
 - `mc map` for ASCII spatial understanding
 - `mc scene` for current-view fair-play scene summary
 - `mc screenshot_meta` for screenshot + synchronized scene/state metadata
 
 ### Social systems
-- public broadcast chat
-- direct and group DMs via routed chat
-- overhearing nearby private conversations
-- queued in-game commands for human requests
-- social summary endpoint for recent interaction history
+- public chat
+- direct and group private messages
+- overhearing nearby private conversation
+- queued in-game commands from human players
+- social summary / recent interaction state
 
 ### Persistent identity
 - per-agent memory
 - per-agent sessions
-- per-agent SOUL / behavior prompts
+- per-agent prompts / SOUL
 - per-agent saved locations
 
-## Architecture
+## What is stable vs experimental
 
-```text
-Human player(s)
-      │
-      ▼
-Minecraft world / Paper server / LAN world
-      │
-      ▼
-Mineflayer bot server (one per body)
-  - fair-play perception
-  - HTTP control API
-  - social routing / task control
-      │
-      ▼
-mc CLI
-  - shell interface for Hermes
-      │
-      ▼
-Hermes Agent
-  - planning
-  - memory
-  - web / vision tools
-  - SOUL-driven behavior
-```
+Most stable path today:
+- one companion via `hermescraft.sh`
+- direct Hermes-per-agent launches when you want total control
 
-In Companion Mode, that stack runs once.
-In Civilization Mode, it runs once per agent.
+More experimental / still being hardened:
+- convenience wrappers that spawn lots of terminals automatically
+- more complex multi-agent launchers
 
-## Quickstart
+If you want reliability, use the direct commands shown below.
 
 ## Prerequisites
+
 - Node.js 18+
 - Python 3
-- Java (for bundled Paper server flow)
 - Hermes CLI installed and authenticated
-- Minecraft Java Edition world/server or singleplayer LAN world
+- Minecraft Java Edition
+- optional: Java if you want to use the included Paper server flow
 
-Run setup:
+Setup:
 
 ```bash
 cd ~/hermescraft
 ./setup.sh
 ```
 
-## Companion Mode
+## Quickstart
 
-Start a single companion:
+### Companion Mode
+
+If you already have a world open to LAN:
 
 ```bash
 cd ~/hermescraft
-MC_PORT=12345 ./hermescraft.sh
+MC_PORT=<LAN_PORT> ./hermescraft.sh
 ```
 
-If you already have a world open to LAN, set the LAN port:
-
-```bash
-MC_PORT=36467 ./hermescraft.sh
-```
-
-In-game examples:
+Examples in chat:
 - `hermes follow me`
-- `hermes build me a small cabin here`
+- `hermes help me build here`
 - `hermes gather oak logs`
 - `hermes what do you see?`
 
-## Civilization Mode
-
-Launch the multi-agent simulation:
+### Civilization Mode
 
 ```bash
 cd ~/hermescraft
-./civilization.sh --port 12345
+./civilization.sh --port <PORT>
 ```
 
-## Landfolk Mode
+### Landfolk Mode
 
-The primary demo mode. Launch a 5-character cast into any Minecraft LAN world:
+Most reliable path:
+1. start the bot bodies
+2. launch each Hermes brain directly
 
-- **Steve** — your normal Minecraft buddy, does whatever needs doing
-- **Reed** — wants a fishing shack on the water, loves building by the shore
-- **Moss** — gardens, paths, and living greenery — makes rough places feel lived in
-- **Flint** — caves, stone, and mining routes — the one who goes underground
-- **Ember** — hearths, furnaces, and forge energy — keeps everyone warm and fed
+Start the bot bodies:
 
 ```bash
 cd ~/hermescraft
-./start.sh <LAN_PORT>
+./scripts/run-landfolk-bots.sh <LAN_PORT>
 ```
 
-Open your world to LAN in Minecraft, get the port from the chat, then:
+Then launch each Hermes brain in its own terminal.
+
+## Reliable direct launch pattern
+
+If a bot body is already connected on a given API port, this is the most reliable way to launch its Hermes brain:
 
 ```bash
-./start.sh 12345
+cd ~/hermescraft
+PROMPT="$(cat prompts/landfolk/steve.md)" && \
+HERMES_HOME="$HOME/.hermes-landfolk-steve" \
+MC_API_URL="http://localhost:3001" \
+MC_USERNAME="Steve" \
+hermes chat --yolo -q "$PROMPT" -m claude-sonnet-4-20250514 --provider anthropic
 ```
 
-This starts all 5 bot bodies, waits for them to connect, then spawns 5 agent terminals.
-
-Each agent has:
-- Isolated HERMES_HOME with its own memory, sessions, SOUL
-- Private DM support via `/msg` (native Minecraft whisper)
-- Proximity-filtered public chat (distant agents don't hear each other)
-- Loop detection so stuck agents notice and try something different
-- Water hazard awareness (agents know when they're drowning)
-
-## Server reset / crash map
-
-If you want to use the included Paper server flow:
-
-```bash
-cd ~/hermescraft/server
-MAP_ZIP="/path/to/The Crash zip" ./start.sh --reset
-./start.sh
-```
-
-`server/start.sh --reset` requires Python package `nbtlib`.
+That same pattern works for any character by changing:
+- prompt file
+- HERMES_HOME
+- MC_API_URL
+- MC_USERNAME
 
 ## Useful `mc` commands
 
 Observation:
+
 ```bash
 mc status
+mc inventory
 mc nearby 24
-mc map 16
 mc look
+mc map 24
 mc scene 16
 mc social
 mc read_chat
@@ -218,68 +233,55 @@ mc commands
 ```
 
 Action:
+
 ```bash
 mc bg_collect oak_log 5
+mc bg_goto 100 64 100
+mc follow Steve
 mc craft stone_pickaxe
 mc fight zombie
 mc flee 16
 mc chat "hello"
-mc whisper Reed "meet me by the river"
-mc fill oak_planks 100 64 100 105 64 105        # place a 5x5 floor
-mc fill oak_planks 100 65 100 105 68 105 hollow  # place hollow walls/roof
+mc whisper Reed "meet me by the shore"
 ```
 
 Vision:
+
 ```bash
 mc screenshot_meta
 ```
 
-That returns a screenshot path plus synchronized scene/state metadata so Hermes can call `vision_analyze` without losing context.
-
 ## Fairness and non-xray design
 
-HermesCraft is intentionally trying to avoid god-mode world access.
+HermesCraft is intentionally trying to avoid god-mode behavior.
 
 In fair-play mode:
-- entities are filtered by distance + line of sight
-- sound events are directional hints, not exact coordinates
-- `mc scene` reports what is visible in the current view cone plus remembered landmarks
-- resource finding in fair mode is biased toward visible blocks instead of omniscient scans
-- unknown areas should stay unknown until inspected
+- entities are filtered by line of sight and range
+- sounds are directional hints rather than exact coordinates
+- `mc scene` reports what is currently visible plus remembered nearby landmarks
+- resource finding is biased toward visible blocks instead of omniscient scans
+- agents are encouraged to admit uncertainty and reposition instead of bluffing
 
-This is important for both believability and demo integrity.
+This matters for both believability and demo integrity.
 
 ## Repo guide
 
+Important files:
 - `hermescraft.sh` — single-agent companion launcher
 - `civilization.sh` — multi-agent civilization launcher
+- `scripts/run-landfolk-bots.sh` — start the 5 Landfolk bot bodies
+- `scripts/run-landfolk-agent.sh` — launch one Landfolk Hermes brain cleanly
 - `bot/server.js` — Mineflayer HTTP bot server
-- `bot/lib/` — testable routing/perception helpers
-- `bot/test/` — unit tests for helper logic
+- `bot/lib/` — routing and perception helpers
+- `bot/test/` — unit tests
 - `bin/mc` — CLI for observation and action
-- `SOUL-minecraft.md` — companion behavior rules
-- `SOUL-civilization.md` — civilization behavior rules
-- `prompts/` — per-character prompts
-- `docs/COMPANION_MODE.md` — companion mode notes
-- `docs/CIVILIZATION_MODE.md` — civilization mode notes
-- `docs/DEMO_THREAD.md` — thread/video submission plan
-
-## Demo-friendly observability
-
-For hackathon demos, the important thing is not just that it works, but that viewers can tell why it works.
-
-HermesCraft now exposes:
-- current scene summary
-- social summary / recent events
-- private vs public communication patterns
-- per-agent logs
-- per-agent memory stores
-
-This helps turn “a bunch of bots did stuff” into a legible AI story.
+- `SOUL-minecraft.md` — companion behavior
+- `SOUL-civilization.md` — civilization behavior
+- `SOUL-landfolk.md` — landfolk behavior
+- `prompts/` — character prompts
+- `docs/` — mode notes and hackathon/demo docs
 
 ## Testing
-
-Bot helper tests:
 
 ```bash
 cd bot
@@ -292,28 +294,30 @@ Sanity checks:
 node --check bot/server.js
 bash -n civilization.sh
 bash -n hermescraft.sh
+bash -n landfolk.sh
 bash -n setup.sh
 bash -n server/start.sh
 ```
 
 ## Known limitations
 
-Current focus is strong early/mid-game survival, companion interaction, and small-society dynamics — not full endgame autonomy.
+Current focus is early/mid-game survival, companion play, and small-society behavior — not full endgame autonomy.
 
-Still rough / in-progress areas:
-- complex building taste still benefits from screenshot + vision loops
-- longer-term social simulation needs more explicit town-level memory and replay tooling
-- public clean-room reproducibility is improving, but still assumes a reasonably configured local Minecraft/Hermes environment
+Still rough:
+- automated batch launchers need more hardening than direct per-agent launches
+- building taste still benefits from screenshot + vision loops
+- longer-term social simulation needs stronger town-level memory / replay tooling
+- public clean-room reproducibility still depends on a reasonably configured local Hermes + Minecraft environment
 
-## Why this is interesting beyond Minecraft
+## Big picture
 
-Minecraft is just the proving ground.
+Minecraft is the proving ground, not the endpoint.
 
-The deeper idea is an embodied AI architecture that works in two human-legible scales:
-- one-on-one companionship
-- many-agent social worlds
+HermesCraft is really about whether the same Hermes architecture can work in two human-legible scales:
+- personal companionship
+- multi-agent worlds
 
-If the same agent stack can feel personal at one scale and emergent at another, that is a strong pattern for future game AI, virtual companions, and persistent social agents.
+If one agent can feel like a friend, and many agents can start to make a world feel inhabited, that is a strong foundation for persistent embodied AI systems.
 
 ## License
 
