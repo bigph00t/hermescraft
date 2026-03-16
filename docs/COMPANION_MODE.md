@@ -21,6 +21,14 @@ Make the agent feel like a real in-world friend, not a detached chatbot and not 
 
 ## Launch
 
+Quickest Steve-only launcher:
+
+```bash
+./start-steve.sh
+```
+
+Generic single-agent launcher:
+
 ```bash
 MC_PORT=12345 ./hermescraft.sh
 ```

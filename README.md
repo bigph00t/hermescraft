@@ -182,7 +182,16 @@ cd ~/hermescraft
 
 ### Companion Mode
 
-If you already have a world open to LAN:
+Fastest way to start one Minecraft buddy (Steve):
+
+```bash
+cd ~/hermescraft
+./start-steve.sh
+```
+
+The script asks for your LAN port, starts Steve's bot body, then opens a terminal running Steve's Hermes brain.
+
+If you already have a world open to LAN and want the generic single-agent flow instead:
 
 ```bash
 cd ~/hermescraft
