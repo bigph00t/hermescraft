@@ -8,7 +8,7 @@ cd "$SCRIPT_DIR"
 # Defaults
 BRIDGE_URL="${HERMESCRAFT_BRIDGE:-http://localhost:3001}"
 MODEL="${HERMESCRAFT_MODEL:-}"
-GOAL="${1:-Defeat the Ender Dragon}"
+GOAL="${1:-${HERMESCRAFT_GOAL:-Defeat the Ender Dragon}}"
 SOUL="${HERMESCRAFT_SOUL:-$SCRIPT_DIR/SOUL-minecraft.md}"
 
 # Check bridge is running
@@ -25,7 +25,8 @@ if [ ! -d "$SCRIPT_DIR/mcp-server/node_modules" ]; then
 fi
 
 # Build hermes args
-HERMES_ARGS=(chat --yolo)
+MAX_TURNS="${HERMESCRAFT_MAX_TURNS:-200000}"
+HERMES_ARGS=(chat --yolo --max-turns "$MAX_TURNS")
 
 if [ -n "$MODEL" ]; then
     HERMES_ARGS+=(--model "$MODEL")

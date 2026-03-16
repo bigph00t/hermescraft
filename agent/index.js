@@ -562,7 +562,7 @@ async function main() {
     lessons: memory.lessons.length,
     skills: skills.length,
     goal: getGoalName(),
-    highestPhase: `${stats.highestPhaseName} (${stats.highestPhase}/7)`,
+    highestPhase: agentConfig.mode === 'phased' ? `${stats.highestPhaseName} (${stats.highestPhase}/7)` : 'N/A',
   });
 
   logInfo(`Tick interval: ${TICK_INTERVAL}ms`);

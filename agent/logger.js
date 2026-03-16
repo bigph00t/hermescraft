@@ -194,7 +194,7 @@ export function logStartupBanner(config) {
   const session = config.session || 1;
   const lessons = config.lessons || 0;
   const skills = config.skills || 0;
-  const goal = config.goal || 'Defeat the Ender Dragon';
+  const goal = config.goal || (agentMode === 'phased' ? 'Defeat the Ender Dragon' : 'Open World');
   const highestPhase = config.highestPhase || 'N/A';
 
   // ASCII Art Header

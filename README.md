@@ -39,7 +39,8 @@ Built on [Hermes Agent](https://github.com/NousResearch/hermes-agent) by Nous Re
 - **Death Recovery** -- records cause of death, generates countermeasures, saves lessons to persistent memory
 - **Persistent Memory** -- lessons learned, successful strategies, and world knowledge survive across sessions and restarts
 - **Skill System** -- auto-generates reusable skills (agentskills.io format) from successful phase completions
-- **7-Phase Goal Tracking** -- automated progress tracking from first tree punch to Ender Dragon, with per-phase objectives and completion checks
+- **3 Goal Modes** -- phased (7-phase dragon quest), open-ended (free survival/exploration), or directed (player-given goals)
+- **Per-Agent Identity** -- each agent loads its own SOUL personality, memory, skills, and notepad from separate data directories
 - **Multi-Agent** -- run multiple bots with different LLMs in the same Minecraft world
 - **Stuck Detection** -- position-based watchdog and failure tracker cancel stuck tasks and trigger fresh reasoning
 - **Adaptive Temperature** -- lowers LLM temperature in dangerous situations (low health, Nether, End) for safer decisions
@@ -64,7 +65,7 @@ Built on [Hermes Agent](https://github.com/NousResearch/hermes-agent) by Nous Re
 +---------------------------+-------------------------------+
 |              Agent Core (agent/*.js)                      |
 |  Native tool calling + text fallback parsing              |
-|  7-phase goal system + adaptive temperature               |
+|  3 goal modes + adaptive temperature                      |
 |  Persistent memory (MEMORY.md) + skill generation         |
 |  Stuck detection + auto-recovery                          |
 +---------------------------+-------------------------------+
@@ -235,9 +236,20 @@ HermesCraft is built on the official [Hermes Agent](https://github.com/NousResea
 
 ---
 
-## The 7 Phases
+## Goal Modes
 
-The agent tracks its own progress through a structured goal system with automated phase detection:
+### Open-Ended (Steve)
+
+No scripted objectives. The agent loads into the world, observes, and decides what to do. It naturally progresses through survival basics (shelter, tools, food) driven by its SOUL personality and learned memory. Responds to player chat and cooperates when asked.
+
+```bash
+./steve-start.sh
+# Or: AGENT_NAME=Steve AGENT_MODE=open_ended ./start.sh
+```
+
+### Phased (Dragon Quest)
+
+Structured 7-phase progression from first tree punch to Ender Dragon, with automated phase detection:
 
 | Phase | Goal | Completion Criteria |
 |---|---|---|
@@ -286,15 +298,19 @@ The agent maintains four levels of memory:
 | `HERMESCRAFT_MODEL` | *(none)* | Model override for Hermes Agent mode |
 | `HERMESCRAFT_BRIDGE` | `http://localhost:3001` | Bridge URL for Hermes Agent mode |
 | `HERMESCRAFT_GOAL` | `Defeat the Ender Dragon` | Goal override |
+| `AGENT_NAME` | `hermes` | Agent identity (determines data directory + SOUL file) |
+| `AGENT_MODE` | `phased` | Goal mode: `phased`, `open_ended`, or `directed` |
+| `AGENT_SOUL` | *(auto-detected)* | Path to SOUL-*.md personality file |
+| `AGENT_GOAL` | *(none)* | Goal text for `directed` mode |
+| `MAX_HISTORY` | `90` | Max conversation history messages (~30 rounds) |
 
-### SOUL-minecraft.md
+### SOUL Files
 
-The SOUL file defines the agent's personality and behavioral guidelines. It is installed into Hermes Agent's config directory on launch. Key sections:
+SOUL files define agent personality and behavioral guidelines. Each agent can have its own:
 
-- **Game Loop** -- The observe-think-act cycle
-- **Survival Priorities** -- Don't die > Eat > Shelter > Progress
-- **7 Phases** -- Detailed strategy for each progression phase
-- **Tool Usage Tips** -- How to use each MCP tool effectively
+- **SOUL-minecraft.md** -- Hermes, God of Cunning (phased dragon quest persona)
+- **SOUL-steve.md** -- Steve, practical survival expert (open-ended persona)
+- Custom SOUL files for additional agents/personalities
 - **Personality** -- Hermes speaks with divine confidence and one-line narration
 
 ---
@@ -306,7 +322,8 @@ hermescraft/
 +-- agent/                      # Node.js agent (direct mode)
 |   +-- index.js                #   Main observe-think-act loop
 |   +-- actions.js              #   Action validation + execution
-|   +-- goals.js                #   7-phase goal system with progress tracking
+|   +-- config.js               #   Agent config loader (name, mode, SOUL, data dir)
+|   +-- goals.js                #   Goal system (phased / open_ended / directed)
 |   +-- llm.js                  #   vLLM client, tool calling, conversation memory
 |   +-- memory.js               #   Persistent memory (MEMORY.md, stats, sessions)
 |   +-- skills.js               #   agentskills.io skill generation
