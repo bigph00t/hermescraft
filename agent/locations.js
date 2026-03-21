@@ -121,3 +121,106 @@ export function getNearbyDangers(position, radius = 30) {
 export function saveLocations() {
   try { writeFileSync(LOCATIONS_FILE, JSON.stringify(locations, null, 2)); } catch {}
 }
+
+// ── Exploration Tracking ──
+
+/**
+ * Determine which cardinal direction the agent has explored least.
+ * Looks at all saved locations (excluding danger zones) and counts
+ * locations per quadrant relative to home (or currentPos if no home).
+ * Returns { direction: 'north'|'south'|'east'|'west', count: number }
+ */
+export function getUnexploredDirection(currentPos) {
+  const home = locations['home']
+  const origin = home || currentPos || { x: 0, z: 0 }
+
+  const counts = { north: 0, south: 0, east: 0, west: 0 }
+
+  for (const [name, loc] of Object.entries(locations)) {
+    if (name === 'home' || loc.type === 'danger') continue
+    const dx = loc.x - origin.x
+    const dz = loc.z - origin.z
+    // Determine dominant direction
+    if (Math.abs(dx) >= Math.abs(dz)) {
+      if (dx >= 0) counts.east++
+      else counts.west++
+    } else {
+      if (dz >= 0) counts.south++
+      else counts.north++
+    }
+  }
+
+  // Find minimum count
+  const minCount = Math.min(counts.north, counts.south, counts.east, counts.west)
+
+  // Collect all directions tied at minimum
+  const tied = Object.entries(counts).filter(([, c]) => c === minCount).map(([d]) => d)
+
+  // Tie-break randomly
+  const direction = tied[Math.floor(Math.random() * tied.length)]
+
+  return { direction, count: minCount }
+}
+
+/**
+ * Returns an exploration summary string for the planner.
+ * Pure read of existing locations data.
+ */
+export function getExplorationStats(currentPos) {
+  const home = locations['home']
+  const nonDangerNonHome = Object.entries(locations).filter(
+    ([name, loc]) => name !== 'home' && loc.type !== 'danger'
+  )
+  const knownCount = nonDangerNonHome.length
+
+  const unexplored = getUnexploredDirection(currentPos)
+
+  let farthestInfo = ''
+  if (home) {
+    let maxDist = 0
+    let farthestName = ''
+    for (const [name, loc] of nonDangerNonHome) {
+      const dx = loc.x - home.x
+      const dz = loc.z - home.z
+      const dist = Math.sqrt(dx * dx + dz * dz)
+      if (dist > maxDist) {
+        maxDist = dist
+        farthestName = name
+      }
+    }
+    if (farthestName) {
+      farthestInfo = ` Farthest from home: ${Math.round(maxDist)} blocks (${farthestName}).`
+    }
+  }
+
+  let result = `Explored: ${knownCount} known locations. Least explored: ${unexplored.direction} (${unexplored.count} locations).${farthestInfo}`
+
+  if (knownCount < 2) {
+    result += " You haven't explored much yet. Consider venturing out in a new direction."
+  }
+
+  return result
+}
+
+/**
+ * Extract coordinates from chat messages like:
+ * "found iron at 200,40,100" or "there's a cave at x=200 y=40 z=100" or "(200, 40, 100)"
+ * Returns { x, y, z } or null.
+ */
+export function parseLocationFromChat(message) {
+  if (!message) return null
+
+  // Pattern 1: "at 200,40,100" or "at 200, 40, 100"
+  let match = message.match(/at\s+(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)/)
+  if (match) return { x: parseInt(match[1], 10), y: parseInt(match[2], 10), z: parseInt(match[3], 10) }
+
+  // Pattern 2: "at x=200 y=40 z=100" or "at x 200 y 40 z 100"
+  match = message.match(/at\s+x\s*=?\s*(-?\d+)\s+y\s*=?\s*(-?\d+)\s+z\s*=?\s*(-?\d+)/i)
+  if (match) return { x: parseInt(match[1], 10), y: parseInt(match[2], 10), z: parseInt(match[3], 10) }
+
+  // Pattern 3: "(200, 40, 100)" parenthesized coordinates
+  match = message.match(/\((-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\)/)
+  if (match) return { x: parseInt(match[1], 10), y: parseInt(match[2], 10), z: parseInt(match[3], 10) }
+
+  return null
+}
