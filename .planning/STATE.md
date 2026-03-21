@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 02-01-PLAN.md
-last_updated: "2026-03-21T05:49:44.763Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-03-21T05:55:00.000Z"
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 12
-  completed_plans: 11
+  completed_plans: 12
 ---
 
 # GSD State: HermesCraft Life Simulation
@@ -37,8 +37,8 @@ See: .planning/PROJECT.md (updated 2026-03-20)
 
 ## Session Context
 
-Last session: 2026-03-21T05:49:00Z
-Stopped At: Completed 02-01-PLAN.md
+Last session: 2026-03-21T05:55:00Z
+Stopped At: Completed 02-02-PLAN.md
 
 - Phase 03 Plan 01 complete: self-review loop with keyword-based outcome checking
 - pendingReview bridge + reviewSubtaskOutcome function in agent/index.js
@@ -74,6 +74,9 @@ Stopped At: Completed 02-01-PLAN.md
 - [Phase 02-01]: Farm cycle completes at 'waiting' phase by nulling _activeFarm -- agent free to do other tasks while crops grow
 - [Phase 02-01]: Sapling replanting is best-effort (silent catch) -- doesn't block agent if placement fails
 - [Phase 02-01]: Farm and harvest added to SUSTAINED_ACTIONS for pipelining support
+- [Phase 02-02]: Used isTouchingWater() over isSubmergedInWater() for bobber detection -- MC 1.21.1 compatibility
+- [Phase 02-02]: Breed is agent-orchestrated (two interact_entity calls with 500ms gap) for partial success reporting
+- [Phase 02-02]: Fish passes directly through executeAction to mod -- no special agent handler needed
 
 ## Roadmap Evolution
 

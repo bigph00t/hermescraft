@@ -32,11 +32,11 @@ Plans:
 
 **Requirements:** FARM-01, FARM-02, FARM-03, FARM-04, FARM-05
 
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 02-01-PLAN.md — Crop farming module, food knowledge, sapling replanting
-- [ ] 02-02-PLAN.md — Animal breeding (mod interact_entity) and fishing (mod fish sustained action)
+- [x] 02-02-PLAN.md — Animal breeding (mod interact_entity) and fishing (mod fish sustained action)
 
 **Deliverables:**
 - Crop farming cycle (till → plant → wait → harvest → replant)
