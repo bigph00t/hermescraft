@@ -57,13 +57,13 @@
 
 ### Agent Personality
 
-- [ ] **PER-01**: Agents build with aesthetic intent — choose locations for views, organize bases
-- [ ] **PER-02**: Agents try new things — fishing, gardening, decorating, exploring
-- [ ] **PER-03**: Agents have emotional responses — pride in builds, frustration when stuck, curiosity about new areas
-- [ ] **PER-04**: Agents specialize based on mcMMO skills — Jeffrey becomes a miner, John a builder (emergent)
-- [ ] **PER-05**: Agents trade with each other via QuickShop based on surplus/need
-- [ ] **PER-06**: Agents remember and reference their history naturally in conversation
-- [ ] **PER-07**: No meta-game language — agents talk about their world as real, never mention baritone/pathfinding/API
+- [x] **PER-01**: Agents build with aesthetic intent — choose locations for views, organize bases
+- [x] **PER-02**: Agents try new things — fishing, gardening, decorating, exploring
+- [x] **PER-03**: Agents have emotional responses — pride in builds, frustration when stuck, curiosity about new areas
+- [x] **PER-04**: Agents specialize based on mcMMO skills — Jeffrey becomes a miner, John a builder (emergent)
+- [x] **PER-05**: Agents trade with each other via QuickShop based on surplus/need
+- [x] **PER-06**: Agents remember and reference their history naturally in conversation
+- [x] **PER-07**: No meta-game language — agents talk about their world as real, never mention baritone/pathfinding/API
 
 ## v2 Requirements
 
