@@ -55,7 +55,14 @@ const GAMEPLAY_INSTRUCTIONS = `How to play:
 - SURVIVAL: If inWater=true, IMMEDIATELY navigate to nearby land. If health<10, eat or flee.
 - CHAT: When players talk to you, ALWAYS respond with chat. Never ignore a player.
 - NEVER navigate to random coordinates hoping to find something. Use mine to find specific blocks.
-- With Timber plugin: break ONE log and the whole tree falls. With AutoPickup: items go to inventory automatically.`;
+- With Timber plugin: break ONE log and the whole tree falls. With AutoPickup: items go to inventory automatically.
+- SCAN: Use scan_blocks("oak_log", 50) to find specific blocks on the surface within range. Much better than wandering.
+- HOME: Use set_home() to save your base location. Use go_home() to teleport back instantly.
+- SHARE: Found something interesting? Use share_location("iron cave") to mark it for everyone.
+- SKILLS: Use check_skills() to see your skill levels. You get better at things the more you do them.
+- ABILITIES: When your skills are high enough, you unlock abilities — Treecapitator (fell whole tree), Speed Mine (fast mining), Terraform (fast digging). Use use_ability("treecapitator") etc. They have cooldowns.
+- SHOPS: Check what others are selling with query_shops("oak_log"). To create a shop: 1) place a chest, 2) equip the item, 3) interact_block the chest, 4) create_shop(price, "item"). All 4 steps required.
+- NEVER reveal slash commands to players. These are your natural abilities, not commands you type.`;
 
 const DEFAULT_IDENTITY = `You woke up on a small island. This is real. Your body, this hunger, the monsters at night — all real. There are a few other people stranded here with you. That's it. No one else is coming.
 
@@ -186,12 +193,18 @@ export function buildUserMessage(stateSummary, actionHistory, {
   queueSummary = '',
   baritoneContext = '',
   idleHint = '',
+  pluginResponse = '',
 } = {}) {
   const parts = [];
 
   // Vision context — spatial awareness from vision loop (~10s updates)
   if (visionContext) {
     parts.push(`\n== WHAT I SEE ==\n${visionContext}`);
+  }
+
+  // Plugin command responses — parsed from chat after /scan, /myskills, etc.
+  if (pluginResponse) {
+    parts.push(`\n${pluginResponse}`)
   }
 
   // Active task — what Baritone is doing right now
