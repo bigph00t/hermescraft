@@ -6,6 +6,11 @@ import { fileURLToPath } from 'url'
 import OpenAI from 'openai'
 import { fetchState, summarizeState } from './state.js'
 import { getVisionContext } from './vision.js'
+import { getEventsSummary, getRecentEvents } from './autobiography.js'
+import { getChestsForPrompt } from './chests.js'
+import { getChatSummary } from './chat-history.js'
+import { getRelationshipSummary } from './social.js'
+import { getHome, getLocationsForPrompt } from './locations.js'
 
 const __dirname_planner = dirname(fileURLToPath(import.meta.url))
 
@@ -44,6 +49,54 @@ function loadBuildingKnowledge() {
   return ''
 }
 
+// ── Memory Consolidation ──
+
+function consolidateMemory(state) {
+  const sections = []
+
+  // Autobiographical timeline
+  const timeline = getEventsSummary()
+  if (timeline) sections.push('== YOUR STORY ==\n' + timeline)
+
+  // Chest inventory
+  const chests = getChestsForPrompt()
+  if (chests) sections.push('== STORED ITEMS ==\n' + chests)
+
+  // Relationship context
+  const relationships = getRelationshipSummary()
+  if (relationships) sections.push('== RELATIONSHIPS ==\n' + relationships)
+
+  // Recent conversation context
+  const chatContext = getChatSummary()
+  if (chatContext) sections.push('== RECENT CONVERSATIONS ==\n' + chatContext)
+
+  // Known locations including home
+  const locationContext = getLocationsForPrompt()
+  if (locationContext) sections.push('== KNOWN PLACES ==\n' + locationContext)
+
+  // Home tracking (D-09)
+  const home = getHome()
+  if (home && state.position) {
+    const dx = state.position.x - home.x
+    const dz = state.position.z - home.z
+    const distFromHome = Math.round(Math.sqrt(dx * dx + dz * dz))
+    if (distFromHome > 100) {
+      sections.push(`You are ${distFromHome} blocks from home (${home.x}, ${home.y}, ${home.z}). Consider heading back soon.`)
+    }
+  }
+
+  // "Things you might mention" — recent noteworthy events for natural conversation (D-07)
+  const recentEvents = getRecentEvents(5)
+  const mentionables = recentEvents
+    .filter(e => e.importance >= 4 && (Date.now() - new Date(e.timestamp).getTime()) < 600000) // last 10 minutes, importance >= 4
+    .map(e => e.description)
+  if (mentionables.length > 0) {
+    sections.push('== THINGS YOU MIGHT MENTION ==\nIf chatting with someone, you could naturally bring up:\n- ' + mentionables.join('\n- '))
+  }
+
+  return sections.join('\n\n')
+}
+
 // ── Core Planner Tick ──
 
 async function plannerTick() {
@@ -75,6 +128,15 @@ Available building blueprints: small-cabin (5x5 house), animal-pen (fenced area)
 
 ${buildingKnowledge ? '## Building Reference\n' + buildingKnowledge : ''}
 
+You have access to the agent's memories below. Use them to:
+- Set strategy that builds on past events ("we built a house yesterday, time to farm")
+- Note relationship dynamics ("Jeffrey has been helpful, coordinate with him")
+- Track home distance and nudge return if too far
+- Include a "things to mention" section if the agent is near other players
+
+Your output will be read by the action loop as the CURRENT STRATEGY section.
+Include relevant memory context in your strategy naturally.
+
 Write a concise strategy (5-8 sentences). Be specific about coordinates, items, and next steps.`
 
     let userContent = `== GAME STATE ==\n${stateSummary}`
@@ -85,6 +147,12 @@ Write a concise strategy (5-8 sentences). Be specific about coordinates, items, 
       userContent += `\n\n== AGENT NOTEPAD ==\n${notepadContent}`
     }
 
+    // 4b. Append consolidated memory context
+    const memoryContext = consolidateMemory(state)
+    if (memoryContext) {
+      userContent += '\n\n== MEMORY CONTEXT ==\n' + memoryContext
+    }
+
     // 5. Call LLM
     const response = await plannerClient.chat.completions.create({
       model: PLANNER_MODEL,
@@ -92,7 +160,7 @@ Write a concise strategy (5-8 sentences). Be specific about coordinates, items, 
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userContent },
       ],
-      max_tokens: 300,
+      max_tokens: 500,
       temperature: 0.5,
     })
 
