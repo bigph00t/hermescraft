@@ -11,6 +11,7 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class HttpServer {
 
@@ -24,6 +25,8 @@ public class HttpServer {
         server.createContext("/state", new StateHandler());
         server.createContext("/action", new ActionHandler());
         server.createContext("/recipes", new RecipeHandler());
+        server.createContext("/chat", new ChatHandler());
+        server.createContext("/screenshot", new ScreenshotHandler());
     }
 
     public void start() {
@@ -119,6 +122,52 @@ public class HttpServer {
                 JsonObject error = new JsonObject();
                 error.addProperty("error", "Action execution failed: " + e.getMessage());
                 sendResponse(exchange, 500, error.toString());
+            }
+        }
+    }
+
+    // GET /chat — recent chat messages
+    static class ChatHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendResponse(exchange, 204, "");
+                return;
+            }
+            String chat = HermesBridgeMod.getRecentChat();
+            exchange.getResponseHeaders().set("Content-Type", "text/plain");
+            exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+            byte[] bytes = chat.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            try (OutputStream os = exchange.getResponseBody()) {
+                os.write(bytes);
+            }
+        }
+    }
+
+    // GET /screenshot — capture framebuffer as PNG
+    static class ScreenshotHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
+                sendResponse(exchange, 204, "");
+                return;
+            }
+            try {
+                byte[] png = HermesBridgeMod.captureScreenshot().get(5, TimeUnit.SECONDS);
+                if (png == null || png.length == 0) {
+                    sendResponse(exchange, 500, "{\"error\":\"Screenshot capture failed\"}");
+                    return;
+                }
+                exchange.getResponseHeaders().set("Content-Type", "image/png");
+                exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+                exchange.sendResponseHeaders(200, png.length);
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(png);
+                }
+            } catch (Exception e) {
+                HermesBridgeMod.LOGGER.error("[HermesBridge] Screenshot endpoint error", e);
+                sendResponse(exchange, 500, "{\"error\":\"Screenshot failed: " + e.getMessage() + "\"}");
             }
         }
     }

@@ -4,13 +4,20 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.gui.screen.TitleScreen;
 import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
 import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
+import net.minecraft.client.texture.NativeImage;
+import net.minecraft.client.util.ScreenshotRecorder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 
 public class HermesBridgeMod implements ClientModInitializer {
@@ -26,6 +33,43 @@ public class HermesBridgeMod implements ClientModInitializer {
     private int tickCounter = 0;
     private boolean autoConnectAttempted = false;
     private boolean wasConnected = false;
+
+    /**
+     * Capture the current framebuffer as a PNG byte array.
+     * Must be called from the render thread via client.execute().
+     * Returns a CompletableFuture that resolves to the PNG bytes (or null on failure).
+     */
+    public static CompletableFuture<byte[]> captureScreenshot() {
+        CompletableFuture<byte[]> future = new CompletableFuture<>();
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.getFramebuffer() == null) {
+            future.complete(null);
+            return future;
+        }
+        // Must execute on render thread for framebuffer access
+        client.execute(() -> {
+            Path tempFile = null;
+            try {
+                Framebuffer fb = client.getFramebuffer();
+                NativeImage image = ScreenshotRecorder.takeScreenshot(fb);
+                // NativeImage.writeTo(Path) writes PNG — use temp file then read bytes
+                tempFile = Files.createTempFile("hermescraft-screenshot-", ".png");
+                image.writeTo(tempFile);
+                image.close();
+                byte[] pngBytes = Files.readAllBytes(tempFile);
+                future.complete(pngBytes);
+            } catch (Exception e) {
+                LOGGER.error("[HermesBridge] Screenshot capture failed", e);
+                future.complete(null);
+            } finally {
+                // Clean up temp file
+                if (tempFile != null) {
+                    try { Files.deleteIfExists(tempFile); } catch (Exception ignored) {}
+                }
+            }
+        });
+        return future;
+    }
 
     /**
      * Add a chat message to the ring buffer.
