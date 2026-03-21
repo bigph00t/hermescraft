@@ -24,8 +24,8 @@
 
 ### Agent Workflows
 
-- [ ] **WRK-01**: Agent can decompose complex instructions into a multi-step plan with tracked subtasks
-- [ ] **WRK-02**: Agent tracks progress against its plan each tick — knows what's done, what's next, what's blocked
+- [x] **WRK-01**: Agent can decompose complex instructions into a multi-step plan with tracked subtasks
+- [x] **WRK-02**: Agent tracks progress against its plan each tick — knows what's done, what's next, what's blocked
 - [ ] **WRK-03**: Agent reviews outcomes of completed subtasks and detects when results don't match expectations
 - [ ] **WRK-04**: Agent iterates on failed or low-quality subtask outcomes — retries with adjusted approach rather than moving on blindly
 - [ ] **WRK-05**: Agent evaluates its own proposed action before executing — catches obviously wrong actions (e.g., crafting without ingredients, navigating to invalid coords)
@@ -68,8 +68,8 @@
 | SKL-02 | Phase 2 | Complete |
 | COM-01 | Phase 1 | Complete |
 | COM-02 | Phase 1 | Complete |
-| WRK-01 | Phase 2 | Pending |
-| WRK-02 | Phase 2 | Pending |
+| WRK-01 | Phase 2 | Complete |
+| WRK-02 | Phase 2 | Complete |
 | WRK-03 | Phase 3 | Pending |
 | WRK-04 | Phase 3 | Pending |
 | WRK-05 | Phase 3 | Pending |
