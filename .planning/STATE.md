@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-21T23:01:51.179Z"
+last_updated: "2026-03-21T23:08:59.662Z"
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 12
-  completed_plans: 10
+  completed_plans: 11
 ---
 
 # Project State
@@ -83,6 +83,8 @@ None currently.
 - [Phase 03]: Ability cooldown 60s conservative default via _abilityCooldowns Map (D-14)
 - [Phase 03-plugin-integration-custom-commands]: myskills.sk uses PlaceholderAPI PAPI approach A for AuraSkills skill levels (03-01)
 - [Phase 03-plugin-integration-custom-commands]: Skript variables namespaced as {locations::%player name%::*} to prevent multi-agent collisions (03-01)
+- [Phase 03]: updatePlannerPluginState() setter pattern — planner runs on own setInterval, module-level setter decouples index.js from planner internals
+- [Phase 03]: GAMEPLAY_INSTRUCTIONS no-slash phrasing uses 'natural abilities' language to avoid embedding /command patterns (D-28)
 
 ## Session Log
 
@@ -95,3 +97,5 @@ None currently.
 - 2026-03-21: Completed 02-03 (State wiring + decision tree). surfaceBlocks in state summary, emergency bypass, Baritone startup config, static imports, queue clear on phase transition.
 - 2026-03-21: Completed 02-04 (Chat ownership + surface-first queue). Planner-only chat via D-16 hard block, surface-first QUEUE prompt, look_at_block in valid types. Phase 02 complete.
 - 2026-03-21: Completed 03-01 (Skript commands + parser modules). /scan /share-location /myskills on server, command-parser.js and servertap.js agent modules created.
+- 2026-03-21: Completed 03-02 (Plugin tools and action handlers). 8 tools in tools.js, 8 handlers in actions.js, ability cooldown system.
+- 2026-03-21: Completed 03-03 (Plugin wiring). GAMEPLAY_INSTRUCTIONS, planner strategy guidance, ServerTap state summary, skill cache + command result persistence, INFO_ACTIONS handlers.
