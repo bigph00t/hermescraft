@@ -8,21 +8,24 @@
 import { readFileSync, writeFileSync, appendFileSync, mkdirSync, existsSync, readdirSync, unlinkSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { getConversationHistory, setConversationHistory } from './llm.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 let DATA_DIR = join(__dirname, 'data');
 let MEMORY_FILE = join(DATA_DIR, 'MEMORY.md');
 let STATS_FILE = join(DATA_DIR, 'stats.json');
 let INSTRUCTIONS_FILE = join(DATA_DIR, 'instructions.txt');
+let HISTORY_FILE = join(DATA_DIR, 'history.json')
 
 let agentConfig = null;
 
 export function initMemory(config) {
-  agentConfig = config;
-  DATA_DIR = config.dataDir;
-  MEMORY_FILE = join(DATA_DIR, 'MEMORY.md');
-  STATS_FILE = join(DATA_DIR, 'stats.json');
-  INSTRUCTIONS_FILE = join(DATA_DIR, 'instructions.txt');
+  agentConfig = config
+  DATA_DIR = config.dataDir
+  MEMORY_FILE = join(DATA_DIR, 'MEMORY.md')
+  STATS_FILE = join(DATA_DIR, 'stats.json')
+  INSTRUCTIONS_FILE = join(DATA_DIR, 'instructions.txt')
+  HISTORY_FILE = join(DATA_DIR, 'history.json')
 }
 
 const HOSTILE_MOBS = [
@@ -76,6 +79,22 @@ export function loadMemory() {
     try {
       stats = JSON.parse(readFileSync(STATS_FILE, 'utf-8'));
     } catch {}
+  }
+
+  // Restore L1 conversation history (best-effort — corrupted files are discarded)
+  if (existsSync(HISTORY_FILE)) {
+    try {
+      const historyData = JSON.parse(readFileSync(HISTORY_FILE, 'utf-8'))
+      if (Array.isArray(historyData) && historyData.length > 0) {
+        // Validate basic structure: each entry must have a role string
+        const valid = historyData.every(msg => msg && typeof msg.role === 'string')
+        if (valid) {
+          setConversationHistory(historyData)
+        }
+      }
+    } catch {
+      // Corrupted history file — start fresh, don't crash
+    }
   }
 
   // New session
@@ -378,12 +397,17 @@ export function readInstructions() {
 // ── Periodic Save ──
 
 export function periodicSave() {
-  const now = Date.now();
-  stats.totalPlayTimeMs = (stats.totalPlayTimeMs || 0) + (now - lastSaveTime);
-  lastSaveTime = now;
-  saveStats();
-  saveMemory();  // Persist lessons/strategies so OOM kills don't lose progress
-  pruneSessionLogs();
+  const now = Date.now()
+  stats.totalPlayTimeMs = (stats.totalPlayTimeMs || 0) + (now - lastSaveTime)
+  lastSaveTime = now
+  saveStats()
+  saveMemory()  // Persist lessons/strategies so OOM kills don't lose progress
+  // Persist L1 conversation history — survives OOM/SIGKILL
+  try {
+    const history = getConversationHistory()
+    writeFileSync(HISTORY_FILE, JSON.stringify(history), 'utf-8')
+  } catch {}
+  pruneSessionLogs()
 }
 
 // Keep only the last 10 session log files to prevent disk exhaustion on multi-day runs
