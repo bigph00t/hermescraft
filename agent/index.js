@@ -37,6 +37,7 @@ import { startVisionLoop, stopVisionLoop, getVisionContext } from './vision.js';
 import { startPlannerLoop, stopPlannerLoop, getPlanContext } from './planner.js';
 import { startBuild, resumeBuild, getBuildProgress, cancelBuild, isBuildActive, unpauseBuild } from './builder.js';
 import { startFarm, resumeFarm, getFarmProgress, cancelFarm, isFarmActive, startHarvest } from './farming.js';
+import { detectBehaviorMode } from './needs.js';
 
 const TICK_INTERVAL = parseInt(process.env.TICK_MS || '2000', 10);
 const MAX_STUCK_COUNT = 2;
@@ -74,6 +75,7 @@ let lastDeathTick = -999; // For death cooldown
 let currentTickPromise = null; // For graceful shutdown
 let lastPosition = null; // For position-based stuck detection
 let samePositionTicks = 0;
+let idleTicks = 0; // Tracks how many ticks with no meaningful action
 
 // Deep memory: track which players we've already recorded a new_player event for
 const knownPlayers = new Set()
@@ -510,6 +512,9 @@ async function tick(precomputedResponse = null) {
     return null;
   }
 
+  // Compute behavior mode for this tick (work/shelter/social/sleep)
+  const behaviorMode = detectBehaviorMode(state)
+
   // Review pending subtask outcome (one-tick delay after marking done with expected_outcome)
   // reviewSubtaskOutcome compares game state keywords against expected_outcome
   let reviewResult = reviewSubtaskOutcome(state);
@@ -567,6 +572,7 @@ async function tick(precomputedResponse = null) {
         setNavigating(false);
         clearAllFailures();
         samePositionTicks = 0;
+        idleTicks = 0;
       }
     } else {
       samePositionTicks = 0;
@@ -608,6 +614,7 @@ async function tick(precomputedResponse = null) {
     // Clear conversation — fresh start after death
     clearConversation();
     clearAllFailures();
+    idleTicks = 0;
 
     // Write session log
     writeSessionEntry({
@@ -652,6 +659,7 @@ async function tick(precomputedResponse = null) {
     currentPhase = transition.to;
     clearAllFailures();
     clearConversation();  // Fresh context for new phase
+    idleTicks = 0;
   }
 
   const { progress } = getPhaseProgress(state);
@@ -772,6 +780,7 @@ async function tick(precomputedResponse = null) {
     try { await executeAction({ type: 'stop' }); } catch {}
     clearConversation();
     setNavigating(false);
+    idleTicks = 0;
   }
 
   // Auto-detect and track locations + players
@@ -827,6 +836,7 @@ async function tick(precomputedResponse = null) {
     pinnedContext,
     buildingKnowledge,
     planContext: getPlanContext(),
+    behaviorMode,
   });
 
   const stateSummary = summarizeState(state);
@@ -841,6 +851,15 @@ async function tick(precomputedResponse = null) {
   const taskProgress = loadTaskState()
   const farmProgress = getFarmProgress()
   const combinedProgress = [getBuildProgress(), farmProgress].filter(Boolean).join('\n')
+
+  // Build idle hint based on idle tick count and behavior mode
+  let idleHint = ''
+  if (idleTicks >= 5 && behaviorMode === 'work') {
+    idleHint = "You've been idle for a while. Do something human: look around at the scenery (look_at_block on a distant interesting block), wander near home, check your chests, or organize inventory. Don't just stand there."
+  } else if (idleTicks >= 3 && behaviorMode === 'social') {
+    idleHint = "You're in social mode but haven't been chatting. If there are players nearby, say something — talk about your day, ask what they've been up to, share a story."
+  }
+
   const userMessage = buildUserMessage(stateSummary, actionHistory, {
     stuckInfo,
     userInstruction: effectiveInstruction,
@@ -850,6 +869,7 @@ async function tick(precomputedResponse = null) {
     reviewResult,
     visionContext: getVisionContext(),
     buildProgress: combinedProgress,
+    idleHint,
   });
 
   const temperature = getTemperature(currentPhase, state);
@@ -1178,6 +1198,15 @@ async function tick(precomputedResponse = null) {
     success,
     mode: response.mode,
   });
+
+  // Idle detection — if the last action was info-only or failed, increment idle counter
+  const meaningfulActions = new Set(['mine', 'navigate', 'craft', 'place', 'build', 'farm', 'harvest', 'equip', 'break_block', 'fish', 'breed', 'interact_entity', 'interact_block'])
+  const lastActionType = actionHistory.length > 0 ? actionHistory[actionHistory.length - 1]?.type : null
+  if (lastActionType && meaningfulActions.has(lastActionType) && actionHistory[actionHistory.length - 1]?.success) {
+    idleTicks = 0
+  } else {
+    idleTicks++
+  }
 
   // Pipeline: if we just started a sustained action, pre-think the next move
   if (success && SUSTAINED_ACTIONS.has(actionType)) {
