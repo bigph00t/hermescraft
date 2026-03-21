@@ -164,11 +164,11 @@ export const GAME_TOOLS = [
     type: 'function',
     function: {
       name: 'smelt',
-      description: 'Smelt item in nearby furnace.',
+      description: 'Smelt item in nearby furnace. Works for ores (raw_iron) and cooking (raw_beef, raw_chicken, raw_porkchop, potato).',
       parameters: {
         type: 'object',
         properties: {
-          item: { type: 'string', description: 'e.g. "raw_iron", "beef"' },
+          item: { type: 'string', description: 'e.g. "raw_iron", "raw_beef", "raw_chicken"' },
         },
         required: ['item'],
       },
@@ -256,6 +256,39 @@ export const GAME_TOOLS = [
       name: 'cancel_build',
       description: 'Cancel the current building project.',
       parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'farm',
+      description: 'Start automated crop farming at coordinates. Tills soil and plants seeds. Build crop-farm blueprint first.',
+      parameters: {
+        type: 'object',
+        properties: {
+          x: { type: 'integer', description: 'Farm origin X (front-left corner)' },
+          y: { type: 'integer', description: 'Farm origin Y (ground level)' },
+          z: { type: 'integer', description: 'Farm origin Z (front-left corner)' },
+          crop: { type: 'string', description: 'Crop type: "wheat_seeds", "beetroot_seeds", "carrot", "potato". Default: wheat_seeds' },
+        },
+        required: ['x', 'y', 'z'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'harvest',
+      description: 'Harvest mature crops at farm coordinates. Use after crops have grown.',
+      parameters: {
+        type: 'object',
+        properties: {
+          x: { type: 'integer', description: 'Farm origin X' },
+          y: { type: 'integer', description: 'Farm origin Y' },
+          z: { type: 'integer', description: 'Farm origin Z' },
+        },
+        required: ['x', 'y', 'z'],
+      },
     },
   },
   {

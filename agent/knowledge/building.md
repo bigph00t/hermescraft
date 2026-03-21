@@ -36,3 +36,5 @@ You have a `build` tool that constructs structures from blueprints. Available bl
 - Add a door if the blueprint didn't include one
 - Store items in a chest inside your home
 - Remember where you built -- this is your base
+
+For farming and food cooking, see the Food Knowledge section.

@@ -33,6 +33,7 @@ import { initLocations, autoDetectLocations, getLocationsForPrompt, saveLocation
 import { startVisionLoop, stopVisionLoop, getVisionContext } from './vision.js';
 import { startPlannerLoop, stopPlannerLoop, getPlanContext } from './planner.js';
 import { startBuild, resumeBuild, getBuildProgress, cancelBuild, isBuildActive, unpauseBuild } from './builder.js';
+import { startFarm, resumeFarm, getFarmProgress, cancelFarm, isFarmActive, startHarvest } from './farming.js';
 
 const TICK_INTERVAL = parseInt(process.env.TICK_MS || '2000', 10);
 const MAX_STUCK_COUNT = 2;
@@ -44,7 +45,7 @@ const FAILURE_TRACKER_MAX = 50; // Max entries before pruning
 let lastProcessedMessages = new Set()
 
 // Sustained actions that take multiple seconds — pipeline thinking during these
-const SUSTAINED_ACTIONS = new Set(['mine', 'navigate', 'break_block', 'build']);
+const SUSTAINED_ACTIONS = new Set(['mine', 'navigate', 'break_block', 'build', 'farm', 'harvest']);
 
 // ── Global crash handlers — CRITICAL for 24/7 operation ──
 process.on('unhandledRejection', (err) => {
@@ -185,6 +186,14 @@ const __dirname_idx = dirname(fileURLToPath(import.meta.url));
 
 function loadBuildingKnowledge() {
   const knowledgePath = join(__dirname_idx, 'knowledge', 'building.md')
+  try {
+    if (existsSync(knowledgePath)) return readFileSync(knowledgePath, 'utf-8')
+  } catch {}
+  return ''
+}
+
+function loadFoodKnowledge() {
+  const knowledgePath = join(__dirname_idx, 'knowledge', 'food.md')
   try {
     if (existsSync(knowledgePath)) return readFileSync(knowledgePath, 'utf-8')
   } catch {}
@@ -514,6 +523,18 @@ async function tick(precomputedResponse = null) {
     }
   }
 
+  // Resume active farm — tills/plants/harvests each tick while farming
+  if (isFarmActive()) {
+    const farmResult = await resumeFarm(state.inventory || [])
+    if (farmResult.complete) {
+      logInfo(`[farming] Farm cycle complete! ${farmResult.harvested || farmResult.planted || 0} blocks processed.`)
+    } else if (farmResult.paused) {
+      logInfo(`[farming] Farm paused — need: ${farmResult.missingItems?.join(', ')}`)
+    } else if (farmResult.active) {
+      logInfo(`[farming] ${getFarmProgress()}`)
+    }
+  }
+
   // Position-based stuck detection — only when last action was a movement action
   const pos = state.position;
   const lastAct = actionHistory.length > 0 ? actionHistory[actionHistory.length - 1] : null;
@@ -776,6 +797,8 @@ async function tick(precomputedResponse = null) {
       : chatPrefix;
   }
   const taskProgress = loadTaskState()
+  const farmProgress = getFarmProgress()
+  const combinedProgress = [getBuildProgress(), farmProgress].filter(Boolean).join('\n')
   const userMessage = buildUserMessage(stateSummary, actionHistory, {
     stuckInfo,
     userInstruction: effectiveInstruction,
@@ -784,7 +807,7 @@ async function tick(precomputedResponse = null) {
     taskProgress,
     reviewResult,
     visionContext: getVisionContext(),
-    buildProgress: getBuildProgress(),
+    buildProgress: combinedProgress,
   });
 
   const temperature = getTemperature(currentPhase, state);
@@ -935,6 +958,41 @@ async function tick(precomputedResponse = null) {
     return null
   }
 
+  // Handle farm actions — managed by farming.js, not the mod API
+  if (actionType === 'farm') {
+    let farmResult
+    if (isFarmActive()) {
+      farmResult = { success: false, error: 'Already farming. Cancel first.' }
+    } else {
+      farmResult = startFarm(response.action.x, response.action.y, response.action.z, response.action.crop)
+    }
+    logInfo(`[farm] ${farmResult.message || farmResult.error}`)
+    if (response.mode === 'tool_call') {
+      completeToolCall(JSON.stringify(farmResult).slice(0, 300))
+    }
+    actionHistory.push({
+      type: 'farm',
+      success: farmResult.success !== false,
+      info: farmResult.message || farmResult.error,
+      timestamp: Date.now(),
+    })
+    return null
+  }
+  if (actionType === 'harvest') {
+    const harvestResult = startHarvest(response.action.x, response.action.y, response.action.z)
+    logInfo(`[harvest] ${harvestResult.message || harvestResult.error}`)
+    if (response.mode === 'tool_call') {
+      completeToolCall(JSON.stringify(harvestResult).slice(0, 300))
+    }
+    actionHistory.push({
+      type: 'harvest',
+      success: harvestResult.success !== false,
+      info: harvestResult.message || harvestResult.error,
+      timestamp: Date.now(),
+    })
+    return null
+  }
+
   let result;
   try {
     result = await executeAction(response.action);
@@ -978,6 +1036,32 @@ async function tick(precomputedResponse = null) {
     try { await executeAction({ type: 'close_screen' }); } catch {}
   }
 
+  // FARM-05: Auto-replant saplings after mining logs
+  if (actionType === 'mine' && success) {
+    const blockName = response.action.blockName || ''
+    const logTypes = ['oak_log', 'birch_log', 'spruce_log', 'jungle_log', 'acacia_log', 'dark_oak_log', 'cherry_log', 'mangrove_log']
+    if (logTypes.some(log => blockName.includes(log.replace('_log', '')))) {
+      const saplingMap = {
+        'oak': 'oak_sapling', 'birch': 'birch_sapling', 'spruce': 'spruce_sapling',
+        'jungle': 'jungle_sapling', 'acacia': 'acacia_sapling', 'dark_oak': 'dark_oak_sapling',
+        'cherry': 'cherry_sapling', 'mangrove': 'mangrove_propagule',
+      }
+      const woodType = Object.keys(saplingMap).find(t => blockName.includes(t))
+      if (woodType) {
+        const sapling = saplingMap[woodType]
+        const hasSapling = (state.inventory || []).some(i =>
+          ((i.item || i.name || '').replace('minecraft:', '')).includes(sapling)
+        )
+        if (hasSapling) {
+          try {
+            await executeAction({ type: 'place', item: sapling })
+            logInfo(`Auto-replanted ${sapling}`)
+          } catch {}
+        }
+      }
+    }
+  }
+
   // Keep history bounded
   if (actionHistory.length > 50) {
     actionHistory.splice(0, actionHistory.length - 50);
@@ -1007,6 +1091,7 @@ async function tick(precomputedResponse = null) {
       logInfo('⚡ Pipelining: pre-thinking next action while current runs...');
       const nextState = await fetchState();
       const nextStateSummary = summarizeState(nextState);
+      const nextCombinedProgress = [getBuildProgress(), getFarmProgress()].filter(Boolean).join('\n')
       const nextUserMessage = buildUserMessage(nextStateSummary, actionHistory, {
         stuckInfo: null,
         userInstruction: `Current action "${actionType}" is running in background. Plan your NEXT action.`,
@@ -1015,7 +1100,7 @@ async function tick(precomputedResponse = null) {
         taskProgress: loadTaskState(),
         reviewResult: null,
         visionContext: getVisionContext(),
-        buildProgress: getBuildProgress(),
+        buildProgress: nextCombinedProgress,
       });
       const nextResponse = await queryLLM(systemPrompt, nextUserMessage, { temperature });
       return nextResponse;  // Return pre-computed action for next tick
@@ -1081,9 +1166,14 @@ async function main() {
     startPlannerLoop(agentConfig)
     logInfo('Planner loop started')
   }
-  const buildingKnowledge = loadBuildingKnowledge()
-  if (buildingKnowledge) {
-    logInfo(`Building knowledge loaded (${buildingKnowledge.length} chars)`)
+  const rawBuildingKnowledge = loadBuildingKnowledge()
+  const foodKnowledge = loadFoodKnowledge()
+  const buildingKnowledge = [rawBuildingKnowledge, foodKnowledge].filter(Boolean).join('\n\n')
+  if (rawBuildingKnowledge) {
+    logInfo(`Building knowledge loaded (${rawBuildingKnowledge.length} chars)`)
+  }
+  if (foodKnowledge) {
+    logInfo(`Food knowledge loaded (${foodKnowledge.length} chars)`)
   }
 
   logInfo('Starting observe-think-act loop...\n');
