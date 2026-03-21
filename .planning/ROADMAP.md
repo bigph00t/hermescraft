@@ -13,7 +13,7 @@ Three phases build on each other: first make the agent reliable (fix the bugs th
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Reliability** - Fix memory, skill, chat, and reconnect bugs — the agent stops silently losing context
-- [ ] **Phase 2: Planning Capability** - Agent can write its own context, decompose tasks, and track progress against a plan
+- [x] **Phase 2: Planning Capability** - Agent can write its own context, decompose tasks, and track progress against a plan (completed 2026-03-21)
 - [ ] **Phase 3: Self-Review Loop** - Agent evaluates outcomes, detects failures, and iterates rather than moving on blindly
 
 ## Phase Details
@@ -48,7 +48,7 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md — Agent-writable pinned context tool (save_context/delete_context) and multi-signal automatic skill selection (MEM-04, SKL-02)
-- [ ] 02-02-PLAN.md — Task decomposition tools (plan_task/update_task) and per-tick progress tracking in user message (WRK-01, WRK-02)
+- [x] 02-02-PLAN.md — Task decomposition tools (plan_task/update_task) and per-tick progress tracking in user message (WRK-01, WRK-02)
 
 ### Phase 3: Self-Review Loop
 **Goal**: The agent evaluates its own actions and subtask outcomes, catching failures and iterating instead of proceeding blindly
@@ -72,5 +72,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Reliability | 2/2 | Complete |  |
-| 2. Planning Capability | 0/2 | Not started | - |
+| 2. Planning Capability | 2/2 | Complete   | 2026-03-21 |
 | 3. Self-Review Loop | 0/2 | Not started | - |

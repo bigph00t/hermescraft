@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 02-planning-capability-01-PLAN.md
-last_updated: "2026-03-21T04:41:44.549Z"
+stopped_at: Completed 02-planning-capability-02-PLAN.md
+last_updated: "2026-03-21T04:45:43.991Z"
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
@@ -49,6 +49,7 @@ Plan: 2 of 2
 | Phase 01-reliability P01 | 2 | 2 tasks | 3 files |
 | Phase 01-reliability P02 | 8min | 2 tasks | 3 files |
 | Phase 02-planning-capability P01 | 3min | 2 tasks | 4 files |
+| Phase 02-planning-capability P02 | 2min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -69,6 +70,9 @@ Recent decisions affecting current work:
 - [Phase 01-reliability]: wasConnected flag in mod tick handler detects disconnect edge and resets autoConnectAttempted for kick recovery
 - [Phase 02-planning-capability]: save_context and delete_context are INFO_ACTIONS — return data to LLM, no game-world side effects
 - [Phase 02-planning-capability]: getActiveSkill accepts optional { mode, goalText, gameState } — backwards compatible, scores skills by phase match=100, goal keyword overlap=30, health/night boosts, success_rate tiebreaker
+- [Phase 02-planning-capability]: plan_task and update_task are INFO_ACTIONS — return data to LLM, no game-world side effects
+- [Phase 02-planning-capability]: Auto-advance: marking subtask done auto-sets next pending to in-progress for clear current target
+- [Phase 02-planning-capability]: taskProgress injected in both tick and pipeline buildUserMessage call sites so every LLM call sees current plan status
 
 ### Pending Todos
 
@@ -81,6 +85,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-21T04:41:44.547Z
-Stopped at: Completed 02-planning-capability-01-PLAN.md
+Last session: 2026-03-21T04:45:43.989Z
+Stopped at: Completed 02-planning-capability-02-PLAN.md
 Resume file: None
