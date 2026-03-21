@@ -32,14 +32,7 @@ import { initSocial, trackPlayer, getPlayersForPrompt, savePlayers } from './soc
 import { initLocations, autoDetectLocations, getLocationsForPrompt, saveLocations } from './locations.js';
 import { startVisionLoop, stopVisionLoop, getVisionContext } from './vision.js';
 import { startPlannerLoop, stopPlannerLoop, getPlanContext } from './planner.js';
-
-// getBuildProgress — optional import from builder.js (created in Plan 03)
-// Returns empty string if builder module doesn't exist yet
-let getBuildProgress = () => ''
-try {
-  const builder = await import('./builder.js')
-  if (builder.getBuildProgress) getBuildProgress = builder.getBuildProgress
-} catch {}
+import { startBuild, resumeBuild, getBuildProgress, cancelBuild, isBuildActive, unpauseBuild } from './builder.js';
 
 const TICK_INTERVAL = parseInt(process.env.TICK_MS || '2000', 10);
 const MAX_STUCK_COUNT = 2;
@@ -51,7 +44,7 @@ const FAILURE_TRACKER_MAX = 50; // Max entries before pruning
 let lastProcessedMessages = new Set()
 
 // Sustained actions that take multiple seconds — pipeline thinking during these
-const SUSTAINED_ACTIONS = new Set(['mine', 'navigate', 'break_block']);
+const SUSTAINED_ACTIONS = new Set(['mine', 'navigate', 'break_block', 'build']);
 
 // ── Global crash handlers — CRITICAL for 24/7 operation ──
 process.on('unhandledRejection', (err) => {
@@ -507,6 +500,20 @@ async function tick(precomputedResponse = null) {
     logInfo(`[reviewSubtaskOutcome] Subtask ${reviewResult.subtaskIndex}: ${reviewResult.passed ? 'PASSED' : `FAILED — ${reviewResult.actual}`}`)
   }
 
+  // Resume active build — places blocks each tick while build is in progress
+  if (isBuildActive()) {
+    const buildResult = await resumeBuild(state.inventory || [])
+    if (buildResult.complete) {
+      logInfo(`[builder] Build complete! ${buildResult.placed} blocks placed.`)
+    } else if (buildResult.paused) {
+      logInfo(`[builder] Build paused — need: ${buildResult.missingMaterials?.join(', ')}`)
+    } else if (buildResult.tooFar) {
+      logInfo(`[builder] Too far from build site — agent needs to navigate closer`)
+    } else if (buildResult.active) {
+      logInfo(`[builder] Building... ${buildResult.placed}/${buildResult.total} (${buildResult.percent}%)`)
+    }
+  }
+
   // Position-based stuck detection — only when last action was a movement action
   const pos = state.position;
   const lastAct = actionHistory.length > 0 ? actionHistory[actionHistory.length - 1] : null;
@@ -896,6 +903,36 @@ async function tick(precomputedResponse = null) {
   // Truncate chat messages to prevent MC client crash
   if (actionType === 'chat' && response.action.message && response.action.message.length > 180) {
     response.action.message = response.action.message.substring(0, 180);
+  }
+
+  // Handle build actions — managed by builder.js, not the mod API
+  if (actionType === 'build') {
+    const buildResult = startBuild(response.action.blueprint, response.action.x, response.action.y, response.action.z, state.inventory || [])
+    logInfo(`[build] ${buildResult.message || buildResult.error}`)
+    if (response.mode === 'tool_call') {
+      completeToolCall(JSON.stringify(buildResult).slice(0, 300))
+    }
+    actionHistory.push({
+      type: 'build',
+      success: buildResult.success !== false,
+      info: buildResult.message || buildResult.error,
+      timestamp: Date.now(),
+    })
+    return null
+  }
+  if (actionType === 'cancel_build') {
+    const cancelResult = cancelBuild()
+    logInfo(`[cancel_build] ${cancelResult.message}`)
+    if (response.mode === 'tool_call') {
+      completeToolCall(JSON.stringify(cancelResult).slice(0, 300))
+    }
+    actionHistory.push({
+      type: 'cancel_build',
+      success: cancelResult.success !== false,
+      info: cancelResult.message,
+      timestamp: Date.now(),
+    })
+    return null
   }
 
   let result;

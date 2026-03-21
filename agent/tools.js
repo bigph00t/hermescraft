@@ -236,6 +236,31 @@ export const GAME_TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'build',
+      description: 'Build a structure from blueprints. Available: small-cabin, animal-pen, crop-farm. Specify where to place the origin corner.',
+      parameters: {
+        type: 'object',
+        properties: {
+          blueprint: { type: 'string', description: 'Blueprint name: "small-cabin", "animal-pen", "crop-farm"' },
+          x: { type: 'integer', description: 'Origin X coordinate (front-left corner)' },
+          y: { type: 'integer', description: 'Origin Y coordinate (ground level)' },
+          z: { type: 'integer', description: 'Origin Z coordinate (front-left corner)' },
+        },
+        required: ['blueprint', 'x', 'y', 'z'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'cancel_build',
+      description: 'Cancel the current building project.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'read_chat',
       description: 'Read recent chat messages.',
       parameters: { type: 'object', properties: {} },

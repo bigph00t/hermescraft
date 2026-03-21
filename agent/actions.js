@@ -6,6 +6,7 @@ const VALID_ACTIONS = new Set([
   'navigate', 'mine', 'look_at_block', 'interact_block', 'pickup_items',
   'craft', 'smelt', 'attack', 'eat', 'place', 'equip', 'chat',
   'stop', 'break_block', 'close_screen',
+  'build', 'cancel_build',
   // Keep these for backward compat but they're not in the tool list:
   'look', 'use_item', 'drop', 'swap_hands', 'jump', 'sneak', 'sprint', 'walk',
   'recipes', 'wiki', 'notepad', 'read_chat',
@@ -44,6 +45,8 @@ const ACTION_SCHEMAS = {
   sprint:       () => true,
   wait:         () => true,
   close_screen: () => true,
+  build:        (a) => typeof a.blueprint === 'string' && a.x !== undefined && a.y !== undefined && a.z !== undefined,
+  cancel_build: () => true,
   break_block:  () => true,
   walk:         () => true,
   read_chat:    () => true,
