@@ -31,6 +31,19 @@ public class StateReader {
 
     private static volatile String cachedState = "{}";
 
+    // Surface-visible blocks to scan for (sky-visible resources)
+    private static final Set<String> SURFACE_BLOCKS = Set.of(
+            "minecraft:oak_log", "minecraft:birch_log", "minecraft:spruce_log",
+            "minecraft:jungle_log", "minecraft:acacia_log", "minecraft:dark_oak_log",
+            "minecraft:cherry_log", "minecraft:mangrove_log",
+            "minecraft:sugar_cane", "minecraft:pumpkin", "minecraft:melon",
+            "minecraft:wheat", "minecraft:carrots", "minecraft:potatoes",
+            "minecraft:beetroots", "minecraft:sweet_berry_bush",
+            "minecraft:iron_ore", "minecraft:coal_ore", "minecraft:copper_ore",
+            "minecraft:gold_ore", "minecraft:diamond_ore",
+            "minecraft:crafting_table", "minecraft:furnace"
+    );
+
     // Notable blocks to report when nearby
     private static final Set<String> NOTABLE_BLOCKS = Set.of(
             "minecraft:diamond_ore", "minecraft:deepslate_diamond_ore",
@@ -192,6 +205,9 @@ public class StateReader {
         // Nearby notable blocks
         state.add("nearbyBlocks", buildNearbyBlocks(player, world));
 
+        // Surface-visible blocks (sky-visible resources within 24 blocks)
+        state.add("surfaceBlocks", buildSurfaceBlocks(player, world));
+
         // Active effects
         state.add("effects", buildEffects(player));
 
@@ -209,6 +225,13 @@ public class StateReader {
                 state.addProperty("lookingAtDist", Math.round(Math.sqrt(player.getBlockPos().getSquaredDistance(hitPos)) * 10.0) / 10.0);
             }
         }
+
+        // Recent chat messages
+        JsonArray chatArr = new JsonArray();
+        for (String msg : HermesBridgeMod.getChatList()) {
+            chatArr.add(msg);
+        }
+        state.add("chat", chatArr);
 
         // Open screen (crafting table, furnace, chest, etc.)
         ScreenHandler handler = player.currentScreenHandler;
@@ -356,9 +379,11 @@ public class StateReader {
     }
 
     private static JsonArray buildNearbyBlocks(ClientPlayerEntity player, World world) {
-        JsonArray arr = new JsonArray();
         BlockPos center = player.getBlockPos();
-        int radius = 8;
+        int radius = 16;
+
+        // Collect all notable blocks, then sort by distance and cap at 25
+        java.util.List<JsonObject> found = new java.util.ArrayList<>();
 
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dy = -radius; dy <= radius; dy++) {
@@ -374,11 +399,59 @@ public class StateReader {
                         obj.addProperty("x", pos.getX());
                         obj.addProperty("y", pos.getY());
                         obj.addProperty("z", pos.getZ());
-                        obj.addProperty("distance", Math.sqrt(dx * dx + dy * dy + dz * dz));
-                        arr.add(obj);
+                        double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                        obj.addProperty("distance", Math.round(dist * 10.0) / 10.0);
+                        found.add(obj);
                     }
                 }
             }
+        }
+
+        // Sort by distance, closest first
+        found.sort((a, b) -> Double.compare(a.get("distance").getAsDouble(), b.get("distance").getAsDouble()));
+
+        // Cap at 25 to avoid huge JSON payloads
+        JsonArray arr = new JsonArray();
+        for (int i = 0; i < Math.min(found.size(), 25); i++) {
+            arr.add(found.get(i));
+        }
+        return arr;
+    }
+
+    private static JsonArray buildSurfaceBlocks(ClientPlayerEntity player, World world) {
+        BlockPos center = player.getBlockPos();
+        int hRadius = 24;
+        int yBelow = 5;
+        int yAbove = 10;
+        java.util.List<JsonObject> found = new java.util.ArrayList<>();
+
+        for (int dx = -hRadius; dx <= hRadius; dx++) {
+            for (int dz = -hRadius; dz <= hRadius; dz++) {
+                for (int dy = -yBelow; dy <= yAbove; dy++) {
+                    BlockPos pos = center.add(dx, dy, dz);
+                    BlockState blockState = world.getBlockState(pos);
+                    String blockId = Registries.BLOCK.getId(blockState.getBlock()).toString();
+
+                    if (SURFACE_BLOCKS.contains(blockId) && world.isSkyVisible(pos.up())) {
+                        JsonObject obj = new JsonObject();
+                        obj.addProperty("block", blockId);
+                        obj.addProperty("x", pos.getX());
+                        obj.addProperty("y", pos.getY());
+                        obj.addProperty("z", pos.getZ());
+                        double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                        obj.addProperty("distance", Math.round(dist * 10.0) / 10.0);
+                        found.add(obj);
+                    }
+                }
+            }
+        }
+
+        found.sort((a, b) -> Double.compare(
+                a.get("distance").getAsDouble(), b.get("distance").getAsDouble()));
+
+        JsonArray arr = new JsonArray();
+        for (int i = 0; i < Math.min(found.size(), 20); i++) {
+            arr.add(found.get(i));
         }
         return arr;
     }

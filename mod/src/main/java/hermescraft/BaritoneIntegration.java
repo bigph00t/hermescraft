@@ -70,4 +70,18 @@ public class BaritoneIntegration {
         ensureChecked();
         return baritoneAvailable;
     }
+
+    /**
+     * Configure Baritone settings for surface-only mining behavior.
+     * Uses chat commands (#settingName value) which Baritone intercepts.
+     */
+    public static void configureSettings() {
+        ensureChecked();
+        if (!baritoneAvailable) return;
+        // Surface mining: don't dig below Y=55 when mining surface resources
+        sendBaritoneCommand("#minYLevelWhileMining 55");
+        // Legit mine: only mine blocks the player can see (no x-ray)
+        sendBaritoneCommand("#legitMine true");
+        HermesBridgeMod.LOGGER.info("[HermesBridge] Baritone settings configured: minYLevelWhileMining=55, legitMine=true");
+    }
 }
