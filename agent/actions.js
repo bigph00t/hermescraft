@@ -12,11 +12,14 @@ const VALID_ACTIONS = new Set([
   'recipes', 'wiki', 'notepad', 'read_chat',
   'save_context', 'delete_context',
   'plan_task', 'update_task',
+  'scan_blocks', 'go_home', 'set_home', 'share_location',
+  'check_skills', 'use_ability', 'query_shops', 'create_shop',
   // 'wait' deliberately removed — force real actions
 ]);
 
 // Info actions return data to the LLM — they don't execute in the game world
-export const INFO_ACTIONS = new Set(['recipes', 'wiki', 'notepad', 'read_chat', 'save_context', 'delete_context', 'plan_task', 'update_task']);
+// scan_blocks and check_skills are INFO_ACTIONS: results arrive via chat and the LLM must see them before deciding next action
+export const INFO_ACTIONS = new Set(['recipes', 'wiki', 'notepad', 'read_chat', 'save_context', 'delete_context', 'plan_task', 'update_task', 'scan_blocks', 'check_skills']);
 
 // Schema validators per action type
 const ACTION_SCHEMAS = {
@@ -59,7 +62,28 @@ const ACTION_SCHEMAS = {
   delete_context: (a) => typeof a.filename === 'string',
   plan_task:    (a) => typeof a.goal === 'string' && Array.isArray(a.subtasks) && a.subtasks.length > 0,
   update_task:  (a) => typeof a.index === 'number' && typeof a.status === 'string',
+  scan_blocks:    (a) => typeof (a.block_type || a.blockType) === 'string',
+  go_home:        () => true,
+  set_home:       () => true,
+  share_location: (a) => typeof a.name === 'string',
+  check_skills:   () => true,
+  use_ability:    (a) => typeof a.ability_name === 'string',
+  query_shops:    (a) => typeof a.item === 'string',
+  create_shop:    (a) => typeof a.price === 'number' && typeof a.item === 'string',
 };
+
+// ── Ability Cooldown Tracking (D-14) ──
+// Records last activation timestamp per ability. Conservative 60s default.
+// AuraSkills actual cooldowns vary by ability and level, but 60s is safe.
+const _abilityCooldowns = new Map()
+const ABILITY_COOLDOWN_MS = 60000
+
+export function isAbilityOnCooldown(abilityName) {
+  const lastUsed = _abilityCooldowns.get(abilityName)
+  if (!lastUsed) return false
+  const remaining = ABILITY_COOLDOWN_MS - (Date.now() - lastUsed)
+  return remaining > 0 ? remaining : false
+}
 
 const actionQueue = [];
 
@@ -224,6 +248,44 @@ export function validatePreExecution(action, state) {
   return { valid: true };
 }
 
+// ── Chat Message Splitting ──
+
+function splitMessage(msg, maxLen) {
+  const chunks = []
+  let remaining = msg
+  while (remaining.length > maxLen) {
+    // Try to split at sentence boundary first
+    let splitIdx = -1
+    for (const delim of ['. ', '! ', '? ', ', ', ' — ', ' - ', ' ']) {
+      const idx = remaining.lastIndexOf(delim, maxLen)
+      if (idx > maxLen * 0.4) {
+        splitIdx = idx + delim.length
+        break
+      }
+    }
+    if (splitIdx === -1) splitIdx = remaining.lastIndexOf(' ', maxLen)
+    if (splitIdx === -1 || splitIdx < maxLen * 0.4) splitIdx = maxLen
+    chunks.push(remaining.slice(0, splitIdx).trim())
+    remaining = remaining.slice(splitIdx).trim()
+  }
+  if (remaining) chunks.push(remaining)
+  return chunks
+}
+
+async function sendSingleAction(payload) {
+  const res = await fetch(`${MOD_URL}/action`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(10000),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    return { success: false, error: `HTTP ${res.status}: ${text}` }
+  }
+  return await res.json().catch(() => ({ success: true }))
+}
+
 export async function executeAction(action) {
   const type = action.type || action.action;
 
@@ -231,20 +293,82 @@ export async function executeAction(action) {
   const payload = { ...action, type };
   delete payload.action;
 
-  const res = await fetch(`${MOD_URL}/action`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(10000),
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    return { success: false, error: `HTTP ${res.status}: ${text}` };
+  // Auto-split chat messages that exceed MC's limit into natural chunks
+  if (type === 'chat' && payload.message && payload.message.length > 200) {
+    const chunks = splitMessage(payload.message, 200)
+    let lastResult = { success: true }
+    for (const chunk of chunks) {
+      lastResult = await sendSingleAction({ type: 'chat', message: chunk, reason: payload.reason })
+      if (chunks.length > 1) await new Promise(r => setTimeout(r, 600))
+    }
+    return lastResult
   }
 
-  const result = await res.json().catch(() => ({ success: true }));
-  return result;
+  // ── Plugin Command Handlers ──
+
+  if (type === 'scan_blocks') {
+    const blockType = action.block_type || action.blockType || 'oak_log'
+    const radius = Math.min(Math.max(parseInt(action.radius) || 50, 1), 100)
+    return sendSingleAction({ type: 'chat', message: `/scan ${blockType} ${radius}` })
+  }
+
+  if (type === 'go_home') {
+    const homeName = action.name || 'home'
+    return sendSingleAction({ type: 'chat', message: `/home ${homeName}` })
+  }
+
+  if (type === 'set_home') {
+    const homeName = action.name || 'home'
+    return sendSingleAction({ type: 'chat', message: `/sethome ${homeName}` })
+  }
+
+  if (type === 'share_location') {
+    const locName = (action.name || 'here').replace(/\s+/g, '-')
+    return sendSingleAction({ type: 'chat', message: `/share-location ${locName}` })
+  }
+
+  if (type === 'check_skills') {
+    return sendSingleAction({ type: 'chat', message: '/myskills' })
+  }
+
+  if (type === 'use_ability') {
+    const ability = (action.ability_name || '').toLowerCase()
+    const toolMap = {
+      'treecapitator': 'axe',
+      'speed_mine': 'pickaxe',
+      'terraform': 'shovel',
+    }
+    const tool = toolMap[ability]
+    if (!tool) return { success: false, error: `Unknown ability: ${ability}. Available: treecapitator, speed_mine, terraform` }
+
+    // D-14: Check cooldown before activating
+    const remaining = isAbilityOnCooldown(ability)
+    if (remaining) {
+      const secs = Math.ceil(remaining / 1000)
+      return { success: false, error: `${ability} is on cooldown — ${secs}s remaining. Try again later.` }
+    }
+
+    // Record activation timestamp (D-14)
+    _abilityCooldowns.set(ability, Date.now())
+
+    return { success: true, message: `Equip your ${tool} and right-click, then break a block — ${ability} activates automatically when ready` }
+  }
+
+  if (type === 'query_shops') {
+    const item = action.item || ''
+    return sendSingleAction({ type: 'chat', message: `/qs find ${item}` })
+  }
+
+  if (type === 'create_shop') {
+    const price = action.price || 1
+    // QuickShop requires: 1) chest placed, 2) item equipped, 3) interact_block chest
+    // Then /qs create <price>. The planner must queue the full 3-step sequence:
+    //   equip <item> -> interact_block <chest_x> <chest_y> <chest_z> -> create_shop <price> <item>
+    // StopSpam 5s cooldown applies — planner should not chain multiple shop commands rapidly.
+    return sendSingleAction({ type: 'chat', message: `/qs create ${price}` })
+  }
+
+  return sendSingleAction(payload)
 }
 
 export function queueActions(actions) {
