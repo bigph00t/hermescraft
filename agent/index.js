@@ -30,6 +30,16 @@ import {
 } from './logger.js';
 import { initSocial, trackPlayer, getPlayersForPrompt, savePlayers } from './social.js';
 import { initLocations, autoDetectLocations, getLocationsForPrompt, saveLocations } from './locations.js';
+import { startVisionLoop, stopVisionLoop, getVisionContext } from './vision.js';
+import { startPlannerLoop, stopPlannerLoop, getPlanContext } from './planner.js';
+
+// getBuildProgress — optional import from builder.js (created in Plan 03)
+// Returns empty string if builder module doesn't exist yet
+let getBuildProgress = () => ''
+try {
+  const builder = await import('./builder.js')
+  if (builder.getBuildProgress) getBuildProgress = builder.getBuildProgress
+} catch {}
 
 const TICK_INTERVAL = parseInt(process.env.TICK_MS || '2000', 10);
 const MAX_STUCK_COUNT = 2;
@@ -177,6 +187,17 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname_idx = dirname(fileURLToPath(import.meta.url));
+
+// ── Building Knowledge (loaded once at startup) ──
+
+function loadBuildingKnowledge() {
+  const knowledgePath = join(__dirname_idx, 'knowledge', 'building.md')
+  try {
+    if (existsSync(knowledgePath)) return readFileSync(knowledgePath, 'utf-8')
+  } catch {}
+  return ''
+}
+
 let NOTEPAD_FILE = join(__dirname_idx, 'data', 'notepad.txt');
 
 // ── Task Plan State ──
@@ -734,6 +755,8 @@ async function tick(precomputedResponse = null) {
     phaseTips: currentPhase?.tips || [],
     activeSkill: activeSkill?.content || '',
     pinnedContext,
+    buildingKnowledge,
+    planContext: getPlanContext(),
   });
 
   const stateSummary = summarizeState(state);
@@ -753,6 +776,8 @@ async function tick(precomputedResponse = null) {
     progressDetail: progressDetail || null,
     taskProgress,
     reviewResult,
+    visionContext: getVisionContext(),
+    buildProgress: getBuildProgress(),
   });
 
   const temperature = getTemperature(currentPhase, state);
@@ -952,6 +977,8 @@ async function tick(precomputedResponse = null) {
         progressDetail: getProgressDetail(currentPhase, nextState) || null,
         taskProgress: loadTaskState(),
         reviewResult: null,
+        visionContext: getVisionContext(),
+        buildProgress: getBuildProgress(),
       });
       const nextResponse = await queryLLM(systemPrompt, nextUserMessage, { temperature });
       return nextResponse;  // Return pre-computed action for next tick
@@ -1005,6 +1032,23 @@ async function main() {
   logInfo(`Mod API: ${process.env.MOD_URL || 'http://localhost:3001'}`);
   logInfo(`Memory: ${memory.lessons.length} lessons, ${memory.strategies.length} strategies`);
   logInfo(`Skills: ${skills.length} loaded`);
+
+  // Start multi-loop architecture (D-01): action ~3s, vision ~10s, planner ~60s
+  const visionEnabled = process.env.VISION_ENABLED !== 'false'
+  const plannerEnabled = process.env.PLANNER_ENABLED !== 'false'
+  if (visionEnabled) {
+    startVisionLoop(agentConfig)
+    logInfo('Vision loop started')
+  }
+  if (plannerEnabled) {
+    startPlannerLoop(agentConfig)
+    logInfo('Planner loop started')
+  }
+  const buildingKnowledge = loadBuildingKnowledge()
+  if (buildingKnowledge) {
+    logInfo(`Building knowledge loaded (${buildingKnowledge.length} chars)`)
+  }
+
   logInfo('Starting observe-think-act loop...\n');
 
   // Disable Baritone overlays for clean stream visuals
@@ -1018,6 +1062,8 @@ async function main() {
   const shutdown = async () => {
     logInfo('Shutting down...');
     running = false;
+    stopVisionLoop()
+    stopPlannerLoop()
     // Wait for in-flight tick to finish (max 15s)
     if (currentTickPromise) {
       try {

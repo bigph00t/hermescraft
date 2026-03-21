@@ -73,11 +73,18 @@ export function buildSystemPrompt(agentConfig, phase, {
   phaseTips = [],
   activeSkill = '',
   pinnedContext = '',
+  buildingKnowledge = '',
+  planContext = '',
 } = {}) {
   const parts = [buildIdentity(agentConfig)];
 
   // Always append gameplay instructions
   parts.push('\n' + GAMEPLAY_INSTRUCTIONS);
+
+  // Building knowledge — teaches LLM about blueprints and the build tool
+  if (buildingKnowledge) {
+    parts.push('\n' + buildingKnowledge);
+  }
 
   // Phase objectives — only in phased mode
   if (agentConfig.mode === 'phased' && phase && phase.name) {
@@ -109,6 +116,11 @@ export function buildSystemPrompt(agentConfig, phase, {
     parts.push(`\nYou have died ${deathCount} time(s). Each death stings — don't repeat the same mistake.`);
   }
 
+  // Plan context — strategic direction from planner loop (~60s updates)
+  if (planContext) {
+    parts.push(`\n== CURRENT STRATEGY ==\n${planContext}`);
+  }
+
   // Pinned context documents — injected every tick from dataDir/context/*.md
   // These survive all conversation history wipes because they live in the system prompt.
   if (pinnedContext) {
@@ -125,8 +137,15 @@ export function buildUserMessage(stateSummary, actionHistory, {
   progressDetail = null,
   taskProgress = null,
   reviewResult = null,
+  visionContext = '',
+  buildProgress = '',
 } = {}) {
   const parts = [];
+
+  // Vision context — spatial awareness from vision loop (~10s updates)
+  if (visionContext) {
+    parts.push(`\n== WHAT I SEE ==\n${visionContext}`);
+  }
 
   // User instruction
   if (userInstruction) {
@@ -201,6 +220,11 @@ export function buildUserMessage(stateSummary, actionHistory, {
   // Game state
   parts.push('\n== GAME STATE ==');
   parts.push(stateSummary);
+
+  // Build progress — active construction status from builder
+  if (buildProgress) {
+    parts.push(`\n== BUILD STATUS ==\n${buildProgress}`);
+  }
 
   // Recent actions (compact)
   if (actionHistory.length > 0) {
