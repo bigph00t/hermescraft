@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-02-PLAN.md
-last_updated: "2026-03-21T05:21:35.247Z"
+stopped_at: Completed 01-04-PLAN.md
+last_updated: "2026-03-21T05:27:11Z"
 progress:
   total_phases: 6
   completed_phases: 3
@@ -37,8 +37,8 @@ See: .planning/PROJECT.md (updated 2026-03-20)
 
 ## Session Context
 
-Last session: 2026-03-21T05:21:35.245Z
-Stopped At: Completed 01-02-PLAN.md
+Last session: 2026-03-21T05:27:11Z
+Stopped At: Completed 01-04-PLAN.md
 
 - Phase 03 Plan 01 complete: self-review loop with keyword-based outcome checking
 - pendingReview bridge + reviewSubtaskOutcome function in agent/index.js
@@ -62,6 +62,10 @@ Stopped At: Completed 01-02-PLAN.md
 - [Phase 01]: resolvePalette falls back to first preferred block when agent has none available
 - [Phase 01]: Used temp file for NativeImage PNG export since MC 1.21.1 NativeImage.writeTo only takes Path
 - [Phase 01]: Vision loop uses separate OpenAI client to prevent action loop interference
+- [Phase 01-04]: Planner loop uses separate OpenAI client -- each cognitive layer is independent
+- [Phase 01-04]: getBuildProgress dynamically imported from builder.js with fallback for parallel plan execution
+- [Phase 01-04]: Vision context in user message, plan context in system prompt -- matches D-01 three-layer arch
+- [Phase 01-04]: Building knowledge loaded once at startup, injected every tick as static system prompt content
 
 ## Roadmap Evolution
 

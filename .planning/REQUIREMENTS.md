@@ -87,7 +87,7 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BUILD-01..04 | Phase 1 | Pending |
+| BUILD-01..04 | Phase 1 | Complete |
 | FARM-01..05 | Phase 2 | Pending |
 | MEM-01..05 | Phase 3 | Pending |
 | BEHAV-01..04 | Phase 4 | Pending |

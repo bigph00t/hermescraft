@@ -19,7 +19,7 @@ Plans:
 - [x] 01-01-PLAN.md — Foundation: place_at coordinates, blueprint library, 3 starter blueprints
 - [x] 01-02-PLAN.md — Vision system: mod screenshot endpoint, agent vision loop
 - [ ] 01-03-PLAN.md — Blueprint executor engine, build tool integration
-- [ ] 01-04-PLAN.md — Multi-loop architecture, planner loop, building knowledge
+- [x] 01-04-PLAN.md — Multi-loop architecture, planner loop, building knowledge
 
 **Deliverables:**
 - Blueprint system in agent (common structure templates: house, pen, farm)
