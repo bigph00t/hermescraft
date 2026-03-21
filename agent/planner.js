@@ -4,6 +4,7 @@ import { writeFileSync, readFileSync, mkdirSync, existsSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import OpenAI from 'openai'
+import { formatLastCommandResults } from './command-parser.js'
 import { fetchState, summarizeState } from './state.js'
 import { getVisionContext, getLastScreenshotBase64 } from './vision.js'
 import { getEventsSummary, getRecentEvents, recordEvent } from './autobiography.js'
@@ -50,6 +51,17 @@ let _tickCount = 0
 let _recentChatsSent = []  // Track last 5 messages to prevent spam
 const REFLECTION_INTERVAL = 15  // Every 15 planner ticks (~5 minutes at 20s interval)
 
+// D-09 / D-12 / D-15: Persistent plugin state — updated by index.js each planner cycle
+// _skillCache: { foraging: 15, mining: 8 } — injected as personality flavor (D-15)
+// _lastCommandResults: Map of { cmd -> { ts, summary } } — injected as context (D-09)
+let _skillCache = {}
+let _lastCommandResults = null  // Map or null
+
+export function updatePlannerPluginState(skillCache, lastCommandResults) {
+  if (skillCache && typeof skillCache === 'object') _skillCache = skillCache
+  if (lastCommandResults instanceof Map) _lastCommandResults = lastCommandResults
+}
+
 // ── Queue Parser ──
 
 function parseQueueFromPlan(planText) {
@@ -95,6 +107,34 @@ function parseQueueFromPlan(planText) {
         break
       case 'build':
         if (parts.length >= 5) args = { blueprint: parts[1], x: parseInt(parts[2]), y: parseInt(parts[3]), z: parseInt(parts[4]) }
+        break
+      case 'scan_blocks':
+        args = { block_type: parts.slice(1).join('_') || 'oak_log', radius: 50 }
+        if (parts.length >= 3 && !isNaN(parseInt(parts[parts.length - 1]))) {
+          args.radius = parseInt(parts[parts.length - 1])
+          args.block_type = parts.slice(1, -1).join('_')
+        }
+        break
+      case 'go_home':
+        args = { name: parts[1] || 'home' }
+        break
+      case 'set_home':
+        args = { name: parts[1] || 'home' }
+        break
+      case 'share_location':
+        args = { name: parts.slice(1).join('-') || 'here' }
+        break
+      case 'check_skills':
+        args = {}
+        break
+      case 'use_ability':
+        args = { ability_name: parts[1] || '' }
+        break
+      case 'query_shops':
+        args = { item: parts.slice(1).join('_') || '' }
+        break
+      case 'create_shop':
+        args = { price: parseFloat(parts[1]) || 1, item: parts.slice(2).join('_') || '' }
         break
       default:
         break
@@ -366,6 +406,14 @@ Consider:
 Available blueprints: small-cabin (5x5 house), animal-pen (fenced area), crop-farm (tilled rows with water).
 ${buildingKnowledge ? '\n## Building Reference\n' + buildingKnowledge : ''}
 
+Your world has powerful tools:
+- scan_blocks to find specific resources nearby (faster than wandering)
+- set_home/go_home to teleport back to base instantly
+- share_location to mark interesting finds for others
+- Your skills grow with practice — check_skills shows your levels. High enough? Use special abilities like Treecapitator.
+- Shops let you trade surplus items. To create a shop: equip item -> interact_block chest -> create_shop price item. All 3 steps in sequence.
+When planning, PREFER scan_blocks over aimless wandering. Set a home base early. Share discoveries.
+
 Use the memories below to:
 - Build on past events — "we finished the house, now make it better" or "time to explore that direction"
 - Notice what others are doing and suggest complementary work — don't duplicate effort
@@ -401,7 +449,7 @@ craft oak_planks | convert logs to planks
 craft sticks | need for tools
 craft wooden_pickaxe | first tool
 
-Valid types: mine, navigate, craft, smelt, equip, place, attack, eat, interact_block, look_at_block, break_block, chat, pickup_items, build, farm, harvest, fish, stop
+Valid types: mine, navigate, craft, smelt, equip, place, attack, eat, interact_block, look_at_block, break_block, chat, pickup_items, build, farm, harvest, fish, stop, scan_blocks, go_home, set_home, share_location, check_skills, use_ability, query_shops, create_shop
 Format: "type args | reason"  (mine block_name, navigate x y z, craft item, equip item, place item x y z, chat message)
 Rules: 3-15 items. Put gathering BEFORE crafting. Check inventory before queueing crafts. Be specific with item IDs.
 
@@ -428,6 +476,24 @@ Write a concise strategy (5-8 sentences). Be specific about coordinates, items, 
 
     // 4b. Append behavior status to user content
     userContent += `\n\n== BEHAVIOR STATUS ==\nMode: ${behaviorMode}\n${needsLine}`
+
+    // 4b-plugin: D-15: Inject skill levels as personality flavor if cached
+    if (_skillCache && Object.keys(_skillCache).length > 0) {
+      const skillLines = Object.entries(_skillCache)
+        .map(([skill, level]) => {
+          if (level >= 20) return `${skill} Lv${level} (expert — ability unlocked)`
+          if (level >= 10) return `${skill} Lv${level} (skilled)`
+          return `${skill} Lv${level}`
+        })
+        .join(', ')
+      userContent += `\n\nYour skills: ${skillLines}`
+    }
+
+    // 4b-plugin: D-09: Inject recent command results for planner context
+    const cmdResults = formatLastCommandResults(_lastCommandResults)
+    if (cmdResults) {
+      userContent += `\n\n${cmdResults}`
+    }
 
     // 4c. Append consolidated memory context
     const memoryContext = consolidateMemory(state)

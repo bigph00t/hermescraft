@@ -1,11 +1,30 @@
 // state.js — Read and summarize game state from the Fabric mod HTTP API
 
+import { getServerInfo, getPlayers, formatServerSummary } from './servertap.js'
+
 const MOD_URL = process.env.MOD_URL || 'http://localhost:3001';
 
 const stateHistory = [];
 const MAX_HISTORY = 10;
 
 // Baritone tracking moved to baritone-tracker.js
+
+// ── ServerTap Cache ──
+// D-24: ServerTap data injected into state summary as lightweight line.
+// Refreshed async every 60s — summarizeState is sync so we use a cached value.
+let _serverSummaryCache = ''
+let _serverSummaryLastFetch = 0
+const SERVER_SUMMARY_INTERVAL = 60000  // refresh every 60s
+
+async function refreshServerSummary() {
+  try {
+    const [info, players] = await Promise.all([getServerInfo(), getPlayers()])
+    _serverSummaryCache = formatServerSummary(info, players)
+    _serverSummaryLastFetch = Date.now()
+  } catch {
+    // Keep stale cache on failure
+  }
+}
 
 export async function fetchState() {
   const res = await fetch(`${MOD_URL}/state`, {
@@ -16,6 +35,11 @@ export async function fetchState() {
 
   stateHistory.push(state);
   if (stateHistory.length > MAX_HISTORY) stateHistory.shift();
+
+  // Refresh ServerTap cache every 60s (fire-and-forget, don't await)
+  if (Date.now() - _serverSummaryLastFetch > SERVER_SUMMARY_INTERVAL) {
+    refreshServerSummary()
+  }
 
   return state;
 }
@@ -132,6 +156,11 @@ export function summarizeState(state) {
     for (const msg of state.recentChat.slice(-5)) {
       lines.push(`  <${msg.sender || 'Player'}> ${msg.text}`);
     }
+  }
+
+  // ServerTap summary — player count + TPS (D-24)
+  if (_serverSummaryCache) {
+    lines.push(_serverSummaryCache)
   }
 
   return lines.join('\n');

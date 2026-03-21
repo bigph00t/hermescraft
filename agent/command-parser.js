@@ -68,3 +68,18 @@ export function extractSkillLevels(parsedResults) {
   }
   return skills
 }
+
+// ── Planner Context Formatter ──
+
+// Formats _lastCommandResult Map entries into a compact string for planner injection (D-09).
+// Skips entries older than 120 seconds. Returns empty string when nothing to show.
+export function formatLastCommandResults(resultMap) {
+  if (!resultMap || resultMap.size === 0) return ''
+  const lines = ['Recent command results:']
+  for (const [cmd, data] of resultMap) {
+    const age = Math.round((Date.now() - data.ts) / 1000)
+    if (age > 120) continue  // skip results older than 2 minutes
+    lines.push(`  ${cmd}: ${data.summary} (${age}s ago)`)
+  }
+  return lines.length > 1 ? lines.join('\n') : ''
+}

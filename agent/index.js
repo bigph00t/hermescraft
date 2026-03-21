@@ -4,7 +4,8 @@
 
 import { fetchState, summarizeState, detectDeath } from './state.js';
 import { queryLLM, clearConversation, getTemperature, isToolCallingEnabled, completeToolCall } from './llm.js';
-import { executeAction, validateAction, validatePreExecution, INFO_ACTIONS } from './actions.js';
+import { executeAction, validateAction, validatePreExecution, INFO_ACTIONS, isAbilityOnCooldown } from './actions.js';
+import { parseRecentChat, formatPluginResponse, extractScanResults, extractSkillLevels } from './command-parser.js';
 import { fetchRecipes } from './state.js';
 import { loadAgentConfig } from './config.js';
 import {
@@ -34,7 +35,7 @@ import { initAutobiography, recordEvent } from './autobiography.js';
 import { initChests, trackChest, saveChests } from './chests.js';
 import { initChatHistory, recordChat } from './chat-history.js';
 import { startVisionLoop, stopVisionLoop, getVisionContext } from './vision.js';
-import { startPlannerLoop, stopPlannerLoop, getPlanContext } from './planner.js';
+import { startPlannerLoop, stopPlannerLoop, getPlanContext, updatePlannerPluginState } from './planner.js';
 import { startBuild, resumeBuild, getBuildProgress, cancelBuild, isBuildActive, unpauseBuild } from './builder.js';
 import { startFarm, resumeFarm, getFarmProgress, cancelFarm, isFarmActive, startHarvest } from './farming.js';
 import { detectBehaviorMode } from './needs.js';
@@ -92,6 +93,15 @@ let pendingReview = null; // { index, expected_outcome, reviewTick }
 
 // Stuck detection
 const failureTracker = new Map();
+
+// ── Persistent Plugin State ──
+// D-09: Last command results — persist across ticks so planner can reference prior scan/skill results
+const _lastCommandResult = new Map()
+
+// D-12: Skill level cache — refreshed every 5 planner cycles (~2.5 min at 30s per cycle)
+let _skillCache = {}
+let _skillCacheAge = 0  // planner cycle counter
+const SKILL_CACHE_REFRESH_CYCLES = 5
 
 function getActionKey(action) {
   if (!action) return 'null';
@@ -875,6 +885,41 @@ async function tick() {
   });
 
   const stateSummary = summarizeState(state);
+
+  // ── Parse plugin command responses from recent chat ──
+  // D-09: Persist structured results for planner access
+  // D-12: Update skill cache from check_skills results
+  let pluginResponse = ''
+  if (state.recentChat && state.recentChat.length > 0) {
+    const parsed = parseRecentChat(state.recentChat)
+    pluginResponse = formatPluginResponse(parsed)
+
+    const scanResults = extractScanResults(parsed)
+    if (scanResults.length > 0) {
+      _lastCommandResult.set('scan', {
+        ts: Date.now(),
+        data: scanResults,
+        summary: `${scanResults.length} ${scanResults[0].block} found, nearest at ${scanResults[0].x},${scanResults[0].y},${scanResults[0].z}`,
+      })
+    }
+
+    const skills = extractSkillLevels(parsed)
+    if (Object.keys(skills).length > 0) {
+      _skillCache = { ..._skillCache, ...skills }
+      _skillCacheAge = 0  // reset age counter on fresh data
+      _lastCommandResult.set('skills', {
+        ts: Date.now(),
+        data: skills,
+        summary: Object.entries(skills).map(([k, v]) => `${k}:${v}`).join(' '),
+      })
+    }
+  }
+
+  // D-12 / D-09: Push current skill cache and command results to planner module each tick
+  // Planner reads these in its context builder for D-15 personality and D-09 recent results
+  _skillCacheAge++
+  updatePlannerPluginState(_skillCache, _lastCommandResult)
+
   // Show chat context naturally — let the model decide how to respond
   let effectiveInstruction = userInstruction || null;
   if (playerChatContext) {
@@ -907,6 +952,7 @@ async function tick() {
     idleHint,
     queueSummary: getQueueSummary(),
     baritoneContext: getBaritoneContext(),
+    pluginResponse,
   });
 
   const temperature = getTemperature(currentPhase, state);
@@ -1073,6 +1119,18 @@ async function tick() {
     } else if (actionType === 'update_task') {
       infoResult = handleUpdateTask(response.action.index, response.action.status, response.action.note, response.action.expected_outcome)
       logInfo(`[update_task] ${infoResult}`)
+    } else if (actionType === 'scan_blocks') {
+      // scan_blocks sends /scan command — result arrives in next tick's recentChat
+      const result = await executeAction(response.action)
+      infoResult = result.success
+        ? 'Scanning area... results will appear in Plugin Response next tick.'
+        : `Scan failed: ${result.error}`
+    } else if (actionType === 'check_skills') {
+      // check_skills sends /myskills — result arrives in next tick's recentChat
+      const result = await executeAction(response.action)
+      infoResult = result.success
+        ? 'Checking skills... results will appear in Plugin Response next tick.'
+        : `Skill check failed: ${result.error}`
     }
     logInfo(`[${actionType}] ${infoResult}`);
     // Complete tool call protocol so model sees result in history
