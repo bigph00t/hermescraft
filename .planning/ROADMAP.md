@@ -50,6 +50,12 @@ Plans:
 
 **Requirements:** MEM-01, MEM-02, MEM-03, MEM-04, MEM-05
 
+**Plans:** 2 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Memory data modules: autobiography, chest tracking, chat history, auto-home, relationship persistence
+- [ ] 03-02-PLAN.md — Integration: recording hooks in index.js, planner memory consolidation with "things you might mention"
+
 **Deliverables:**
 - Home base concept (establish, remember, navigate to from anywhere)
 - Chest inventory tracking (what's in which chest where)
