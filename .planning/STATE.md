@@ -2,89 +2,60 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: unknown
-stopped_at: Completed 02-planning-capability-02-PLAN.md
-last_updated: "2026-03-21T04:51:04.722Z"
+status: executing
+last_updated: "2026-03-21T05:00:39.367Z"
 progress:
-  total_phases: 3
+  total_phases: 6
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 6
+  completed_plans: 5
 ---
 
-# Project State
+# GSD State: HermesCraft Life Simulation
 
 ## Project Reference
 
 See: .planning/PROJECT.md (updated 2026-03-20)
 
-**Core value:** The agent must never silently lose its execution context — and when given a complex task, it must plan, execute, and review its own work instead of fire-and-forget.
-**Current focus:** Phase 02 — planning-capability
+**Core value:** Agents must feel alive — indistinguishable from real players
+**Current focus:** Phase 03 — self-review-loop (03-01 complete, 03-02 next)
 
-## Current Position
+## Milestone: v1.0
 
-Phase: 3
-Plan: Not started
+**Status:** Executing Phase 03
+**Phases:** 6 total, 0 complete
 
-## Performance Metrics
+| Phase | Name | Status | Plans |
+|-------|------|--------|-------|
+| 1 | Building System | ○ Pending | 0/0 |
+| 2 | Farming & Food | ○ Pending | 0/0 |
+| 3 | Deep Memory | ○ Pending | 0/0 |
+| 4 | Human-Like Behavior | ○ Pending | 0/0 |
+| 5 | Automatic Skill Learning | ○ Pending | 0/0 |
+| 6 | Cooperation & Exploration | ○ Pending | 0/0 |
 
-**Velocity:**
+## Session Context
 
-- Total plans completed: 0
-- Average duration: -
-- Total execution time: -
+Last session: 2026-03-21T05:00:39.365Z
+Stopped At: Completed 03-01-PLAN.md
 
-**By Phase:**
+- Phase 03 Plan 01 complete: self-review loop with keyword-based outcome checking
+- pendingReview bridge + reviewSubtaskOutcome function in agent/index.js
+- Retry tracking with retry_count/max_retries on subtask objects
+- REVIEW PASSED / REVIEW FAILED banners + [?] reviewing marker in agent prompt
+- Established working agent harness with multi-agent support
+- Two agents running on Survival Island (Jeffrey Enderstein, John Kwon)
+- MiniMax M2.7-highspeed as LLM, MC 1.21.1 on Glass
 
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| - | - | - | - |
+## Decisions
 
-**Recent Trend:**
+- One-tick delay between marking done and verification prevents stale state reads (03-01)
+- Keyword-based review (not LLM call) keeps review cost-zero, no extra API calls (03-01)
+- Default-pass when no keywords match: trusts agent judgment, reduces false negatives (03-01)
+- retry_count/max_retries stored in tasks.json for persistence across restarts (03-01)
 
-- Last 5 plans: -
-- Trend: -
+## Notes
 
-*Updated after each plan completion*
-| Phase 01-reliability P01 | 2 | 2 tasks | 3 files |
-| Phase 01-reliability P02 | 8min | 2 tasks | 3 files |
-| Phase 02-planning-capability P01 | 3min | 2 tasks | 4 files |
-| Phase 02-planning-capability P02 | 2min | 2 tasks | 4 files |
-
-## Accumulated Context
-
-### Decisions
-
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- Graduated trim respects round boundaries — prevents orphaned `tool` messages cascading to full wipes
-- Persist L1 to disk on periodic save — survives crashes without per-tick I/O overhead
-- Plan/review via notepad extension, not separate LLM calls — fits within 2s tick budget
-- Chat dedup via timestamp tracking on Node.js side — simpler than modifying Java mod
-- [Phase 01-reliability]: trimHistoryGraduated now removes complete rounds from front, never leaving orphaned tool message at index 0
-- [Phase 01-reliability]: Corrupt tool call handler uses trimHistoryGraduated(0.5) instead of conversationHistory.length = 0 — no more silent full-wipe
-- [Phase 01-reliability]: L1 history persisted to dataDir/history.json on periodicSave, restored on startup with silent-catch for corruption
-- [Phase 01-reliability]: Return { name, content: skill.body } from non-phased branch to match phased-mode shape — callers use .content uniformly
-- [Phase 01-reliability]: Set-based chat dedup with positional keys (i:message) handles duplicate consecutive messages — ring-buffer immune
-- [Phase 01-reliability]: wasConnected flag in mod tick handler detects disconnect edge and resets autoConnectAttempted for kick recovery
-- [Phase 02-planning-capability]: save_context and delete_context are INFO_ACTIONS — return data to LLM, no game-world side effects
-- [Phase 02-planning-capability]: getActiveSkill accepts optional { mode, goalText, gameState } — backwards compatible, scores skills by phase match=100, goal keyword overlap=30, health/night boosts, success_rate tiebreaker
-- [Phase 02-planning-capability]: plan_task and update_task are INFO_ACTIONS — return data to LLM, no game-world side effects
-- [Phase 02-planning-capability]: Auto-advance: marking subtask done auto-sets next pending to in-progress for clear current target
-- [Phase 02-planning-capability]: taskProgress injected in both tick and pipeline buildUserMessage call sites so every LLM call sees current plan status
-
-### Pending Todos
-
-None yet.
-
-### Blockers/Concerns
-
-- Phase 1 bug in `trimHistoryGraduated` has a boundary case that can still cascade — primary target of 01-01
-- LLM latency constraint (2s tick) means self-review in Phase 3 must not add a second LLM call per tick
-
-## Session Continuity
-
-Last session: 2026-03-21T04:45:43.989Z
-Stopped at: Completed 02-planning-capability-02-PLAN.md
-Resume file: None
+- Research agent running in background investigating Voyager, STEVE-1, MineDojo approaches
+- Building system is highest impact — visible, immediate, makes agents feel real
+- Memory system is highest complexity — cross-cutting concern affecting everything

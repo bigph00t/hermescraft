@@ -1,76 +1,93 @@
-# Roadmap: HermesCraft Agent Hardening & Workflow Overhaul
+# Roadmap: HermesCraft Life Simulation
 
 ## Overview
 
-Three phases build on each other: first make the agent reliable (fix the bugs that cause silent context loss and broken state), then give it real planning capability (agent-writable context, task decomposition, progress tracking), then close the loop with self-review so it can detect and correct its own failures. Nothing in Phase 2 is safe to build on a foundation that can wipe its own history.
+Transform existing Minecraft AI agents from basic tool-calling bots into full life simulation — agents that build, farm, remember, cooperate, and feel alive.
+
+**Milestone:** v1.0 — Agents that pass the eye test (human observer can't tell they're AI for several minutes)
 
 ## Phases
 
-**Phase Numbering:**
-- Integer phases (1, 2, 3): Planned milestone work
-- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
+### Phase 1: Building System
+**Goal:** Agents can construct real structures that look intentional to a human eye.
 
-Decimal phases appear between their surrounding integers in numeric order.
+**Requirements:** BUILD-01, BUILD-02, BUILD-03, BUILD-04
 
-- [ ] **Phase 1: Reliability** - Fix memory, skill, chat, and reconnect bugs — the agent stops silently losing context
-- [x] **Phase 2: Planning Capability** - Agent can write its own context, decompose tasks, and track progress against a plan (completed 2026-03-21)
-- [ ] **Phase 3: Self-Review Loop** - Agent evaluates outcomes, detects failures, and iterates rather than moving on blindly
+**Deliverables:**
+- Blueprint system in agent (common structure templates: house, pen, farm)
+- Block palette selection based on available materials
+- Multi-step build execution (foundation → walls → roof → door → interior)
+- Farm plot construction with tilling and water placement
 
-## Phase Details
+### Phase 2: Farming & Food Production
+**Goal:** Agents sustainably feed themselves through farming, fishing, and animal husbandry.
 
-### Phase 1: Reliability
-**Goal**: The agent never silently loses its execution context due to bugs in trimming, skill injection, chat deduplication, or reconnect logic
-**Depends on**: Nothing (first phase)
-**Requirements**: MEM-01, MEM-02, MEM-03, SKL-01, COM-01, COM-02
-**Success Criteria** (what must be TRUE):
-  1. History trim never produces a conversation state where a `tool` role message is first — verified by running the trim under simulated overflow and checking the boundary
-  2. No code path in the agent calls `conversationHistory.length = 0` — graduated trim is the only recovery path
-  3. Agent conversation history is present on disk after a simulated crash and correctly restored on next startup
-  4. Skill body is correctly injected in open-ended mode — agent receives and can reference skill content during open-ended gameplay
-  5. Player chat messages are processed exactly once — re-sending the same chat line from a player does not trigger a second agent response
-  6. Agent reconnects after a server kick without requiring a restart — `autoConnectAttempted` resets when the player disconnects post-connection
-**Plans**: 2 plans
+**Requirements:** FARM-01, FARM-02, FARM-03, FARM-04, FARM-05
 
-Plans:
-- [x] 01-01-PLAN.md — Memory and compression fixes: round-boundary graduated trim, eliminate full-wipe paths, L1 history disk persistence (MEM-01, MEM-02, MEM-03)
-- [x] 01-02-PLAN.md — Skill injection, chat dedup, and autoconnect fixes (SKL-01, COM-01, COM-02)
+**Deliverables:**
+- Crop farming cycle (till → plant → wait → harvest → replant)
+- Animal breeding mechanics (attract with food, breed, pen management)
+- Fishing skill (craft rod, find water, cast, collect)
+- Food cooking automation (furnace management)
+- Tree replanting for sustainable wood supply
 
-### Phase 2: Planning Capability
-**Goal**: The agent can write its own persistent context and decompose complex instructions into tracked multi-step plans
-**Depends on**: Phase 1
-**Requirements**: MEM-04, SKL-02, WRK-01, WRK-02
-**Success Criteria** (what must be TRUE):
-  1. Agent can call a tool that writes a file to `dataDir/context/` — the file persists and is injected into the next tick's system prompt
-  2. Active skill is selected automatically based on current phase/goal — no manual env var or config change needed to switch skills
-  3. Given a complex instruction ("build a house"), agent produces a written multi-step plan with discrete subtasks before acting
-  4. Each tick, the agent knows which subtask is current, which are done, and which are blocked — plan state is visible in its reasoning
-**Plans**: 2 plans
+### Phase 3: Deep Memory System
+**Goal:** Agents remember everything — places, people, events, conversations — across sessions and reference them naturally.
 
-Plans:
-- [x] 02-01-PLAN.md — Agent-writable pinned context tool (save_context/delete_context) and multi-signal automatic skill selection (MEM-04, SKL-02)
-- [x] 02-02-PLAN.md — Task decomposition tools (plan_task/update_task) and per-tick progress tracking in user message (WRK-01, WRK-02)
+**Requirements:** MEM-01, MEM-02, MEM-03, MEM-04, MEM-05
 
-### Phase 3: Self-Review Loop
-**Goal**: The agent evaluates its own actions and subtask outcomes, catching failures and iterating instead of proceeding blindly
-**Depends on**: Phase 2
-**Requirements**: WRK-03, WRK-04, WRK-05
-**Success Criteria** (what must be TRUE):
-  1. After completing a subtask, the agent checks the actual game state against the expected outcome and logs a pass or fail
-  2. When a subtask fails, the agent retries with a different approach rather than marking it complete and continuing
-  3. Before executing a proposed action, the agent rejects obviously invalid actions (e.g., crafting without required ingredients, navigating to coordinates outside valid range) and substitutes a safe alternative
-**Plans**: TBD
+**Deliverables:**
+- Home base concept (establish, remember, navigate to from anywhere)
+- Chest inventory tracking (what's in which chest where)
+- Conversation memory with natural recall ("you said yesterday...")
+- Autobiographical timeline ("day 1: arrived, day 2: built house")
+- Deep relationship model with trust, history, sentiment persistence
 
-Plans:
-- [ ] 03-01: Subtask outcome review and retry logic (WRK-03, WRK-04)
-- [ ] 03-02: Pre-execution action validation gate (WRK-05)
+### Phase 4: Human-Like Behavior
+**Goal:** Agents behave like real people — work/rest cycles, idle actions, needs-driven decisions, social time.
 
-## Progress
+**Requirements:** BEHAV-01, BEHAV-02, BEHAV-03, BEHAV-04
 
-**Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3
+**Deliverables:**
+- Day/night behavior engine (work daylight, shelter night)
+- Needs system (hunger, safety, social, creative → drive action selection)
+- Idle behavior set (look around, organize, wander, sit, stare at view)
+- Night socialization (gather near fire, chat, share stories, plan tomorrow)
 
-| Phase | Plans Complete | Status | Completed |
-|-------|----------------|--------|-----------|
-| 1. Reliability | 2/2 | Complete |  |
-| 2. Planning Capability | 2/2 | Complete   | 2026-03-21 |
-| 3. Self-Review Loop | 0/2 | Not started | - |
+### Phase 5: Automatic Skill Learning
+**Goal:** Agents get better over time without explicit programming — they learn from experience.
+
+**Requirements:** SKILL-01, SKILL-02, SKILL-03
+
+**Deliverables:**
+- Experience-based skill creation (successful action sequences → saved skill)
+- Background reflection process (periodic memory consolidation, insight generation)
+- Death avoidance learning (death context → countermeasure → applied next time)
+- Skill effectiveness tracking (which skills actually help vs. don't)
+
+### Phase 6: Cooperation & Exploration
+**Goal:** Agents work together as a community and explore the world beyond their base.
+
+**Requirements:** COOP-01, COOP-02, COOP-03, NAV-01, NAV-02, NAV-03
+
+**Deliverables:**
+- Task division system (agents announce what they're doing, avoid duplication)
+- Resource sharing (drop items for each other, stock shared chests)
+- Collective building (agree on project, divide work, build together)
+- Exploration with return (venture out, discover, come back, report)
+- Location naming and shared map knowledge
+
+## Phase Dependencies
+
+```
+Phase 1 (Building) ──→ Phase 4 (Behavior, needs shelter)
+Phase 2 (Farming) ──→ Phase 4 (Behavior, needs food system)
+Phase 3 (Memory) ──→ Phase 5 (Skills, needs memory to learn)
+Phase 3 (Memory) ──→ Phase 6 (Cooperation, needs location memory)
+Phase 4 (Behavior) ──→ Phase 6 (Cooperation, needs day/night cycle)
+```
+
+**Recommended order:** Phase 1 → 2 → 3 → 4 → 5 → 6
+
+---
+*Roadmap created: 2026-03-20*
