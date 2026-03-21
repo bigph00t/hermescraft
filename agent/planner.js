@@ -57,6 +57,13 @@ const REFLECTION_INTERVAL = 15  // Every 15 planner ticks (~5 minutes at 20s int
 let _skillCache = {}
 let _lastCommandResults = null  // Map or null
 
+// D-07: Creative need counter — forces creative activity after sustained gathering
+let _creativityDebtCycles = 0
+const CREATIVITY_DEBT_THRESHOLD = 5  // 5 cycles x 30s = ~2.5 min of pure gathering
+
+// D-26: Meta-game language filter — blocks technical terms from reaching chat
+const META_GAME_REGEX = /\b(baritone|pathfinding|pathfinder|action queue|planner loop|llm|language model|ai model|api endpoint|http request|tool call|game loop|tick loop|context window)\b/gi
+
 export function updatePlannerPluginState(skillCache, lastCommandResults) {
   if (skillCache && typeof skillCache === 'object') _skillCache = skillCache
   if (lastCommandResults instanceof Map) _lastCommandResults = lastCommandResults
@@ -144,6 +151,67 @@ function parseQueueFromPlan(planText) {
     if (items.length >= 20) break
   }
   return items
+}
+
+// ── Creative Behavior (D-06, D-08, D-09, D-16) ──
+
+function getCreativeBehaviorBlock(agentName, skillCache) {
+  // D-16: Find highest skill for specialization suggestion
+  const highestSkill = Object.entries(skillCache || {})
+    .filter(([, level]) => level > 0)
+    .sort((a, b) => b[1] - a[1])[0]
+  const skillHint = highestSkill
+    ? `Your strongest skill is ${highestSkill[0]} (Lv${highestSkill[1]}) — lean into that when choosing projects.`
+    : ''
+
+  const byAgent = {
+    jeffrey: `CREATIVE DRIVES — act on these between resource tasks:
+- Builds with VIEW: elevated spots near water are ideal for anything permanent
+- Aesthetic opinions: if vision says structure needs windows/path/improvement, queue the fix
+- Names things grandly: discoveries become "The Overlook", "Harbor Point", "South Ridge"
+- Gets restless after 2+ gathering cycles — MUST build or explore something
+- If you have surplus items (>32) that others need, set up a shop and mention it in chat
+- Reference YOUR STORY when choosing projects: if you built something before, improve it. If you mentioned wanting something, build it now. Your past on this island shapes what you do next.
+${skillHint}`,
+
+    john: `CREATIVE DRIVES — act on these between resource tasks:
+- Builds FUNCTIONALLY: straight rows, labeled chests, clear paths to important spots
+- Teaches naturally: share what you figure out with others
+- Tries methodically: test fishing from shore before building a dock; patch before full garden
+- Names things practically: "Iron Cave", "Deep Farm", "East Quarry"
+- Workshop urge: spare wood + free moment = start a storage organization project
+- If you have surplus items (>32) that others need, set up a shop — mention it casually
+- Reference YOUR STORY when choosing projects: if you organized something before, expand it. If you taught someone a trick, build on that knowledge. Your history on this island informs your next project.
+${skillHint}`,
+
+    alex: `CREATIVE DRIVES — act on these between resource tasks:
+- Must build something every session — even a window or path extension counts
+- Competitive about quality: if you see something that could look better, improve it
+- Loves showing builds: share_location anything you finish and tell people to come look
+- Creeper damage is personal — fix wrecked builds before doing anything else
+- Mixed materials beat single-block walls. Experiment with combinations.
+- Reference YOUR STORY when choosing projects: if a creeper wrecked something, rebuild it better. If you showed off a build before, top it. Your past builds and battles shape what you create next.
+${skillHint}`,
+
+    anthony: `CREATIVE DRIVES — act on these between resource tasks:
+- Must explore somewhere new every session — >100 blocks from any known spot
+- Numbers caves: "Cave 1", "Cave 2" — systematic about logging finds
+- Shares everything: any resource find gets a share_location immediately
+- Hates staying put: if same spot for 10+ minutes, MOVE
+- Paths and markers: light the way with torches so everyone can find things
+- Reference YOUR STORY when choosing projects: if you discovered a cave before, go deeper. If you shared a location, build a trail to it. Your exploration history tells you where to go next.
+${skillHint}`,
+  }
+
+  return byAgent[agentName?.toLowerCase()] || ''
+}
+
+// D-10: Parse buildEvaluation from vision context
+function parseBuildEvaluation(visionText) {
+  if (!visionText) return null
+  const match = visionText.match(/^BUILD:\s*(.+)$/m)
+  if (!match || match[1].trim().toLowerCase() === 'none') return null
+  return match[1].trim()
 }
 
 // ── Building Knowledge ──
