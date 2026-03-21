@@ -6,7 +6,9 @@ import { fileURLToPath } from 'url'
 import OpenAI from 'openai'
 import { fetchState, summarizeState } from './state.js'
 import { getVisionContext } from './vision.js'
-import { getEventsSummary, getRecentEvents } from './autobiography.js'
+import { getEventsSummary, getRecentEvents, recordEvent } from './autobiography.js'
+import { createSkillFromExperience, downgradeSkillByName, getSkillIndex } from './skills.js'
+import { getMemory } from './memory.js'
 import { getChestsForPrompt } from './chests.js'
 import { getChatSummary } from './chat-history.js'
 import { getRelationshipSummary } from './social.js'
@@ -39,6 +41,8 @@ let _plannerInterval = null
 let _lastPlanText = ''
 let _running = false
 let _agentConfig = null
+let _tickCount = 0
+const REFLECTION_INTERVAL = 5  // Every 5 planner ticks (~5 minutes)
 
 // ── Building Knowledge ──
 
@@ -107,6 +111,104 @@ function consolidateMemory(state) {
   }
 
   return sections.join('\n\n')
+}
+
+// ── Reflection Cycle ──
+
+async function reflectionTick(state) {
+  try {
+    // Gather recent context
+    const recentEvents = getRecentEvents(15)
+    const memory = getMemory()
+    const skillIndex = getSkillIndex()
+
+    // Format recent events as numbered list
+    const eventList = recentEvents.map((e, i) =>
+      `${i + 1}. [${e.type}] ${e.description} (importance: ${e.importance || 0})`
+    ).join('\n')
+
+    // Build reflection prompt
+    const systemPrompt = `You are ${_agentConfig.name}'s inner voice. Reflect on recent experiences and extract lessons.`
+
+    const lessonsText = (memory.lessons || []).slice(-10).map(l => `- ${l}`).join('\n')
+
+    const userContent = `== RECENT EVENTS ==
+${eventList || '(no recent events)'}
+
+== CURRENT LESSONS ==
+${lessonsText || '(none yet)'}
+
+== KNOWN SKILLS ==
+${skillIndex || '(no skills learned yet)'}
+
+Review the recent events above. Answer THREE questions concisely:
+
+1. WHAT WORKED: What actions or strategies succeeded? (1-2 sentences)
+2. WHAT FAILED: What went wrong or could be improved? (1-2 sentences)
+3. NEW SKILL: Did you accomplish something reusable that isn't already in your skill list? If yes, output EXACTLY this format on a new line:
+   SKILL: name | description | step-by-step strategy
+   If no new skill was learned, write: SKILL: none
+
+Keep total response under 200 words. Be specific — reference actual events, not generalities.`
+
+    // Call LLM for reflection
+    const response = await plannerClient.chat.completions.create({
+      model: PLANNER_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userContent },
+      ],
+      max_tokens: 300,
+      temperature: 0.3,
+    })
+
+    const reflectionText = response.choices?.[0]?.message?.content?.trim()
+    if (!reflectionText) return
+
+    // Record reflection as autobiography event
+    recordEvent({
+      timestamp: new Date().toISOString(),
+      gameDay: Math.floor((state.time || 0) / 24000) + 1,
+      type: 'reflection',
+      description: reflectionText.slice(0, 300),
+      importance: 3,
+    })
+
+    // Parse for SKILL line
+    const skillMatch = reflectionText.match(/^SKILL:\s*(.+)\s*\|\s*(.+)\s*\|\s*(.+)$/m)
+    if (skillMatch && !skillMatch[1].trim().toLowerCase().includes('none')) {
+      const result = createSkillFromExperience(
+        skillMatch[1].trim(),
+        skillMatch[2].trim(),
+        skillMatch[3].trim(),
+        { deathCount: 0, successRate: 0.8 }
+      )
+      console.log('[Planner] Reflection: skill ' + (result.created ? 'created' : 'updated') + ': ' + result.name)
+    } else {
+      console.log('[Planner] Reflection: no new skill')
+    }
+
+    // Parse for failure patterns — check if any known skill name appears in WHAT FAILED section
+    const failedMatch = reflectionText.match(/WHAT FAILED[:\s]*([\s\S]*?)(?:(?:3\.|NEW SKILL|SKILL:)|\s*$)/i)
+    if (failedMatch) {
+      const failureText = failedMatch[1].toLowerCase()
+      for (const skill of (skillIndex || '').split('\n')) {
+        const nameMatch = skill.match(/- ([^:]+):/)
+        if (nameMatch) {
+          const name = nameMatch[1].trim()
+          if (failureText.includes(name)) {
+            downgradeSkillByName(name)
+            console.log('[Planner] Reflection: downgraded skill ' + name + ' due to failure')
+          }
+        }
+      }
+    }
+
+    console.log('[Planner] Reflection complete: ' + reflectionText.slice(0, 80) + '...')
+  } catch (err) {
+    const msg = err?.message || String(err)
+    console.log('[Planner] Reflection error: ' + msg.slice(0, 80))
+  }
 }
 
 // ── Core Planner Tick ──
@@ -228,6 +330,12 @@ Write a concise strategy (5-8 sentences). Be specific about coordinates, items, 
 
     console.log('[Planner] Updated: ' + planText.slice(0, 80) + '...')
 
+    // Reflection cycle — every 5 ticks (~5 minutes), do a deeper review (D-06)
+    _tickCount++
+    if (_tickCount % REFLECTION_INTERVAL === 0) {
+      await reflectionTick(state)
+    }
+
   } catch (err) {
     // Planner failures are non-fatal — log and continue
     const msg = err?.message || String(err)
@@ -253,6 +361,7 @@ export function startPlannerLoop(agentConfig) {
 
   _agentConfig = agentConfig
   _running = true
+  _tickCount = 0
 
   console.log(`[Planner] Starting planner loop (interval: ${PLANNER_INTERVAL_MS}ms, model: ${PLANNER_MODEL})`)
 
