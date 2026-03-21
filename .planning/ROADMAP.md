@@ -68,6 +68,12 @@ Plans:
 
 **Requirements:** BEHAV-01, BEHAV-02, BEHAV-03, BEHAV-04
 
+**Plans:** 2 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Needs system + behavior mode detection in planner loop
+- [ ] 04-02-PLAN.md — Prompt-side behavior hints, idle tracking, night socialization
+
 **Deliverables:**
 - Day/night behavior engine (work daylight, shelter night)
 - Needs system (hunger, safety, social, creative → drive action selection)
