@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-21T23:44:00Z"
+last_updated: "2026-03-21T23:44:31.245Z"
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 15
-  completed_plans: 13
+  completed_plans: 14
 ---
 
 # Project State
@@ -24,9 +24,9 @@ See: .planning/PROJECT.md (updated 2026-03-21)
 
 **Phase 4: Personality + Creative Play**
 
-- Status: In progress (2/3 plans complete)
+- Status: In progress (3/3 plans with SUMMARY: 04-01, 04-02 done)
 - Goal: Add creative drives, build evaluation, planner personality, anti-meta-game enforcement
-- Current plan: 04-02 complete, next: 04-03
+- Current plan: 04-01 and 04-02 complete, next: 04-03
 
 ## History
 
@@ -88,6 +88,8 @@ None currently.
 - [Phase 03-04]: myskills.sk uses Approach B (static level 0) — PlaceholderAPI not installed; PAPI placeholders would emit literal strings breaking command-parser.js extractSkillLevels()
 - [Phase 04-02]: VISION_PROMPT uses template literal for multi-line; BUILD: field on new line parseable via /^BUILD:\s*(.+)$/m regex
 - [Phase 04-02]: No other vision.js changes — _lastVisionText + getVisionContext() already return full BUILD: field to planner
+- [Phase 04-personality-creative-play]: Appended sections to SOUL files rather than rewriting — preserves all existing personality prose
+- [Phase 04-personality-creative-play]: FORBIDDEN_WORDS_BLOCK injected after GAMEPLAY_INSTRUCTIONS so anti-meta-game enforcement applies to all modes
 
 ## Session Log
 
@@ -103,4 +105,5 @@ None currently.
 - 2026-03-21: Completed 03-02 (Plugin tools and action handlers). 8 tools in tools.js, 8 handlers in actions.js, ability cooldown system.
 - 2026-03-21: Completed 03-03 (Plugin wiring). GAMEPLAY_INSTRUCTIONS, planner strategy guidance, ServerTap state summary, skill cache + command result persistence, INFO_ACTIONS handlers.
 - 2026-03-21: Completed 03-04 (Deploy + verify). Skript scripts deployed to Docker container, LuckPerms permissions granted, Approach B applied for myskills.sk (no PAPI), human-verified as approved. Phase 03 complete.
+- 2026-03-21: Completed 04-01 (SOUL creative subsections + FORBIDDEN_WORDS). 12 new sections added to 4 SOUL files. FORBIDDEN_WORDS_BLOCK injected into prompt.js for all modes.
 - 2026-03-21: Completed 04-02 (Vision BUILD evaluation). VISION_PROMPT enhanced with BUILD: field — Claude Haiku produces structural observations or "BUILD: none". Feeds planner Plan 03.
