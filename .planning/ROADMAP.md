@@ -68,7 +68,7 @@ Plans:
 
 **Requirements:** BEHAV-01, BEHAV-02, BEHAV-03, BEHAV-04
 
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 04-01-PLAN.md — Needs system + behavior mode detection in planner loop
@@ -84,6 +84,12 @@ Plans:
 **Goal:** Agents get better over time without explicit programming — they learn from experience.
 
 **Requirements:** SKILL-01, SKILL-02, SKILL-03
+
+**Plans:** 2 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Death avoidance learning: danger zone tracking in locations.js, proximity warnings in planner
+- [ ] 05-02-PLAN.md — Experience-based skill creation + 5-minute reflection cycle in planner loop
 
 **Deliverables:**
 - Experience-based skill creation (successful action sequences → saved skill)
