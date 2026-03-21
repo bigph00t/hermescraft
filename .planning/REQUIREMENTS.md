@@ -30,7 +30,7 @@
 ### Spatial Awareness
 
 - [x] **SAW-01**: Mod adds surfaceBlocks to state (isSkyVisible filter, Y-level restriction)
-- [ ] **SAW-02**: Agent uses look_at_block + break_block as PRIMARY interaction for visible blocks
+- [x] **SAW-02**: Agent uses look_at_block + break_block as PRIMARY interaction for visible blocks
 - [x] **SAW-03**: Baritone #mine only used as FALLBACK when no visible blocks nearby
 - [x] **SAW-04**: Baritone minYLevelWhileMining set to 55 for surface resources (logs, crops)
 - [x] **SAW-05**: Switch to baritone-api-fabric jar for real isPathing() and programmatic settings
@@ -38,9 +38,9 @@
 
 ### Agent Architecture
 
-- [ ] **ARC-01**: Brain-hands-eyes: planner writes action queue, action loop pops and executes without LLM
-- [ ] **ARC-02**: Action loop only calls LLM when queue empty, emergency, or chat received
-- [ ] **ARC-03**: Baritone tracker knows when mine/navigate is active, skips ticks while running
+- [x] **ARC-01**: Brain-hands-eyes: planner writes action queue, action loop pops and executes without LLM
+- [x] **ARC-02**: Action loop only calls LLM when queue empty, emergency, or chat received
+- [x] **ARC-03**: Baritone tracker knows when mine/navigate is active, skips ticks while running
 - [ ] **ARC-04**: Chat messages sent by planner (Say: lines), not action loop
 - [ ] **ARC-05**: Chat dedup: planner tracks recent messages, skips similar content
 - [x] **ARC-06**: No artificial token limits on any LLM call

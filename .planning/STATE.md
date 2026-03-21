@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-21T22:04:52.644Z"
+last_updated: "2026-03-21T22:14:29.269Z"
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 8
-  completed_plans: 6
+  completed_plans: 7
 ---
 
 # Project State
@@ -24,9 +24,9 @@ See: .planning/PROJECT.md (updated 2026-03-21)
 
 **Phase 2: Spatial Awareness + Architecture Rework**
 
-- Status: In Progress (2/4 plans complete)
+- Status: In Progress (3/4 plans complete)
 - Goal: Surface block detection, brain-hands-eyes architecture, Baritone surface-only mining
-- Current plan: 02-03
+- Current plan: 02-04
 
 ## History
 
@@ -73,6 +73,9 @@ None currently.
 - [Phase 02]: Surface-first GAMEPLAY_INSTRUCTIONS: surfaceBlocks + look_at_block as primary, mine as fallback (02-02)
 - [Phase 02]: Baritone chat command syntax #settingName value (not #set prefix) for settings configuration (02-01)
 - [Phase 02]: Surface scan 24-block horizontal, -5/+10 vertical, capped at 20 results sorted by distance (02-01)
+- [Phase 02]: Emergency health bypass at health < 6 with temperature 0.3 for survival focus (02-03)
+- [Phase 02]: Queue cleared on phase transition + death for clean state (02-03)
+- [Phase 02]: Baritone settings use #settingName value syntax in agent startup (02-03)
 
 ## Session Log
 
@@ -82,3 +85,4 @@ None currently.
 - 2026-03-21: Completed 01-04 (Verification). Chunky pre-gen 63,001 chunks. Timber, VeinMiner, AutoPickup verified working. Phase 1 complete.
 - 2026-03-21: Completed 02-01 (Mod surface detection + Baritone settings). surfaceBlocks array in state JSON, configureSettings() for Baritone, mod deployed to local instances.
 - 2026-03-21: Completed 02-02 (Agent code cleanup). Removed max_tokens cap from LLM, fixed dead setNavigating reference, rewrote gameplay instructions for surface-first interaction.
+- 2026-03-21: Completed 02-03 (State wiring + decision tree). surfaceBlocks in state summary, emergency bypass, Baritone startup config, static imports, queue clear on phase transition.
