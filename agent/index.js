@@ -45,7 +45,7 @@ const FAILURE_TRACKER_MAX = 50; // Max entries before pruning
 let lastProcessedMessages = new Set()
 
 // Sustained actions that take multiple seconds — pipeline thinking during these
-const SUSTAINED_ACTIONS = new Set(['mine', 'navigate', 'break_block', 'build', 'farm', 'harvest']);
+const SUSTAINED_ACTIONS = new Set(['mine', 'navigate', 'break_block', 'build', 'farm', 'harvest', 'fish']);
 
 // ── Global crash handlers — CRITICAL for 24/7 operation ──
 process.on('unhandledRejection', (err) => {
@@ -988,6 +988,44 @@ async function tick(precomputedResponse = null) {
       type: 'harvest',
       success: harvestResult.success !== false,
       info: harvestResult.message || harvestResult.error,
+      timestamp: Date.now(),
+    })
+    return null
+  }
+
+  // Handle breed action — agent-side orchestration (two sequential interact_entity calls)
+  if (actionType === 'breed') {
+    const breedFood = {
+      'cow': 'wheat', 'sheep': 'wheat', 'chicken': 'wheat_seeds',
+      'pig': 'carrot', 'rabbit': 'carrot',
+    }
+    const animal = (response.action.animal || '').toLowerCase()
+    const food = breedFood[animal] || 'wheat'
+    let breedResult
+
+    // Feed first animal
+    const feed1 = await executeAction({ type: 'interact_entity', target: animal, item: food })
+    if (!feed1.success) {
+      breedResult = { success: false, error: `Could not feed first ${animal}: ${feed1.error}` }
+    } else {
+      // Brief pause then feed second animal
+      await new Promise(r => setTimeout(r, 500))
+      const feed2 = await executeAction({ type: 'interact_entity', target: animal, item: food })
+      if (!feed2.success) {
+        breedResult = { success: true, message: `Fed one ${animal} but could not find a second. Need 2 ${animal}s nearby to breed.` }
+      } else {
+        breedResult = { success: true, message: `Bred ${animal}s! Baby ${animal} should appear soon.` }
+      }
+    }
+
+    logInfo(`[breed] ${breedResult.message || breedResult.error}`)
+    if (response.mode === 'tool_call') {
+      completeToolCall(JSON.stringify(breedResult).slice(0, 300))
+    }
+    actionHistory.push({
+      type: 'breed',
+      success: breedResult.success !== false,
+      info: breedResult.message || breedResult.error,
       timestamp: Date.now(),
     })
     return null

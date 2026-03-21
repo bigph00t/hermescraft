@@ -6,7 +6,7 @@ const VALID_ACTIONS = new Set([
   'navigate', 'mine', 'look_at_block', 'interact_block', 'pickup_items',
   'craft', 'smelt', 'attack', 'eat', 'place', 'equip', 'chat',
   'stop', 'break_block', 'close_screen',
-  'build', 'cancel_build', 'farm', 'harvest',
+  'build', 'cancel_build', 'farm', 'harvest', 'breed', 'fish', 'interact_entity',
   // Keep these for backward compat but they're not in the tool list:
   'look', 'use_item', 'drop', 'swap_hands', 'jump', 'sneak', 'sprint', 'walk',
   'recipes', 'wiki', 'notepad', 'read_chat',
@@ -49,6 +49,9 @@ const ACTION_SCHEMAS = {
   cancel_build: () => true,
   farm: (a) => a.x !== undefined && a.y !== undefined && a.z !== undefined,
   harvest: (a) => a.x !== undefined && a.y !== undefined && a.z !== undefined,
+  breed: (a) => typeof a.animal === 'string',
+  fish: () => true,
+  interact_entity: (a) => typeof a.target === 'string',
   break_block:  () => true,
   walk:         () => true,
   read_chat:    () => true,
@@ -190,6 +193,29 @@ export function validatePreExecution(action, state) {
     case 'place': {
       if (!hasItem(action.item)) {
         return { valid: false, reason: `Cannot place "${action.item}" — not in inventory.` };
+      }
+      break;
+    }
+
+    case 'breed': {
+      const breedFood = {
+        'cow': 'wheat', 'sheep': 'wheat', 'chicken': 'seeds',
+        'pig': 'carrot', 'rabbit': 'carrot',
+      };
+      const animal = (action.animal || '').toLowerCase();
+      const food = breedFood[animal];
+      if (!food) {
+        return { valid: false, reason: `Unknown animal "${animal}". Try: cow, sheep, chicken, pig, rabbit.` };
+      }
+      if (!hasItem(food)) {
+        return { valid: false, reason: `Cannot breed ${animal} — need ${food} in inventory.` };
+      }
+      break;
+    }
+
+    case 'fish': {
+      if (!hasItem('fishing_rod')) {
+        return { valid: false, reason: 'Cannot fish — no fishing_rod in inventory. Craft one: 3 sticks + 2 string.' };
       }
       break;
     }

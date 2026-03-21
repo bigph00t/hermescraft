@@ -294,6 +294,28 @@ export const GAME_TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'breed',
+      description: 'Breed animals. Equips food and feeds 2 nearby animals. Cows=wheat, chickens=seeds, pigs=carrots, sheep=wheat.',
+      parameters: {
+        type: 'object',
+        properties: {
+          animal: { type: 'string', description: 'e.g. "cow", "chicken", "pig", "sheep"' },
+        },
+        required: ['animal'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'fish',
+      description: 'Cast fishing rod and wait for a bite (up to 30s). Need fishing_rod in inventory. Auto-equips rod.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'read_chat',
       description: 'Read recent chat messages.',
       parameters: { type: 'object', properties: {} },
