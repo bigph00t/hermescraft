@@ -14,13 +14,13 @@
 
 ### Skill & Routing
 
-- [ ] **SKL-01**: Skill injection works correctly in all agent modes (phased, open-ended, directed) — fix `.content` vs `.body` mismatch
+- [x] **SKL-01**: Skill injection works correctly in all agent modes (phased, open-ended, directed) — fix `.content` vs `.body` mismatch
 - [ ] **SKL-02**: Active skill is automatically selected based on current context (phase, goal, situation) without manual intervention
 
 ### Communication
 
-- [ ] **COM-01**: Chat messages are deduplicated — agent tracks last-seen message and never re-processes the same player message
-- [ ] **COM-02**: Auto-reconnect works after server kicks/disconnects — `autoConnectAttempted` resets when player becomes null after being connected
+- [x] **COM-01**: Chat messages are deduplicated — agent tracks last-seen message and never re-processes the same player message
+- [x] **COM-02**: Auto-reconnect works after server kicks/disconnects — `autoConnectAttempted` resets when player becomes null after being connected
 
 ### Agent Workflows
 
@@ -64,10 +64,10 @@
 | MEM-02 | Phase 1 | Complete |
 | MEM-03 | Phase 1 | Complete |
 | MEM-04 | Phase 2 | Pending |
-| SKL-01 | Phase 1 | Pending |
+| SKL-01 | Phase 1 | Complete |
 | SKL-02 | Phase 2 | Pending |
-| COM-01 | Phase 1 | Pending |
-| COM-02 | Phase 1 | Pending |
+| COM-01 | Phase 1 | Complete |
+| COM-02 | Phase 1 | Complete |
 | WRK-01 | Phase 2 | Pending |
 | WRK-02 | Phase 2 | Pending |
 | WRK-03 | Phase 3 | Pending |

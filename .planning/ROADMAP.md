@@ -33,7 +33,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-01-PLAN.md — Memory and compression fixes: round-boundary graduated trim, eliminate full-wipe paths, L1 history disk persistence (MEM-01, MEM-02, MEM-03)
-- [ ] 01-02-PLAN.md — Skill injection, chat dedup, and autoconnect fixes (SKL-01, COM-01, COM-02)
+- [x] 01-02-PLAN.md — Skill injection, chat dedup, and autoconnect fixes (SKL-01, COM-01, COM-02)
 
 ### Phase 2: Planning Capability
 **Goal**: The agent can write its own persistent context and decompose complex instructions into tracked multi-step plans
