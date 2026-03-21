@@ -422,6 +422,7 @@ async function plannerTick() {
     }
     if (isBuildActive() || isFarmActive()) {
       console.log('[Planner] Build/farm active, skipping queue generation')
+      _creativityDebtCycles = 0  // D-07: building/farming IS creative activity
       // Still update shared state but skip LLM call
       try {
         updateAgentState(_agentConfig.name, {
@@ -461,7 +462,7 @@ async function plannerTick() {
     const buildingKnowledge = loadBuildingKnowledge()
 
     // 4. Build planner prompt
-    const systemPrompt = `You are the inner voice of ${_agentConfig.name}. You guide strategy — what to do, what to build, where to go, what to say.
+    let systemPrompt = `You are the inner voice of ${_agentConfig.name}. You guide strategy — what to do, what to build, where to go, what to say.
 
 Consider:
 - What resources do we have? What do we need next?
@@ -534,6 +535,19 @@ ${needs.priority === 'hunger' ? 'URGENT: You are hungry. Get food before anythin
 
 Write a concise strategy (5-8 sentences). Be specific about coordinates, items, and next steps. Include one creative or aesthetic suggestion.`
 
+    // D-06/D-09: Inject per-agent creative behavior drives with autobiography directives
+    const creativeBehavior = getCreativeBehaviorBlock(_agentConfig.name, _skillCache)
+    if (creativeBehavior) {
+      systemPrompt += '\n\n' + creativeBehavior
+    }
+
+    // D-07: Creative pressure — forces creative activity after sustained gathering
+    if (_creativityDebtCycles >= CREATIVITY_DEBT_THRESHOLD) {
+      const unexploredDir = getUnexploredDirection(state.position)
+      const exploreHint = unexploredDir ? ` Consider exploring toward ${unexploredDir} — you haven't been that way.` : ''
+      systemPrompt += `\n\nCREATIVE PRESSURE: You have been gathering resources for a while. You feel restless. Your next plan MUST include something creative — build something, explore somewhere new, set up a shop, try fishing, or decorate your base. Do NOT queue more gathering.${exploreHint}`
+    }
+
     let userContent = `== GAME STATE ==\n${stateSummary}`
     if (visionContext) {
       userContent += `\n\n${visionContext}`
@@ -575,6 +589,36 @@ Write a concise strategy (5-8 sentences). Be specific about coordinates, items, 
       userContent += `\n\n== SOCIAL TIME ==\nIt's night and you're near other players (${playerNames}). This is a good time to chat about:\n- What happened today (check your story above)\n- Shared experiences or things you built\n- Plans for tomorrow\n- Ask them what they've been up to`
     }
 
+    // D-10/D-12: Inject vision BUILD observation when idle (not during active work)
+    const buildEval = parseBuildEvaluation(visionContext)
+    if (buildEval && !isBuildActive() && !isFarmActive() && getQueueLength() <= 2) {
+      userContent += `\n\n== BUILD OBSERVATION ==\nYour eyes notice: ${buildEval}\nIf you agree and have materials, consider fixing it. If not, ignore it.`
+    }
+
+    // D-17: Trading proactivity — suggest shop when surplus items detected AND demand exists
+    if (state.inventory) {
+      const surplusItems = (state.inventory || []).filter(i => (i.count || 0) > 32)
+      if (surplusItems.length > 0) {
+        const otherContext = getOtherAgentsContext(_agentConfig.name)
+        const itemNames = surplusItems
+          .map(i => {
+            const name = (i.item || '').replace('minecraft:', '')
+            // D-17: Check if other agent's activity/inventory suggests they need this item
+            const otherNeeds = otherContext && otherContext.toLowerCase().includes(name.split('_')[0])
+            return { name, count: i.count, demanded: otherNeeds }
+          })
+          .filter(i => i.demanded)
+        if (itemNames.length > 0) {
+          const itemList = itemNames.map(i => `${i.name} (${i.count})`).join(', ')
+          userContent += `\n\nYou have surplus items that others seem to need: ${itemList}. Consider setting up a shop or offering to share.`
+        } else {
+          // Weaker form: still mention surplus without demand confirmation, but as lower priority
+          const allSurplus = surplusItems.map(i => `${(i.item || '').replace('minecraft:', '')} (${i.count})`).join(', ')
+          userContent += `\n\nYou have surplus items: ${allSurplus}. If someone asks, you could share or set up a shop.`
+        }
+      }
+    }
+
     // 5. Call LLM — vision context is already included as text from Haiku analysis
     // Don't send raw images to MiniMax (it can't process them)
     const userMessage = { role: 'user', content: userContent }
@@ -611,12 +655,24 @@ Write a concise strategy (5-8 sentences). Be specific about coordinates, items, 
 
     console.log('[Planner] Updated: ' + planText.slice(0, 80) + '...')
 
-    // 6b. Parse and write action queue from QUEUE: block
+    // 6b. Parse and write action queue from QUEUE: block + update creative debt (D-07)
     try {
       const queueItems = parseQueueFromPlan(planText)
       if (queueItems.length > 0) {
         const goal = planText.split('\n').find(l => l.trim().length > 5)?.trim().slice(0, 80) || 'planner strategy'
         setQueue(queueItems, goal, 'planner')
+
+        // D-07: Track creative debt — gathering-only queues increment, creative actions reset
+        const GATHERING_TYPES = new Set(['mine', 'craft', 'smelt', 'equip', 'scan_blocks', 'eat'])
+        const hasCreativeAction = queueItems.some(i =>
+          !GATHERING_TYPES.has(i.type) ||
+          (i.type === 'navigate' && /explor|discover|check out|look at|new area/i.test(i.reason || ''))
+        )
+        if (hasCreativeAction) {
+          _creativityDebtCycles = 0
+        } else {
+          _creativityDebtCycles++
+        }
       }
     } catch {}
 
@@ -648,6 +704,14 @@ Write a concise strategy (5-8 sentences). Be specific about coordinates, items, 
       }
 
       for (const msg of sayLines.slice(0, 2)) {
+        // D-26: Block meta-game language from reaching chat
+        if (META_GAME_REGEX.test(msg)) {
+          META_GAME_REGEX.lastIndex = 0  // reset stateful regex
+          console.log('[Planner] Blocked meta-game chat: ' + msg.slice(0, 60))
+          continue
+        }
+        META_GAME_REGEX.lastIndex = 0  // reset even on non-match (stateful /g regex)
+
         // Skip truncated messages (no ending punctuation = likely cut off by token limit)
         const lastChar = msg[msg.length - 1]
         if (msg.length > 10 && !'.!?)"…'.includes(lastChar) && !msg.endsWith('...')) {
@@ -693,6 +757,7 @@ Write a concise strategy (5-8 sentences). Be specific about coordinates, items, 
         position: state.position,
         inventorySummary: invSummary,
         mood: behaviorMode,
+        lastCreativeActivity: _creativityDebtCycles === 0 ? new Date().toISOString() : undefined,
       })
     } catch {}
 
