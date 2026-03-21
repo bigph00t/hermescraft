@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-03-21T06:13:00.000Z"
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-03-21T06:15:00.000Z"
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 12
-  completed_plans: 13
+  completed_plans: 14
 ---
 
 # GSD State: HermesCraft Life Simulation
@@ -30,16 +30,17 @@ See: .planning/PROJECT.md (updated 2026-03-20)
 |-------|------|--------|-------|
 | 1 | Building System | ○ Pending | 0/0 |
 | 2 | Farming & Food | ○ Pending | 0/0 |
-| 3 | Deep Memory | ◐ In Progress | 1/2 |
+| 3 | Deep Memory | ● Complete | 2/2 |
 | 4 | Human-Like Behavior | ○ Pending | 0/0 |
 | 5 | Automatic Skill Learning | ○ Pending | 0/0 |
 | 6 | Cooperation & Exploration | ○ Pending | 0/0 |
 
 ## Session Context
 
-Last session: 2026-03-21T06:13:00Z
-Stopped At: Completed 03-01-PLAN.md
+Last session: 2026-03-21T06:15:00Z
+Stopped At: Completed 03-02-PLAN.md
 
+- Phase 03 Plan 02 complete: recording hooks in index.js, memory consolidation in planner.js with things-you-might-mention
 - Phase 03 Plan 01 complete: five deep memory data modules (autobiography, chests, chat-history, locations auto-home, social persistence)
 - autobiography.js: JSONL event log, 100-entry cap, day-grouped summary
 - chests.js: coordinate-keyed chest tracking with immediate write
@@ -79,6 +80,10 @@ Stopped At: Completed 03-01-PLAN.md
 - [Phase 02-02]: Used isTouchingWater() over isSubmergedInWater() for bobber detection -- MC 1.21.1 compatibility
 - [Phase 02-02]: Breed is agent-orchestrated (two interact_entity calls with 500ms gap) for partial success reporting
 - [Phase 02-02]: Fish passes directly through executeAction to mod -- no special agent handler needed
+- [Phase 03-02]: isKnownPlayer added to social.js rather than duplicating players data -- single source of truth
+- [Phase 03-02]: Chest tracking records location even without mod content support -- hook exists for future enhancement
+- [Phase 03-02]: Build completion detected inline at resumeBuild result, not via wasBuildActive edge detection
+- [Phase 03-02]: Memory context appended as MEMORY CONTEXT section to planner user message
 - [Phase 03-01]: JSONL for append-only event streams (autobiography, chat), JSON for mutable state (chests)
 - [Phase 03-01]: Sentiment decay applied before each interaction update, not on timer -- simpler, no background process
 - [Phase 03-01]: Notable interactions stored separately (max 5) from general interactions (max 20) for planner use

@@ -22,11 +22,11 @@
 
 ### Memory
 
-- [ ] **MEM-01**: Agent remembers home location and navigates back from anywhere
-- [ ] **MEM-02**: Agent remembers contents of chests it placed
-- [ ] **MEM-03**: Agent remembers past conversations and references them naturally
-- [ ] **MEM-04**: Agent maintains autobiographical memory ("I built this on day 1")
-- [ ] **MEM-05**: Agent tracks relationship trust/sentiment that persists across sessions
+- [x] **MEM-01**: Agent remembers home location and navigates back from anywhere
+- [x] **MEM-02**: Agent remembers contents of chests it placed
+- [x] **MEM-03**: Agent remembers past conversations and references them naturally
+- [x] **MEM-04**: Agent maintains autobiographical memory ("I built this on day 1")
+- [x] **MEM-05**: Agent tracks relationship trust/sentiment that persists across sessions
 
 ### Behavior
 
@@ -89,7 +89,7 @@
 |-------------|-------|--------|
 | BUILD-01..04 | Phase 1 | Complete |
 | FARM-01..05 | Phase 2 | Complete |
-| MEM-01..05 | Phase 3 | In Progress (data modules done, integration pending) |
+| MEM-01..05 | Phase 3 | Complete |
 | BEHAV-01..04 | Phase 4 | Pending |
 | SKILL-01..03 | Phase 5 | Pending |
 | COOP-01..03, NAV-01..03 | Phase 6 | Pending |
