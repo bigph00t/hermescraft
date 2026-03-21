@@ -36,5 +36,10 @@ export function loadAgentConfig() {
     }
   }
 
-  return { name, mode, goal, dataDir, soulContent };
+  // Vision system config (D-04 through D-07)
+  const visionEnabled = (process.env.VISION_ENABLED || 'true') === 'true'
+  const visionIntervalMs = parseInt(process.env.VISION_INTERVAL_MS || '10000', 10)
+  const visionModel = process.env.VISION_MODEL || process.env.MODEL_NAME || 'Doradus/Hermes-4.3-36B-FP8'
+
+  return { name, mode, goal, dataDir, soulContent, visionEnabled, visionIntervalMs, visionModel };
 }
