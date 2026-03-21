@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-21T22:21:36.875Z"
+last_updated: "2026-03-21T23:01:44.579Z"
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 12
+  completed_plans: 10
 ---
 
 # Project State
@@ -18,7 +18,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-21)
 
 **Core value:** Agents feel and play like real people with spatial awareness, creativity, and genuine interaction
-**Current focus:** Phase 02 — Spatial Awareness + Architecture Rework
+**Current focus:** Phase 03 — plugin-integration-custom-commands
 
 ## Current Phase
 
@@ -78,6 +78,9 @@ None currently.
 - [Phase 02]: Baritone settings use #settingName value syntax in agent startup (02-03)
 - [Phase 02]: Action loop chat block uses isBaritoneActive() exception for Baritone-active chat (02-04)
 - [Phase 02]: Chat from queue (mode=queue) passes through -- planner explicitly queued it (02-04)
+- [Phase 03]: scan_blocks and check_skills are INFO_ACTIONS — results arrive via chat and LLM must see them before deciding next action
+- [Phase 03]: use_ability sends guidance message (not slash command) — AuraSkills abilities activate via right-click + break, not /command
+- [Phase 03]: Ability cooldown 60s conservative default via _abilityCooldowns Map (D-14)
 
 ## Session Log
 

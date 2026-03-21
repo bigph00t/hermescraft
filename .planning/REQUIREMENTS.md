@@ -49,10 +49,10 @@
 
 - [ ] **INT-01**: Custom Skript: /scan <block> <radius> surface — find surface blocks with coords
 - [ ] **INT-02**: Custom Skript: /share-location <name> — broadcast location to all players
-- [ ] **INT-03**: Agent queries mcMMO skill levels and adapts behavior (specialize in what they're good at)
-- [ ] **INT-04**: Agent uses /home and /warp for fast travel
-- [ ] **INT-05**: Agent can set up QuickShop chest shops to trade surplus items
-- [ ] **INT-06**: Agent uses /findblock to locate specific resources
+- [x] **INT-03**: Agent queries mcMMO skill levels and adapts behavior (specialize in what they're good at)
+- [x] **INT-04**: Agent uses /home and /warp for fast travel
+- [x] **INT-05**: Agent can set up QuickShop chest shops to trade surplus items
+- [x] **INT-06**: Agent uses /findblock to locate specific resources
 - [ ] **INT-07**: Agent queries ServerTap REST API for server-side state when needed
 
 ### Agent Personality
