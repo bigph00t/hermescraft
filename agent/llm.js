@@ -13,19 +13,42 @@ const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 1000;
 const MAX_HISTORY_MESSAGES = parseInt(process.env.MAX_HISTORY || '90', 10);  // ~30 rounds; auto-trims on context overflow
 
+// Detect OAuth token (sk-ant-oat01-*) vs API key
+const rawKey = process.env.VLLM_API_KEY || process.env.ANTHROPIC_API_KEY || 'not-needed';
+const isOAuth = rawKey.startsWith('sk-ant-oat');
 const client = new OpenAI({
   baseURL: VLLM_URL,
-  apiKey: process.env.VLLM_API_KEY || 'not-needed',
+  apiKey: rawKey,
   timeout: 120000,  // 120s — first call has no cache, 1024 tokens @ 15tok/s = 69s
+  defaultHeaders: isOAuth ? {
+    'Authorization': `Bearer ${rawKey}`,
+    'anthropic-version': '2023-06-01',
+    'anthropic-beta': 'oauth-2025-04-20',
+  } : {},
 });
 
 // ── Conversation Memory (L1 — Session Memory) ──
 
 const conversationHistory = [];
 let useToolCalling = true;  // Try tool calling first, disable on failure
+let toolCallingFailures = 0;
+const MAX_TOOL_FAILURES = 3;  // Only permanently disable after 3 consecutive failures
 
 export function clearConversation() {
-  conversationHistory.length = 0;
+  conversationHistory.length = 0
+}
+
+export function getConversationHistory() {
+  return conversationHistory
+}
+
+export function setConversationHistory(history) {
+  conversationHistory.length = 0
+  if (Array.isArray(history)) {
+    for (const msg of history) {
+      conversationHistory.push(msg)
+    }
+  }
 }
 
 function trimHistory() {
@@ -41,6 +64,41 @@ function trimHistory() {
       conversationHistory.splice(0, 2);  // Remove user+assistant pair
     } else {
       conversationHistory.splice(0, 1);
+    }
+  }
+}
+
+export function trimHistoryGraduated(fraction = 0.25) {
+  // Remove the oldest fraction of messages on context overflow — graduated, not a full wipe.
+  // Round-boundary-aware: removes complete rounds (user + assistant + optional tool) from
+  // the front, never leaving an orphaned 'tool' message at index 0.
+  if (conversationHistory.length === 0) return
+  const targetRemove = Math.max(2, Math.ceil(conversationHistory.length * fraction))
+  let removed = 0
+
+  // Remove complete rounds from the front until we've removed enough
+  while (removed < targetRemove && conversationHistory.length > 0) {
+    // Skip any orphaned tool messages at the front (cleanup from prior bugs)
+    if (conversationHistory[0].role === 'tool') {
+      conversationHistory.splice(0, 1)
+      removed++
+      continue
+    }
+    // A round starts with 'user', followed by 'assistant', optionally followed by 'tool'
+    if (conversationHistory[0].role === 'user') {
+      let roundSize = 1
+      if (conversationHistory.length > 1 && conversationHistory[1].role === 'assistant') {
+        roundSize = 2
+        if (conversationHistory.length > 2 && conversationHistory[2].role === 'tool') {
+          roundSize = 3
+        }
+      }
+      conversationHistory.splice(0, roundSize)
+      removed += roundSize
+    } else {
+      // Unexpected role at front (assistant without user) — remove it
+      conversationHistory.splice(0, 1)
+      removed++
     }
   }
 }
@@ -94,9 +152,9 @@ function isToolCallingUnsupported(err) {
 
 export async function queryLLM(systemPrompt, userMessage, opts = {}) {
   const temperature = opts.temperature ?? BASE_TEMPERATURE;
-  // Adaptive tool_choice: 'required' normally, 'auto' when stuck/failed so model can think
-  const toolChoice = opts.needsThinking ? 'auto' : 'required';
-  const maxTokens = opts.needsThinking ? 512 : MAX_TOKENS;  // More room for thinking + tool call
+  // Always force tool calls — thinking happens via 'reason' param, 'chat' tool, or 'notepad' tool
+  const toolChoice = 'required';
+  const maxTokens = MAX_TOKENS;
   let lastError;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -118,22 +176,24 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
             tool_choice: toolChoice,
             temperature,
             max_tokens: maxTokens,
-            top_p: 0.95,
+            //            // // top_p: 0.95, // Anthropic API rejects temperature + top_p together // Anthropic API rejects both temperature + top_p// Anthropic API rejects both temperature + top_p
           });
         } catch (toolErr) {
           if (isContextOverflowError(toolErr)) {
-            // Context overflow — trim history aggressively and retry
+            // Context overflow — trim oldest 25% and retry (graduated, not a full wipe)
             if (conversationHistory.length > 0) {
-              const trimCount = Math.max(2, Math.ceil(conversationHistory.length / 2));
-              conversationHistory.splice(0, trimCount);
+              trimHistoryGraduated(0.25);
               throw toolErr; // Will retry with less history
             }
             // History already empty — pass through to outer retry
             throw toolErr;
           }
           if (isToolCallingUnsupported(toolErr)) {
-            // Tool calling not supported — fall back permanently
-            useToolCalling = false;
+            toolCallingFailures++;
+            if (toolCallingFailures >= MAX_TOOL_FAILURES) {
+              useToolCalling = false;  // Only permanently disable after repeated failures
+            }
+            // Fall back to text for THIS request
             response = await client.chat.completions.create({
               model: MODEL_NAME,
               messages,
@@ -175,6 +235,7 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
           ? thinkMatch[1].trim()
           : rawContent.replace(/<think>|<\/think>/g, '').trim();
 
+        toolCallingFailures = 0;  // Reset on successful tool call
         result = {
           reasoning,
           action: {
@@ -185,13 +246,17 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
           mode: 'tool_call',
         };
 
-        // Store in conversation history (tool result added later via completeToolCall)
+        // Store in conversation history — only if tool call args are valid JSON
+        // (prevents corrupt tool calls from poisoning future requests)
+        const cleanToolCalls = msg.tool_calls.filter(tc => {
+          try { JSON.parse(tc.function.arguments); return true; } catch { return false; }
+        });
         conversationHistory.push(
           { role: 'user', content: userMessage },
           {
             role: 'assistant',
             content: msg.content || null,
-            tool_calls: msg.tool_calls,
+            tool_calls: cleanToolCalls.length > 0 ? cleanToolCalls : undefined,
           },
         );
       } else {
@@ -225,14 +290,24 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
     } catch (err) {
       lastError = err;
 
-      // On context overflow, aggressively trim and retry immediately
+      // On context overflow, trim another 25% and retry immediately.
+      // Each retry removes another quarter until history is empty, then we give up.
       if (isContextOverflowError(err)) {
         if (conversationHistory.length > 0) {
-          conversationHistory.splice(0, Math.max(2, conversationHistory.length));
+          trimHistoryGraduated(0.25);
           continue; // Retry immediately without delay
         }
         // No history left — nothing more we can trim, fail
         break;
+      }
+
+      // Corrupt tool call in history — graduated trim (not full wipe) and retry
+      const errMsg = (err?.message || '').toLowerCase()
+      if (err?.status === 400 && (errMsg.includes('invalid') || errMsg.includes('tool_call'))) {
+        if (conversationHistory.length > 0) {
+          trimHistoryGraduated(0.5)
+          continue // Retry with trimmed history
+        }
       }
 
       if (attempt < MAX_RETRIES - 1) {
@@ -242,6 +317,12 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
     }
   }
 
+  // Last resort after all retries exhausted: trim half the history, then throw.
+  // A full wipe would lose all execution context — trim instead so the next call
+  // starts with recent history intact rather than a blank slate.
+  if (conversationHistory.length > 0) {
+    trimHistoryGraduated(0.5);
+  }
   throw new Error(`LLM failed after ${MAX_RETRIES} attempts: ${lastError?.message}`);
 }
 
