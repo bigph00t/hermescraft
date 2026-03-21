@@ -5,14 +5,7 @@ const MOD_URL = process.env.MOD_URL || 'http://localhost:3001';
 const stateHistory = [];
 const MAX_HISTORY = 10;
 
-// Navigation tracking — since Baritone isPathing is broken, we track it ourselves
-let navigateActive = false;
-let navigateTicksStill = 0;
-
-export function setNavigating(active) {
-  navigateActive = active;
-  navigateTicksStill = 0;
-}
+// Baritone tracking moved to baritone-tracker.js
 
 export async function fetchState() {
   const res = await fetch(`${MOD_URL}/state`, {
@@ -81,6 +74,24 @@ export function summarizeState(state) {
     lines.push(`Nearby blocks: ${blockList.join(', ')}`);
   }
 
+  // Surface blocks — sky-visible blocks the agent can target with look_at_block
+  if (state.surfaceBlocks && state.surfaceBlocks.length > 0) {
+    const seen = new Set()
+    const surfList = []
+    const sorted = [...state.surfaceBlocks].sort((a, b) => (a.distance || 99) - (b.distance || 99))
+    for (const b of sorted) {
+      const name = (b.block || b.name || '').replace('minecraft:', '')
+      // Show closest of each type with full coordinates
+      if (!seen.has(name)) {
+        seen.add(name)
+        const d = Math.round((b.distance || 0) * 10) / 10
+        surfList.push(`${name}(${b.x},${b.y},${b.z} d:${d})`)
+        if (surfList.length >= 10) break
+      }
+    }
+    lines.push(`Surface blocks (visible, use look_at_block): ${surfList.join(', ')}`)
+  }
+
   // Nearby entities
   if (state.nearbyEntities && state.nearbyEntities.length > 0) {
     const ents = state.nearbyEntities.map(e => {
@@ -120,32 +131,6 @@ export function summarizeState(state) {
     lines.push('Recent chat:');
     for (const msg of state.recentChat.slice(-5)) {
       lines.push(`  <${msg.sender || 'Player'}> ${msg.text}`);
-    }
-  }
-
-  // Navigation status — detect movement to infer Baritone is working
-  if (navigateActive) {
-    if (stateHistory.length >= 2) {
-      const prev = stateHistory[stateHistory.length - 2];
-      const pp = prev.position;
-      if (p && pp) {
-        const moved = Math.abs(p.x - pp.x) + Math.abs(p.y - pp.y) + Math.abs(p.z - pp.z);
-        if (moved > 0.5) {
-          lines.push('Status: NAVIGATING — Baritone is pathfinding. Use wait or stop to interrupt.');
-        } else {
-          // Not moving — Baritone may have finished or gotten stuck
-          navigateTicksStill++;
-          if (navigateTicksStill >= 3) {
-            navigateActive = false;
-            navigateTicksStill = 0;
-            lines.push('Status: Navigation appears complete (stopped moving).');
-          } else {
-            lines.push('Status: NAVIGATING — waiting for movement...');
-          }
-        }
-      }
-    } else {
-      lines.push('Status: NAVIGATING — Baritone pathfinding started.');
     }
   }
 
