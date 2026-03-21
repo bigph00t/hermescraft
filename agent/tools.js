@@ -109,11 +109,14 @@ export const GAME_TOOLS = [
     type: 'function',
     function: {
       name: 'place',
-      description: 'Place block from inventory.',
+      description: 'Place block from inventory at coordinates or at crosshair. For building, always specify x,y,z.',
       parameters: {
         type: 'object',
         properties: {
-          item: { type: 'string', description: 'e.g. "crafting_table", "furnace", "torch"' },
+          item: { type: 'string', description: 'e.g. "oak_planks", "cobblestone", "oak_door"' },
+          x: { type: 'integer', description: 'Target X coordinate' },
+          y: { type: 'integer', description: 'Target Y coordinate' },
+          z: { type: 'integer', description: 'Target Z coordinate' },
         },
         required: ['item'],
       },
