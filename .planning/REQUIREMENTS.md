@@ -14,18 +14,18 @@
 
 ### Plugin Stack
 
-- [ ] **PLG-01**: Timber/hTreecapitator installed — chop one log, whole tree falls
-- [ ] **PLG-02**: VeinMiner installed — mine one ore, get whole vein
-- [ ] **PLG-03**: AutoPickup/PickupBot installed — mined items go straight to inventory
-- [ ] **PLG-04**: EssentialsX + Vault installed — /home, /warp, /back, /pay, economy
+- [x] **PLG-01**: Timber/hTreecapitator installed — chop one log, whole tree falls
+- [x] **PLG-02**: VeinMiner installed — mine one ore, get whole vein
+- [x] **PLG-03**: AutoPickup/PickupBot installed — mined items go straight to inventory
+- [x] **PLG-04**: EssentialsX + Vault installed — /home, /warp, /back, /pay, economy
 - [x] **PLG-05**: mcMMO installed — RPG skill progression (mining, woodcutting, excavation, etc.) [AuraSkills used as equivalent alternative]
 - [x] **PLG-06**: QuickShop-Hikari installed — player-to-player chest shops
-- [ ] **PLG-07**: LuckPerms installed — bot permissions configured
+- [x] **PLG-07**: LuckPerms installed — bot permissions configured
 - [x] **PLG-08**: Skript installed — custom command framework
 - [ ] **PLG-09**: BlockBeacon installed — /findblock for resource location [plugin not found, deferred to Skript]
 - [x] **PLG-10**: ServerTap installed — REST API on port 4567 [port 4567 Docker exposure pending]
 - [x] **PLG-11**: StopSpam installed — server-side chat dedup + rate limiting [5s cooldown, similarity detection configured]
-- [ ] **PLG-12**: Chunky installed — world pre-generation
+- [x] **PLG-12**: Chunky installed — world pre-generation
 
 ### Spatial Awareness
 

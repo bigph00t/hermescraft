@@ -8,7 +8,7 @@ progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Project State
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-21)
 
 **Phase 1: Paper Server + Plugin Stack**
 
-- Status: In progress (2/4 plans complete)
+- Status: In progress (3/4 plans complete)
 - Goal: Migrate to Paper, install 12 plugins, verify clients connect
 - Current plan: 01-04 (verification)
 
@@ -64,8 +64,13 @@ None currently.
 - BlockBeacon deferred to Skript — plugin not found on any public repo (01-03)
 - ServerTap port 4567 needs Docker port exposure — deferred to container recreation (01-03)
 - StopSpam cooldown 5000ms + similarity detection threshold 0.85 (01-03)
+- TreeTimber from Modrinth CDN — Hangar API returns HTML redirects for external plugins (01-02)
+- JAutoPickup instead of AutoPickup — original requires SpigotMC browser login (01-02)
+- LuckPerms YAML storage — enables file-based group management without RCON (01-02)
+- ServerTap REST API for console commands — rcon-cli not available in container (01-02)
 
 ## Session Log
 
 - 2026-03-21: Completed 01-01 (Paper server setup + world migration). Paper running, both clients connected.
+- 2026-03-21: Completed 01-02 (Batch 1 plugins). Timber, VeinMiner, AutoPickup, EssentialsX, Vault, LuckPerms, Chunky installed. Bot group configured.
 - 2026-03-21: Completed 01-03 (Batch 2 plugins). AuraSkills, QuickShop-Hikari, Skript, ServerTap, StopSpam installed. StopSpam configured.
