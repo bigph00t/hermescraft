@@ -44,11 +44,11 @@ Plans:
   2. Active skill is selected automatically based on current phase/goal — no manual env var or config change needed to switch skills
   3. Given a complex instruction ("build a house"), agent produces a written multi-step plan with discrete subtasks before acting
   4. Each tick, the agent knows which subtask is current, which are done, and which are blocked — plan state is visible in its reasoning
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 02-01: Agent-writable pinned context tool (MEM-04) and automatic skill routing (SKL-02)
-- [ ] 02-02: Task decomposition and per-tick progress tracking (WRK-01, WRK-02)
+- [ ] 02-01-PLAN.md — Agent-writable pinned context tool (save_context/delete_context) and multi-signal automatic skill selection (MEM-04, SKL-02)
+- [ ] 02-02-PLAN.md — Task decomposition tools (plan_task/update_task) and per-tick progress tracking in user message (WRK-01, WRK-02)
 
 ### Phase 3: Self-Review Loop
 **Goal**: The agent evaluates its own actions and subtask outcomes, catching failures and iterating instead of proceeding blindly
@@ -71,6 +71,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Reliability | 1/2 | In Progress|  |
+| 1. Reliability | 2/2 | Complete |  |
 | 2. Planning Capability | 0/2 | Not started | - |
 | 3. Self-Review Loop | 0/2 | Not started | - |
