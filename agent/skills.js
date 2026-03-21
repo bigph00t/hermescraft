@@ -2,7 +2,7 @@
 // Skills are procedural memory: strategies the agent learns from gameplay
 // Format follows the agentskills.io specification (SKILL.md with YAML frontmatter)
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, rmSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -339,6 +339,90 @@ export function recordSkillOutcome(phase, success) {
     writeFileSync(skill.path, content, 'utf-8');
   } catch {
     // Skill file missing or unwritable — skip update
+  }
+}
+
+// ── Experience-Based Skill Creation ──
+
+const MAX_EXPERIENCE_SKILLS = 15
+
+export function createSkillFromExperience(skillName, description, strategy, context = {}) {
+  const sanitized = skillName.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').slice(0, 60)
+  const dirName = 'exp-' + sanitized
+
+  const skillPath = join(SKILLS_DIR, dirName, 'SKILL.md')
+
+  // If skill already exists, update it instead
+  if (existsSync(skillPath)) {
+    updateSkill(dirName, { lessonsLearned: [strategy.slice(0, 200)] })
+    return { name: dirName, created: false, updated: true }
+  }
+
+  // Cap experience-based skills at MAX_EXPERIENCE_SKILLS
+  if (existsSync(SKILLS_DIR)) {
+    const expDirs = readdirSync(SKILLS_DIR, { withFileTypes: true })
+      .filter(d => d.isDirectory() && d.name.startsWith('exp-'))
+      .map(d => d.name)
+
+    if (expDirs.length >= MAX_EXPERIENCE_SKILLS) {
+      // Find lowest success_rate among experience skills and evict it
+      let lowestRate = Infinity
+      let lowestDir = null
+      for (const ed of expDirs) {
+        const s = skills.find(sk => sk.name === ed)
+        const rate = s ? parseFloat(s.metadata?.success_rate || '0.5') : 0.5
+        if (rate < lowestRate) {
+          lowestRate = rate
+          lowestDir = ed
+        }
+      }
+      if (lowestDir) {
+        rmSync(join(SKILLS_DIR, lowestDir), { recursive: true })
+      }
+    }
+  }
+
+  // Create the skill directory and SKILL.md
+  const skillDir = join(SKILLS_DIR, dirName)
+  mkdirSync(skillDir, { recursive: true })
+
+  const content = renderSkillMd({
+    name: dirName,
+    description,
+    phase: 0,
+    deathCount: context.deathCount || 0,
+    keyActions: [],
+    objectives: strategy.split('\n').filter(l => l.trim()).slice(0, 8),
+    tips: [],
+    lessons: [],
+  })
+
+  writeFileSync(join(skillDir, 'SKILL.md'), content, 'utf-8')
+  loadSkills()
+
+  return { name: dirName, created: true, updated: false }
+}
+
+// ── Downgrade Skill by Name ──
+
+export function downgradeSkillByName(skillName) {
+  const skill = skills.find(s => s.name === skillName)
+  if (!skill) return false
+
+  try {
+    let content = readFileSync(skill.path, 'utf-8')
+    const currentRate = parseFloat(skill.metadata?.success_rate || '0.5')
+    const newRate = Math.max(0, currentRate - 0.15)
+    content = content.replace(
+      /success_rate: "[^"]*"/,
+      `success_rate: "${newRate.toFixed(2)}"`
+    )
+    writeFileSync(skill.path, content, 'utf-8')
+    // Update in-memory too
+    if (skill.metadata) skill.metadata.success_rate = newRate.toFixed(2)
+    return true
+  } catch {
+    return false
   }
 }
 
