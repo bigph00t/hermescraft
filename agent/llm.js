@@ -8,7 +8,7 @@ import { GAME_TOOLS } from './tools.js';
 const VLLM_URL = process.env.VLLM_URL || 'http://localhost:8000/v1';
 const MODEL_NAME = process.env.MODEL_NAME || 'Doradus/Hermes-4.3-36B-FP8';
 const BASE_TEMPERATURE = parseFloat(process.env.TEMPERATURE || '0.6');
-const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '384', 10);
+// No artificial token cap — let the model generate naturally
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 1000;
 const MAX_HISTORY_MESSAGES = parseInt(process.env.MAX_HISTORY || '90', 10);  // ~30 rounds; auto-trims on context overflow
@@ -32,6 +32,7 @@ const client = new OpenAI({
 const conversationHistory = [];
 let useToolCalling = true;  // Try tool calling first, disable on failure
 let toolCallingFailures = 0;
+let _textFallbackCount = 0;  // Track consecutive text fallbacks to break notepad loops
 const MAX_TOOL_FAILURES = 3;  // Only permanently disable after 3 consecutive failures
 
 export function clearConversation() {
@@ -152,9 +153,10 @@ function isToolCallingUnsupported(err) {
 
 export async function queryLLM(systemPrompt, userMessage, opts = {}) {
   const temperature = opts.temperature ?? BASE_TEMPERATURE;
+  const toolsOverride = opts.tools ?? null;  // Optional: restrict available tools (e.g. chat-only during Baritone)
   // Always force tool calls — thinking happens via 'reason' param, 'chat' tool, or 'notepad' tool
   const toolChoice = 'required';
-  const maxTokens = MAX_TOKENS;
+  // no max_tokens cap
   let lastError;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -172,10 +174,9 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
           response = await client.chat.completions.create({
             model: MODEL_NAME,
             messages,
-            tools: GAME_TOOLS,
+            tools: toolsOverride || GAME_TOOLS,
             tool_choice: toolChoice,
             temperature,
-            max_tokens: maxTokens,
             //            // // top_p: 0.95, // Anthropic API rejects temperature + top_p together // Anthropic API rejects both temperature + top_p// Anthropic API rejects both temperature + top_p
           });
         } catch (toolErr) {
@@ -198,7 +199,6 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
               model: MODEL_NAME,
               messages,
               temperature,
-              max_tokens: MAX_TOKENS,
             });
           } else {
             throw toolErr;
@@ -209,7 +209,6 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
           model: MODEL_NAME,
           messages,
           temperature,
-          max_tokens: MAX_TOKENS,
         });
       }
 
@@ -236,6 +235,7 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
           : rawContent.replace(/<think>|<\/think>/g, '').trim();
 
         toolCallingFailures = 0;  // Reset on successful tool call
+        _textFallbackCount = 0;  // Reset fallback counter
         result = {
           reasoning,
           action: {
@@ -262,7 +262,10 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
       } else {
         // No structured tool call — try parsing from text (Hermes XML, JSON, etc)
         const text = msg.content || '';
-        result = parseResponseFallback(text);
+        // Strip <think>...</think> blocks before parsing — MiniMax M2.7 wraps
+        // all output in these, which can hide tool calls that come after them
+        const textForParsing = text.replace(/<think>[\s\S]*?<\/think>/g, '').trim() || text;
+        result = parseResponseFallback(textForParsing);
 
         // Extract <think> content for reasoning
         const thinkFallback = text.match(/<think>([\s\S]*?)<\/think>/);
@@ -272,9 +275,18 @@ export async function queryLLM(systemPrompt, userMessage, opts = {}) {
 
         if (result.action) {
           result.mode = 'text_parsed';  // Got action from text parsing
+          _textFallbackCount = 0;  // Reset fallback counter
         } else {
           result.mode = 'text_fallback';
-          result.action = { type: 'wait' };  // Default to wait if nothing parseable
+          _textFallbackCount++
+          // Smart fallback — if we've fallen back too many times, try mining wood
+          // which is always productive and uses Baritone's search
+          if (_textFallbackCount >= 3) {
+            result.action = { type: 'mine', blockName: 'oak_log', reason: 'fallback: need wood' }
+            _textFallbackCount = 0  // reset after forced action
+          } else {
+            result.action = { type: 'notepad', action: 'read', reason: 'thinking' }
+          }
           result.reasoning = result.reasoning || text.replace(/<think>|<\/think>/g, '').trim();
         }
 
@@ -361,6 +373,36 @@ function parseResponseFallback(text) {
       }
     }
     if (action) return { reasoning, action, raw: text };
+  }
+
+  // 1b. Try <FunctionCall> XML format (MiniMax sometimes uses this)
+  const funcCallMatch = text.match(/<FunctionCall>\s*([\s\S]*?)\s*<\/FunctionCall>/i)
+  if (funcCallMatch) {
+    const beforeTag = text.slice(0, text.indexOf('<FunctionCall')).trim()
+    if (beforeTag) reasoning = beforeTag
+
+    try {
+      const nameMatch = funcCallMatch[1].match(/name\s*=\s*"([^"]+)"/)
+      const paramsMatch = funcCallMatch[1].match(/parameters\s*=\s*"([\s\S]*?)"\s*$/m)
+      if (nameMatch) {
+        let args = {}
+        if (paramsMatch) {
+          try {
+            // Parameters are JSON inside quotes, may have escaped newlines
+            const cleanParams = paramsMatch[1].replace(/\n/g, '').trim()
+            args = JSON.parse(cleanParams)
+          } catch {
+            // Try extracting JSON from the parameters block
+            const jsonInParams = funcCallMatch[1].match(/\{[\s\S]*\}/)
+            if (jsonInParams) {
+              try { args = JSON.parse(jsonInParams[0]) } catch {}
+            }
+          }
+        }
+        action = { type: nameMatch[1], ...args }
+      }
+    } catch {}
+    if (action) return { reasoning, action, raw: text }
   }
 
   // 2. Try REASONING: / ACTION: format
