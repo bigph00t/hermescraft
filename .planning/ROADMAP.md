@@ -16,8 +16,8 @@ Transform existing Minecraft AI agents from basic tool-calling bots into full li
 **Plans:** 4 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Foundation: place_at coordinates, blueprint library, 3 starter blueprints
-- [ ] 01-02-PLAN.md — Vision system: mod screenshot endpoint, agent vision loop
+- [x] 01-01-PLAN.md — Foundation: place_at coordinates, blueprint library, 3 starter blueprints
+- [x] 01-02-PLAN.md — Vision system: mod screenshot endpoint, agent vision loop
 - [ ] 01-03-PLAN.md — Blueprint executor engine, build tool integration
 - [ ] 01-04-PLAN.md — Multi-loop architecture, planner loop, building knowledge
 
