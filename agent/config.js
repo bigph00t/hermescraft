@@ -41,5 +41,9 @@ export function loadAgentConfig() {
   const visionIntervalMs = parseInt(process.env.VISION_INTERVAL_MS || '10000', 10)
   const visionModel = process.env.VISION_MODEL || process.env.MODEL_NAME || 'Doradus/Hermes-4.3-36B-FP8'
 
-  return { name, mode, goal, dataDir, soulContent, visionEnabled, visionIntervalMs, visionModel };
+  // Planner loop config (D-01)
+  const plannerEnabled = (process.env.PLANNER_ENABLED || 'true') === 'true'
+  const plannerIntervalMs = parseInt(process.env.PLANNER_INTERVAL_MS || '60000', 10)
+
+  return { name, mode, goal, dataDir, soulContent, visionEnabled, visionIntervalMs, visionModel, plannerEnabled, plannerIntervalMs };
 }
