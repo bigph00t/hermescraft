@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-last_updated: "2026-03-21T20:47:31Z"
+last_updated: "2026-03-21T20:57:32Z"
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -24,9 +24,9 @@ See: .planning/PROJECT.md (updated 2026-03-21)
 
 **Phase 1: Paper Server + Plugin Stack**
 
-- Status: In progress (1/4 plans complete)
+- Status: In progress (2/4 plans complete)
 - Goal: Migrate to Paper, install 12 plugins, verify clients connect
-- Current plan: 01-02 (plugin installation wave 1)
+- Current plan: 01-04 (verification)
 
 ## History
 
@@ -60,7 +60,12 @@ None currently.
 - Paper 1.21.1 build #133 as server platform (01-01)
 - RCON on port 25575 for runtime server configuration (01-01)
 - enforce-secure-profile=false for offline-mode bot access (01-01)
+- AuraSkills instead of mcMMO — mcMMO only on SpigotMC (no API), AuraSkills equivalent (01-03)
+- BlockBeacon deferred to Skript — plugin not found on any public repo (01-03)
+- ServerTap port 4567 needs Docker port exposure — deferred to container recreation (01-03)
+- StopSpam cooldown 5000ms + similarity detection threshold 0.85 (01-03)
 
 ## Session Log
 
 - 2026-03-21: Completed 01-01 (Paper server setup + world migration). Paper running, both clients connected.
+- 2026-03-21: Completed 01-03 (Batch 2 plugins). AuraSkills, QuickShop-Hikari, Skript, ServerTap, StopSpam installed. StopSpam configured.
