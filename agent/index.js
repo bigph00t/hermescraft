@@ -2,7 +2,7 @@
 // Integrates: native tool calling, multi-level memory, agentskills.io skills,
 // configurable goals, rich terminal output, user instructions
 
-import { fetchState, summarizeState, detectDeath, setNavigating } from './state.js';
+import { fetchState, summarizeState, detectDeath } from './state.js';
 import { queryLLM, clearConversation, getTemperature, isToolCallingEnabled, completeToolCall } from './llm.js';
 import { executeAction, validateAction, validatePreExecution, INFO_ACTIONS } from './actions.js';
 import { fetchRecipes } from './state.js';
@@ -38,6 +38,8 @@ import { startPlannerLoop, stopPlannerLoop, getPlanContext } from './planner.js'
 import { startBuild, resumeBuild, getBuildProgress, cancelBuild, isBuildActive, unpauseBuild } from './builder.js';
 import { startFarm, resumeFarm, getFarmProgress, cancelFarm, isFarmActive, startHarvest } from './farming.js';
 import { detectBehaviorMode } from './needs.js';
+import { initQueue, popAction, peekAction, clearQueue, getQueueLength, getQueueSummary, getQueueGoal } from './action-queue.js';
+import { startBaritone, updatePosition, getStatus as getBaritoneStatus, stopBaritone, isBaritoneActive, getBaritoneContext } from './baritone-tracker.js';
 
 const TICK_INTERVAL = parseInt(process.env.TICK_MS || '2000', 10);
 const MAX_STUCK_COUNT = 2;
@@ -48,8 +50,9 @@ const FAILURE_TRACKER_MAX = 50; // Max entries before pruning
 // Chat dedup: track messages we've already seen so we don't respond twice
 let lastProcessedMessages = new Set()
 
-// Sustained actions that take multiple seconds — pipeline thinking during these
-const SUSTAINED_ACTIONS = new Set(['mine', 'navigate', 'break_block', 'build', 'farm', 'harvest', 'fish']);
+// Baritone actions — tracked by baritone-tracker.js
+const BARITONE_ACTIONS = new Set(['mine', 'navigate']);
+
 
 // ── Global crash handlers — CRITICAL for 24/7 operation ──
 process.on('unhandledRejection', (err) => {
@@ -58,12 +61,13 @@ process.on('unhandledRejection', (err) => {
 process.on('uncaughtException', (err) => {
   logError('Uncaught exception', err);
   // Save state and attempt to continue — only exit on truly unrecoverable errors
-  try { periodicSave(); } catch {}
+  try { periodicSave(); savePlayers(); } catch {}
   // Don't exit — let the loop continue if possible
 });
 
 // Agent config (set in main, used in tick)
 let _agentConfig = null;
+let _buildingKnowledge = '';
 
 // Agent state
 let deathCount = 0;
@@ -500,7 +504,7 @@ async function disableBaritoneOverlays() {
 
 // ── Main Tick ──
 
-async function tick(precomputedResponse = null) {
+async function tick() {
   tickCount++;
 
   // 1. OBSERVE — fetch game state
@@ -511,6 +515,9 @@ async function tick(precomputedResponse = null) {
     logError('Failed to fetch game state', err);
     return null;
   }
+
+  // Update Baritone tracker with current position
+  if (state.position) updatePosition(state.position)
 
   // Compute behavior mode for this tick (work/shelter/social/sleep)
   const behaviorMode = detectBehaviorMode(state)
@@ -569,7 +576,8 @@ async function tick(precomputedResponse = null) {
         logWarn(`Position stuck for ${samePositionTicks} ticks — forcing stop + fresh thinking`);
         try { await executeAction({ type: 'stop' }); } catch {}
         clearConversation();
-        setNavigating(false);
+        stopBaritone('stuck');
+        clearQueue('stuck');
         clearAllFailures();
         samePositionTicks = 0;
         idleTicks = 0;
@@ -616,8 +624,10 @@ async function tick(precomputedResponse = null) {
     // Rich death banner for stream viewers
     logDeathBanner(deathCount, deathRecord);
 
-    // Clear conversation — fresh start after death
+    // Clear conversation + queue — fresh start after death
     clearConversation();
+    clearQueue('death');
+    stopBaritone('death');
     clearAllFailures();
     idleTicks = 0;
 
@@ -798,7 +808,7 @@ async function tick(precomputedResponse = null) {
     // Aggressive recovery: stop Baritone, clear conversation for fresh thinking
     try { await executeAction({ type: 'stop' }); } catch {}
     clearConversation();
-    setNavigating(false);
+    stopBaritone('stuck');
     idleTicks = 0;
   }
 
@@ -853,7 +863,7 @@ async function tick(precomputedResponse = null) {
     phaseTips: currentPhase?.tips || [],
     activeSkill: activeSkill?.content || '',
     pinnedContext,
-    buildingKnowledge,
+    buildingKnowledge: _buildingKnowledge,
     planContext: getPlanContext(),
     behaviorMode,
   });
@@ -889,17 +899,69 @@ async function tick(precomputedResponse = null) {
     visionContext: getVisionContext(),
     buildProgress: combinedProgress,
     idleHint,
+    queueSummary: getQueueSummary(),
+    baritoneContext: getBaritoneContext(),
   });
 
   const temperature = getTemperature(currentPhase, state);
 
   let response;
 
-  if (precomputedResponse && !stuckInfo && !playerChatContext) {
-    // Use pre-computed action from pipeline (skip LLM call entirely!)
-    response = precomputedResponse;
-    logInfo('⚡ Using pipelined action');
-  } else {
+  // ── BRAIN-HANDS DECISION TREE ──
+  const baritoneStatus = getBaritoneStatus()
+
+  // A. Baritone done? Reset tracker.
+  if (baritoneStatus.state === 'done') {
+    logInfo(`[Baritone] Complete: ${baritoneStatus.type} (${baritoneStatus.reason})`)
+    stopBaritone('complete')
+  }
+
+  // B. Baritone active? Skip LLM — just wait. (Exception: respond to chat)
+  if (isBaritoneActive() && !stuckInfo) {
+    if (playerChatContext) {
+      // Respond to chat while busy, but only allow chat/notepad actions
+      const { GAME_TOOLS } = await import('./tools.js')
+      const chatOnlyTools = GAME_TOOLS.filter(t => ['chat', 'notepad', 'read_chat'].includes(t.function.name))
+      try {
+        response = await queryLLM(systemPrompt, userMessage, { temperature, tools: chatOnlyTools })
+      } catch { return null }
+    } else {
+      // Nothing to do — Baritone is working. Skip this tick.
+      return null
+    }
+  }
+
+  // C. Build/farm active? Let those systems run (handled above in resumeBuild/resumeFarm).
+  if (!response && (isBuildActive() || isFarmActive()) && !playerChatContext && !stuckInfo) {
+    return null
+  }
+
+  // D. Queue has items? Pop and execute WITHOUT calling LLM.
+  if (!response && !stuckInfo && getQueueLength() > 0 && !playerChatContext) {
+    const queuedAction = popAction()
+    if (queuedAction) {
+      const validation = validateAction({ type: queuedAction.type, ...queuedAction.args })
+      if (validation.valid) {
+        const preExec = validatePreExecution({ type: queuedAction.type, ...queuedAction.args }, state)
+        if (preExec.valid) {
+          logInfo(`[Queue] Executing: ${queuedAction.type} ${queuedAction.reason ? '— ' + queuedAction.reason : ''}`)
+          response = {
+            reasoning: `Following plan: ${queuedAction.reason || queuedAction.type}`,
+            action: { type: queuedAction.type, ...queuedAction.args, reason: queuedAction.reason || 'queued' },
+            mode: 'queue',
+          }
+        } else {
+          logWarn(`[Queue] Skipped invalid: ${queuedAction.type} — ${preExec.reason}`)
+          // Try next item on next tick
+        }
+      } else {
+        logWarn(`[Queue] Skipped bad action: ${queuedAction.type} — ${validation.error}`)
+      }
+    }
+  }
+
+  // E. Nothing queued, nothing active — call LLM to improvise.
+  if (!response) {
     try {
       response = await queryLLM(systemPrompt, userMessage, { temperature });
     } catch (err) {
@@ -1005,8 +1067,8 @@ async function tick(precomputedResponse = null) {
   }
 
   // Truncate chat messages to prevent MC client crash
-  if (actionType === 'chat' && response.action.message && response.action.message.length > 180) {
-    response.action.message = response.action.message.substring(0, 180);
+  if (actionType === 'chat' && response.action.message && response.action.message.length > 90) {
+    response.action.message = response.action.message.substring(0, 90);
   }
 
   // Handle build actions — managed by builder.js, not the mod API
@@ -1134,11 +1196,11 @@ async function tick(precomputedResponse = null) {
     completeToolCall(JSON.stringify(result).slice(0, 300));
   }
 
-  // Track navigation state for Baritone awareness
-  if ((actionType === 'navigate' || actionType === 'mine') && result?.success !== false) {
-    setNavigating(true);
+  // Track Baritone state — mine/navigate run in background for up to 30s
+  if (BARITONE_ACTIONS.has(actionType) && result?.success !== false) {
+    startBaritone(actionType, response.action)
   } else if (actionType === 'stop') {
-    setNavigating(false);
+    stopBaritone('stop command')
   }
 
   // Track result
@@ -1227,30 +1289,7 @@ async function tick(precomputedResponse = null) {
     idleTicks++
   }
 
-  // Pipeline: if we just started a sustained action, pre-think the next move
-  if (success && SUSTAINED_ACTIONS.has(actionType)) {
-    try {
-      logInfo('⚡ Pipelining: pre-thinking next action while current runs...');
-      const nextState = await fetchState();
-      const nextStateSummary = summarizeState(nextState);
-      const nextCombinedProgress = [getBuildProgress(), getFarmProgress()].filter(Boolean).join('\n')
-      const nextUserMessage = buildUserMessage(nextStateSummary, actionHistory, {
-        stuckInfo: null,
-        userInstruction: `Current action "${actionType}" is running in background. Plan your NEXT action.`,
-        notepadContent: readNotepad(),
-        progressDetail: getProgressDetail(currentPhase, nextState) || null,
-        taskProgress: loadTaskState(),
-        reviewResult: null,
-        visionContext: getVisionContext(),
-        buildProgress: nextCombinedProgress,
-      });
-      const nextResponse = await queryLLM(systemPrompt, nextUserMessage, { temperature });
-      return nextResponse;  // Return pre-computed action for next tick
-    } catch {
-      // Pipeline failed — no big deal, next tick will think fresh
-    }
-  }
-  return null;  // No pipelined action
+  return null;
 }
 
 function sleep(ms) {
@@ -1271,6 +1310,7 @@ async function main() {
   initAutobiography(agentConfig);
   initChests(agentConfig);
   initChatHistory(agentConfig);
+  initQueue(agentConfig);
 
   // Set per-agent notepad and task plan paths
   NOTEPAD_FILE = join(agentConfig.dataDir, 'notepad.txt');
@@ -1313,7 +1353,7 @@ async function main() {
   }
   const rawBuildingKnowledge = loadBuildingKnowledge()
   const foodKnowledge = loadFoodKnowledge()
-  const buildingKnowledge = [rawBuildingKnowledge, foodKnowledge].filter(Boolean).join('\n\n')
+  _buildingKnowledge = [rawBuildingKnowledge, foodKnowledge].filter(Boolean).join('\n\n')
   if (rawBuildingKnowledge) {
     logInfo(`Building knowledge loaded (${rawBuildingKnowledge.length} chars)`)
   }
@@ -1343,6 +1383,7 @@ async function main() {
       } catch {}
     }
     periodicSave();
+    savePlayers();
     const finalStats = getSessionStats();
     logInfo(`Session complete. Deaths: ${deathCount}. Actions: ${finalStats.totalActions}. Farewell, traveler.`);
     process.exit(0);
@@ -1351,17 +1392,14 @@ async function main() {
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 
-  let pendingAction = null;  // Pre-computed next action from pipelining
-
   while (running) {
     try {
-      currentTickPromise = tick(pendingAction);
-      pendingAction = await currentTickPromise;
+      currentTickPromise = tick();
+      await currentTickPromise;
       currentTickPromise = null;
     } catch (err) {
       logError('Unexpected error in tick', err);
       currentTickPromise = null;
-      pendingAction = null;
     }
     if (running) await sleep(TICK_INTERVAL);
   }

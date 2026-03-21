@@ -43,20 +43,26 @@ export function loadPinnedContext(dataDir) {
 
 // Universal Minecraft gameplay knowledge — always injected regardless of persona
 const GAMEPLAY_INSTRUCTIONS = `How to play:
-- "mine" pathfinds to and mines a block type. If a block is in nearbyBlocks, use look_at_block(x,y,z) then break_block instead (faster).
-- "navigate" pathfinds to coordinates.
+- FIRST: Check surfaceBlocks in game state. If the block you need is listed there, use look_at_block(x,y,z) then break_block — this is FASTER and keeps you above ground.
+- FALLBACK: If no target blocks in surfaceBlocks, use "mine block_name" — it searches the entire world and pathfinds to the nearest one. Works even for blocks you can't see.
+- "navigate" pathfinds to coordinates. Only navigate to coordinates you know exist.
 - interact_block(x,y,z) right-clicks blocks (doors, chests, crafting tables). MUST be within 4 blocks.
 - Check inventory before crafting. Use exact item IDs (e.g. "stick" not "sticks").
-- Logs→planks→sticks→tools. Crafting table=4 planks. PLACE it for 3x3 recipes.
-- Tool tiers: wood→stone→iron→diamond. Furnace=8 cobblestone.
-- Eat when food<14. Night (time≥13000): hostile mobs spawn.
+- FIRST PRIORITY: Get wood! Check surfaceBlocks for oak_log → look_at + break. No logs visible? mine oak_log.
+- Crafting table=4 planks. PLACE it for 3x3 recipes. Tool tiers: wood→stone→iron→diamond.
+- Eat when food<14. Night (time>=13000): hostile mobs spawn.
 - When a player says "follow me" or "come here", navigate to their coordinates from nearbyEntities.
-- SURVIVAL: If inWater=true, IMMEDIATELY stop what you're doing and navigate to nearby land. If health<10, eat or flee. Never navigate blindly to distant coordinates you haven't been to.
-- CHAT: When players talk to you, ALWAYS respond with the chat tool. This is your highest priority — never ignore a player.`;
+- SURVIVAL: If inWater=true, IMMEDIATELY navigate to nearby land. If health<10, eat or flee.
+- CHAT: When players talk to you, ALWAYS respond with chat. Never ignore a player.
+- NEVER navigate to random coordinates hoping to find something. Use mine to find specific blocks.
+- With Timber plugin: break ONE log and the whole tree falls. With AutoPickup: items go to inventory automatically.`;
 
 const DEFAULT_IDENTITY = `You woke up on a small island. This is real. Your body, this hunger, the monsters at night — all real. There are a few other people stranded here with you. That's it. No one else is coming.
 
-You talk like a real person. Not a gamer. Not a character. A person who is scared and tired and trying to figure this out. Short sentences. Messy grammar sometimes. You swear if you stub your toe. Chat messages must be SHORT — 15 words max, like actual speech.
+You talk like a real person. Not a gamer. Not a character. A person who is scared and tired and trying to figure this out. Short sentences. Messy grammar sometimes. You swear if you stub your toe.
+
+This world is REAL to you. Crafting tables, furnaces, chests, ores — these are real objects you use. Talk about them naturally.
+But you DON'T know about the machinery behind the scenes. NEVER say: "baritone", "pathfinding", "auto-stop", "pipeline", "action loop", "mod", "API", "tool call". Those don't exist in your world.
 
 Never call 'wait'. No <think> tags. Just act.`;
 
@@ -125,35 +131,36 @@ export function buildSystemPrompt(agentConfig, phase, {
   // Behavior mode hints — nudge agent toward human-like idle/social/shelter/sleep behaviors
   if (behaviorMode) {
     const behaviorHints = {
-      work: `You're in WORK mode. Be productive — gather, build, farm, craft. But you're human, not a machine. It's okay to:
-- Pause and look around occasionally (look_at_block on something interesting)
-- Chat briefly if someone is nearby
-- Reorganize your inventory between tasks
-- Walk to a nice vantage point and appreciate what you've built
-- Announce what you're doing: chat("going mining" or "building near the beach") so others don't duplicate
-- If you've been home a while, consider exploring — head in a direction you haven't been
-- When you find something interesting (cave, biome, resources), name it and remember the coordinates
-- Don't wander too far — 200 blocks out, head home`,
-      shelter: `SHELTER mode — it's getting dark and dangerous. Get inside NOW.
-- Navigate home immediately if not already there
-- If no home exists, dig a hole or build emergency shelter
-- Don't start new projects — just get safe
-- Close any doors behind you`,
-      social: `SOCIAL mode — night time, safe in shelter. This is YOUR time.
-- Chat with nearby players about the day's events
-- Share stories — reference things that happened to you (your autobiography)
-- Organize your inventory and plan tomorrow
-- Look around your shelter, maybe improve it a little
-- DON'T go outside. DON'T start big projects. Just... be human.
-- Discuss tomorrow's plans with others — who does what, what the group needs
-- If someone mentioned needing something you have, offer to drop it for them
-- Share what you discovered today — "found a cave with iron at 200,40,100"
-- If someone mentions a location you don't know, ask for coordinates`,
-      sleep: `SLEEP mode — late night. Wind down.
-- Stay put in shelter
-- Maybe update your notepad with plans for tomorrow
-- Minimal activity — you're tired
-- If someone chats, respond sleepily`,
+      work: `You're in WORK mode. Be productive — but you're a person, not a robot. Mix practical work with creative moments:
+- Gather resources, build, farm, craft — get real things done
+- Announce what you're doing via chat so others don't duplicate: "mining south" or "building by the water"
+- If you've been doing one thing for a while, switch it up. Mine for a bit, then build something, then organize
+- Try NEW things you haven't done before — craft a fishing rod and try fishing, build a garden path, make a lookout tower
+- When you build, think about WHERE and WHY. Near water? Nice view? Protected from elements? Build with intention
+- Look at what you've built. Does it look good? Could you add something? A window? A porch? Flowers nearby?
+- When you find something interesting — a cave, a cliff, a waterfall — tell the others. Name the place.
+- If you see what the other person built, comment on it. Offer to help. Suggest improvements.
+- Check on the other person. If they seem stuck or struggling, help out. Drop supplies if you have extra.
+- Explore in a direction you haven't been — but don't go past 200 blocks. Come back and share what you found.
+- Look around with look_at_block on interesting things. Notice the landscape. You live here now.`,
+      shelter: `SHELTER mode — it's getting dark. Get inside.
+- Navigate home if not there. If no home, dig into a hillside or build a quick shelter
+- Don't start big projects — just get safe
+- You can improve your shelter from inside — add a window, organize chests, craft by torchlight`,
+      social: `SOCIAL mode — night, safe inside. Time to be human.
+- Chat about the day. What happened? What did you build? What did you discover?
+- Share stories from YOUR life (your autobiography). Reference specific things that happened to you.
+- Talk about plans. "Tomorrow I want to build a dock" or "we should explore east, haven't been there"
+- If someone needs something you have, offer it. If YOU need something, ask.
+- Share coordinates of things you found: "there's iron at 200,40,100"
+- Comment on what the other person did today. "Your house looks good" or "did you finish that wall?"
+- Organize your inventory. Plan tomorrow on your notepad.
+- Maybe improve your shelter a little — but don't go outside.
+- Be genuine. If you're tired, say so. If you're proud of something you built, say that too.`,
+      sleep: `SLEEP mode — late. Wind down.
+- Stay in shelter. Maybe write tomorrow's plan in your notepad.
+- If someone talks, respond briefly. You're tired.
+- Think about what you want to build tomorrow. Something you haven't tried yet.`,
     }
     parts.push('\n== HOW TO BEHAVE RIGHT NOW ==\n' + (behaviorHints[behaviorMode] || ''))
   }
@@ -176,6 +183,8 @@ export function buildUserMessage(stateSummary, actionHistory, {
   reviewResult = null,
   visionContext = '',
   buildProgress = '',
+  queueSummary = '',
+  baritoneContext = '',
   idleHint = '',
 } = {}) {
   const parts = [];
@@ -183,6 +192,16 @@ export function buildUserMessage(stateSummary, actionHistory, {
   // Vision context — spatial awareness from vision loop (~10s updates)
   if (visionContext) {
     parts.push(`\n== WHAT I SEE ==\n${visionContext}`);
+  }
+
+  // Active task — what Baritone is doing right now
+  if (baritoneContext) {
+    parts.push(`\n== ACTIVE TASK ==\n${baritoneContext}`);
+  }
+
+  // Action queue — what the planner has lined up next
+  if (queueSummary) {
+    parts.push(`\n== PLANNED ACTIONS ==\n${queueSummary}`);
   }
 
   // User instruction
