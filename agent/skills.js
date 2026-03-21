@@ -142,8 +142,13 @@ export function getActiveSkill(phase) {
     // (first-night or resource-gathering skills are always useful)
     const generalSkills = skills.filter(s =>
       s.name.includes('first-night') || s.name.includes('resource-gathering') || s.name.includes('combat')
-    );
-    return generalSkills.length > 0 ? generalSkills[0].content : null;
+    )
+    if (generalSkills.length === 0) return null
+    const skill = generalSkills[0]
+    return {
+      name: skill.name,
+      content: skill.body,
+    }
   }
 
   // Find skill matching current phase
