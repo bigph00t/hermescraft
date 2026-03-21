@@ -65,22 +65,30 @@ Plans:
 
 ## Phase 3: Plugin Integration + Custom Commands
 
-**Goal:** Agents use plugins as tools — /findblock, /home, mcMMO skills, QuickShop trading, ServerTap queries.
+**Goal:** Agents use plugins as tools — /scan for block discovery, /home for fast travel, AuraSkills abilities, QuickShop trading, ServerTap queries.
 
 **Requirements:** INT-01 through INT-07
+
+**Plans:** 4 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Skript commands (/scan, /share-location, /myskills), command-parser.js, servertap.js
+- [ ] 03-02-PLAN.md — 8 new plugin tools in tools.js + action handlers in actions.js
+- [ ] 03-03-PLAN.md — Prompt updates (GAMEPLAY_INSTRUCTIONS, planner strategy), state.js ServerTap integration, index.js plugin response wiring
+- [ ] 03-04-PLAN.md — Deploy Skript to server, grant permissions, end-to-end verification
 
 **Scope:**
 - Write Skript: /scan <block> <radius> surface — returns nearest surface blocks with coords
 - Write Skript: /share-location <name> — broadcasts location to all
-- Agent tool: execute /findblock via chat, parse response for coordinates
-- Agent tool: /home set, /home, /warp for fast travel
-- Agent reads mcMMO skill levels from ServerTap API, adapts behavior
-- Agent can set up QuickShop chest shops (place chest, set price)
-- Agent queries ServerTap REST API for player/world data
+- Write Skript: /myskills — parseable skill level output
+- Agent tools: scan_blocks, go_home, set_home, share_location, check_skills, use_ability, query_shops, create_shop
+- Command response parser (command-parser.js) for extracting structured data from chat
+- ServerTap REST client (servertap.js) for read-only server data
 - Update prompt.js and tools.js with new plugin-enabled actions
 - Update planner to suggest plugin-enabled strategies
+- Plugin response injection into user messages
 
-**Done when:** Agent uses /findblock to locate iron, /home to return to base, reads mcMMO level and says "I'm getting better at mining", sets up a shop with surplus wood.
+**Done when:** Agent uses scan_blocks to locate iron, go_home to return to base, reads AuraSkills level and says "I'm getting better at mining", sets up a shop with surplus wood.
 
 ## Phase 4: Personality + Creative Play
 
@@ -90,7 +98,7 @@ Plans:
 
 **Scope:**
 - Enhance SOUL files with creative drives, aesthetic preferences, emotional range
-- Planner suggests creative projects based on mcMMO skills ("you're good at woodcutting, build a dock")
+- Planner suggests creative projects based on AuraSkills levels ("you're good at woodcutting, build a dock")
 - Agent evaluates builds aesthetically via vision ("this house needs windows")
 - Agent explores new areas, names locations, shares discoveries
 - Agent trades surplus items via QuickShop based on inventory analysis
