@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-stopped_at: Completed 01-reliability-02-PLAN.md
-last_updated: "2026-03-21T04:27:40.770Z"
+stopped_at: Completed 02-planning-capability-01-PLAN.md
+last_updated: "2026-03-21T04:41:44.549Z"
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-20)
 
 **Core value:** The agent must never silently lose its execution context — and when given a complex task, it must plan, execute, and review its own work instead of fire-and-forget.
-**Current focus:** Phase 01 — reliability
+**Current focus:** Phase 02 — planning-capability
 
 ## Current Position
 
-Phase: 2
-Plan: Not started
+Phase: 02 (planning-capability) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -48,6 +48,7 @@ Plan: Not started
 *Updated after each plan completion*
 | Phase 01-reliability P01 | 2 | 2 tasks | 3 files |
 | Phase 01-reliability P02 | 8min | 2 tasks | 3 files |
+| Phase 02-planning-capability P01 | 3min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,8 @@ Recent decisions affecting current work:
 - [Phase 01-reliability]: Return { name, content: skill.body } from non-phased branch to match phased-mode shape — callers use .content uniformly
 - [Phase 01-reliability]: Set-based chat dedup with positional keys (i:message) handles duplicate consecutive messages — ring-buffer immune
 - [Phase 01-reliability]: wasConnected flag in mod tick handler detects disconnect edge and resets autoConnectAttempted for kick recovery
+- [Phase 02-planning-capability]: save_context and delete_context are INFO_ACTIONS — return data to LLM, no game-world side effects
+- [Phase 02-planning-capability]: getActiveSkill accepts optional { mode, goalText, gameState } — backwards compatible, scores skills by phase match=100, goal keyword overlap=30, health/night boosts, success_rate tiebreaker
 
 ### Pending Todos
 
@@ -78,6 +81,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-21T04:23:35.972Z
-Stopped at: Completed 01-reliability-02-PLAN.md
+Last session: 2026-03-21T04:41:44.547Z
+Stopped at: Completed 02-planning-capability-01-PLAN.md
 Resume file: None

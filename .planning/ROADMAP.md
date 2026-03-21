@@ -47,7 +47,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Agent-writable pinned context tool (save_context/delete_context) and multi-signal automatic skill selection (MEM-04, SKL-02)
+- [x] 02-01-PLAN.md — Agent-writable pinned context tool (save_context/delete_context) and multi-signal automatic skill selection (MEM-04, SKL-02)
 - [ ] 02-02-PLAN.md — Task decomposition tools (plan_task/update_task) and per-tick progress tracking in user message (WRK-01, WRK-02)
 
 ### Phase 3: Self-Review Loop
