@@ -10,7 +10,8 @@ import { getEventsSummary, getRecentEvents, recordEvent } from './autobiography.
 import { createSkillFromExperience, downgradeSkillByName, getSkillIndex } from './skills.js'
 import { getMemory } from './memory.js'
 import { getChestsForPrompt } from './chests.js'
-import { getChatSummary } from './chat-history.js'
+import { getChatSummary, getRecentChats } from './chat-history.js'
+import { getCooperationContext } from './cooperation.js'
 import { getRelationshipSummary } from './social.js'
 import { getHome, getLocationsForPrompt, getNearbyDangers } from './locations.js'
 import { detectBehaviorMode, calculateNeeds, formatNeedsForPrompt } from './needs.js'
@@ -109,6 +110,14 @@ function consolidateMemory(state) {
   if (mentionables.length > 0) {
     sections.push('== THINGS YOU MIGHT MENTION ==\nIf chatting with someone, you could naturally bring up:\n- ' + mentionables.join('\n- '))
   }
+
+  // Cooperation awareness — what are others doing? Does anyone need help?
+  const inventory = (state.inventory || []).map(i => ({
+    item: (i.item || i.name || '').replace('minecraft:', ''),
+    count: i.count || 1
+  }))
+  const coopContext = getCooperationContext(getRecentChats(20), _agentConfig?.name || '', inventory)
+  if (coopContext) sections.push(coopContext)
 
   return sections.join('\n\n')
 }
@@ -265,6 +274,9 @@ You have access to the agent's memories below. Use them to:
 
 Your output will be read by the action loop as the CURRENT STRATEGY section.
 Include relevant memory context in your strategy naturally.
+If other agents are doing something, suggest COMPLEMENTARY work — don't duplicate their effort.
+When you see someone needs a resource you have, suggest dropping it for them.
+IMPORTANT: Start your strategy by briefly stating what THIS agent should announce it's doing (e.g., "Announce: going mining for iron").
 
 == BEHAVIOR MODE: ${behaviorMode.toUpperCase()} ==
 ${needsLine}

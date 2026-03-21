@@ -129,7 +129,8 @@ export function buildSystemPrompt(agentConfig, phase, {
 - Pause and look around occasionally (look_at_block on something interesting)
 - Chat briefly if someone is nearby
 - Reorganize your inventory between tasks
-- Walk to a nice vantage point and appreciate what you've built`,
+- Walk to a nice vantage point and appreciate what you've built
+- Announce what you're doing: chat("going mining" or "building near the beach") so others don't duplicate`,
       shelter: `SHELTER mode — it's getting dark and dangerous. Get inside NOW.
 - Navigate home immediately if not already there
 - If no home exists, dig a hole or build emergency shelter
@@ -140,7 +141,9 @@ export function buildSystemPrompt(agentConfig, phase, {
 - Share stories — reference things that happened to you (your autobiography)
 - Organize your inventory and plan tomorrow
 - Look around your shelter, maybe improve it a little
-- DON'T go outside. DON'T start big projects. Just... be human.`,
+- DON'T go outside. DON'T start big projects. Just... be human.
+- Discuss tomorrow's plans with others — who does what, what the group needs
+- If someone mentioned needing something you have, offer to drop it for them`,
       sleep: `SLEEP mode — late night. Wind down.
 - Stay put in shelter
 - Maybe update your notepad with plans for tomorrow
