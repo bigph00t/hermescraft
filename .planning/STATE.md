@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-03-21T07:08:00.483Z"
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-03-21T07:12:00Z"
 progress:
   total_phases: 10
-  completed_phases: 8
+  completed_phases: 10
   total_plans: 20
-  completed_plans: 19
+  completed_plans: 20
 ---
 
 # GSD State: HermesCraft Life Simulation
@@ -33,13 +33,18 @@ See: .planning/PROJECT.md (updated 2026-03-20)
 | 3 | Deep Memory | ● Complete | 2/2 |
 | 4 | Human-Like Behavior | ● Complete | 2/2 |
 | 5 | Automatic Skill Learning | ● Complete | 2/2 |
-| 6 | Cooperation & Exploration | ○ Pending | 0/0 |
+| 6 | Cooperation & Exploration | ● Complete | 2/2 |
 
 ## Session Context
 
-Last session: 2026-03-21T07:07:07Z
-Stopped At: Completed 06-01-PLAN.md
+Last session: 2026-03-21T07:12:00Z
+Stopped At: Completed 06-02-PLAN.md
 
+- Phase 06 Plan 02 complete: exploration awareness -- cardinal direction tracking, discovery reporting, chat-to-location coordinate parsing
+- locations.js: getUnexploredDirection (quadrant analysis), getExplorationStats (summary string), parseLocationFromChat (3 regex patterns)
+- planner.js: EXPLORATION section in consolidateMemory, exploration nudges in system prompt
+- prompt.js: work mode explore/name/200-block hints, social mode share discoveries
+- index.js: auto-save locations from chat with parseLocationFromChat + saveLocation
 - Phase 06 Plan 01 complete: chat-based cooperation awareness -- activity parsing, resource need detection, build project detection
 - cooperation.js: parseOtherActivities, parseResourceNeeds, parseBuildProjects, getCooperationContext (5-min window, self-filter)
 - planner.js: cooperation context injected into consolidateMemory, complementary work + announce instructions in system prompt
@@ -124,6 +129,10 @@ Stopped At: Completed 06-01-PLAN.md
 - [Phase 06-01]: Cooperation context only injected when signals detected — no noise when agents are alone
 - [Phase 06-01]: Inventory cross-reference for resource needs — agent told it has the item someone asked for
 - [Phase 06-01]: 5-minute window for activity relevance — stale messages filtered out
+- [Phase 06-02]: Cardinal direction quadrant system for exploration tracking — locations mapped to north/south/east/west relative to home
+- [Phase 06-02]: Three regex patterns for coordinate extraction covers common chat formats (comma, x=y=z=, parenthesized)
+- [Phase 06-02]: Exploration hints in both work mode (go explore) and social mode (share discoveries)
+- [Phase 06-02]: Auto-save discovered locations with type 'discovered' for provenance tracking
 
 ## Roadmap Evolution
 

@@ -102,11 +102,11 @@ Plans:
 
 **Requirements:** COOP-01, COOP-02, COOP-03, NAV-01, NAV-02, NAV-03
 
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 06-01-PLAN.md — Cooperation awareness: chat-based activity parsing, resource need detection, planner coordination hints
-- [ ] 06-02-PLAN.md — Exploration system: unexplored direction tracking, discovery reporting, chat-to-location parsing
+- [x] 06-02-PLAN.md — Exploration system: unexplored direction tracking, discovery reporting, chat-to-location parsing
 
 **Deliverables:**
 - Task division system (agents announce what they're doing, avoid duplication)

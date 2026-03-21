@@ -49,9 +49,9 @@
 
 ### Navigation
 
-- [ ] **NAV-01**: Agent establishes and returns to home base
-- [ ] **NAV-02**: Agent explores and reports findings to group via chat
-- [ ] **NAV-03**: Agent names and remembers discovered locations
+- [x] **NAV-01**: Agent establishes and returns to home base
+- [x] **NAV-02**: Agent explores and reports findings to group via chat
+- [x] **NAV-03**: Agent names and remembers discovered locations
 
 ## v2 Requirements
 
