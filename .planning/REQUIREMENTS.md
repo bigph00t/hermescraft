@@ -10,7 +10,7 @@
 - [x] **SRV-01**: Paper 1.21.1 server running in Docker on Glass, replacing vanilla Fabric server
 - [x] **SRV-02**: Existing Survival Island world migrated to Paper with correct directory structure
 - [x] **SRV-03**: Both Fabric clients (HermesBridge + Baritone) connect and function on Paper server
-- [ ] **SRV-04**: World pre-generated with Chunky (2000 block radius) to eliminate exploration lag
+- [x] **SRV-04**: World pre-generated with Chunky (2000 block radius) to eliminate exploration lag
 
 ### Plugin Stack
 

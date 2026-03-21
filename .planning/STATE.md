@@ -8,7 +8,7 @@ progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
@@ -18,15 +18,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-21)
 
 **Core value:** Agents feel and play like real people with spatial awareness, creativity, and genuine interaction
-**Current focus:** Phase 01 — Paper Server + Plugin Stack
+**Current focus:** Phase 01 complete — ready for Phase 02
 
 ## Current Phase
 
 **Phase 1: Paper Server + Plugin Stack**
 
-- Status: In progress (3/4 plans complete)
+- Status: Complete (4/4 plans complete)
 - Goal: Migrate to Paper, install 12 plugins, verify clients connect
-- Current plan: 01-04 (verification)
+- Current plan: All plans complete
 
 ## History
 
@@ -63,6 +63,7 @@ None currently.
 - AuraSkills instead of mcMMO — mcMMO only on SpigotMC (no API), AuraSkills equivalent (01-03)
 - BlockBeacon deferred to Skript — plugin not found on any public repo (01-03)
 - ServerTap port 4567 needs Docker port exposure — deferred to container recreation (01-03)
+- VeinMiner requires sneak (shift) to activate — default plugin behavior, agents must hold shift when mining ores (01-04)
 - StopSpam cooldown 5000ms + similarity detection threshold 0.85 (01-03)
 - TreeTimber from Modrinth CDN — Hangar API returns HTML redirects for external plugins (01-02)
 - JAutoPickup instead of AutoPickup — original requires SpigotMC browser login (01-02)
@@ -74,3 +75,4 @@ None currently.
 - 2026-03-21: Completed 01-01 (Paper server setup + world migration). Paper running, both clients connected.
 - 2026-03-21: Completed 01-02 (Batch 1 plugins). Timber, VeinMiner, AutoPickup, EssentialsX, Vault, LuckPerms, Chunky installed. Bot group configured.
 - 2026-03-21: Completed 01-03 (Batch 2 plugins). AuraSkills, QuickShop-Hikari, Skript, ServerTap, StopSpam installed. StopSpam configured.
+- 2026-03-21: Completed 01-04 (Verification). Chunky pre-gen 63,001 chunks. Timber, VeinMiner, AutoPickup verified working. Phase 1 complete.
