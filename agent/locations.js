@@ -69,6 +69,55 @@ export function getLocationsForPrompt() {
   return 'Known locations: ' + lines.join(', ');
 }
 
+export function recordDeathLocation(x, y, z, cause, lesson) {
+  // Find existing danger entries
+  const dangerKeys = Object.keys(locations).filter(k => k.startsWith('danger-'))
+
+  // Cap at 10 — remove oldest if at limit
+  if (dangerKeys.length >= 10) {
+    const oldest = dangerKeys
+      .map(k => ({ key: k, saved: locations[k].saved || '' }))
+      .sort((a, b) => a.saved.localeCompare(b.saved))
+    delete locations[oldest[0].key]
+  }
+
+  // Determine next danger index
+  const existingNums = Object.keys(locations)
+    .filter(k => k.startsWith('danger-'))
+    .map(k => parseInt(k.split('-')[1], 10))
+    .filter(n => !isNaN(n))
+  const nextN = existingNums.length > 0 ? Math.max(...existingNums) + 1 : 1
+
+  locations[`danger-${nextN}`] = {
+    x: Math.round(x),
+    y: Math.round(y),
+    z: Math.round(z),
+    type: 'danger',
+    cause,
+    lesson,
+    saved: new Date().toISOString(),
+  }
+
+  saveLocations()
+}
+
+export function getNearbyDangers(position, radius = 30) {
+  if (!position) return []
+
+  const results = []
+  for (const [name, loc] of Object.entries(locations)) {
+    if (loc.type !== 'danger') continue
+    const dx = position.x - loc.x
+    const dy = position.y - loc.y
+    const dz = position.z - loc.z
+    const distance = Math.sqrt(dx * dx + dy * dy + dz * dz)
+    if (distance <= radius) {
+      results.push({ name, x: loc.x, y: loc.y, z: loc.z, cause: loc.cause, lesson: loc.lesson, distance })
+    }
+  }
+  return results
+}
+
 export function saveLocations() {
   try { writeFileSync(LOCATIONS_FILE, JSON.stringify(locations, null, 2)); } catch {}
 }
