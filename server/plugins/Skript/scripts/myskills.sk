@@ -1,0 +1,8 @@
+command /myskills:
+    description: Show your AuraSkills levels (parseable format)
+    trigger:
+        send "Foraging: %auraskills_foraging%" to player
+        send "Mining: %auraskills_mining%" to player
+        send "Farming: %auraskills_farming%" to player
+        send "Excavation: %auraskills_excavation%" to player
+        send "Fighting: %auraskills_fighting%" to player

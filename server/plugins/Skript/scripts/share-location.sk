@@ -1,0 +1,11 @@
+command /share-location <text>:
+    description: Broadcast and save a named location
+    trigger:
+        set {_x} to x-coordinate of player's location
+        set {_y} to y-coordinate of player's location
+        set {_z} to z-coordinate of player's location
+        set {locations::%player's name%::%arg-1%::x} to {_x}
+        set {locations::%player's name%::%arg-1%::y} to {_y}
+        set {locations::%player's name%::%arg-1%::z} to {_z}
+        set {locations::%player's name%::%arg-1%::owner} to player's name
+        broadcast "%player% marked %arg-1% at %{_x}%, %{_y}%, %{_z}%"

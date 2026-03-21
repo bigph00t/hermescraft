@@ -1,0 +1,26 @@
+command /scan <text> [<integer=50>]:
+    description: Scan for nearby surface blocks
+    permission: skript.scan
+    permission message: You don't have permission.
+    trigger:
+        set {_blockType} to arg-1
+        set {_radius} to arg-2
+        if {_radius} > 100:
+            set {_radius} to 100
+        set {_count} to 0
+        loop blocks in radius {_radius} around player:
+            if loop-block is not air:
+                set {_name} to "%type of loop-block%"
+                if {_name} contains {_blockType}:
+                    set {_above} to block 1 above loop-block
+                    if {_above} is air:
+                        set {_dist} to distance between player's location and location of loop-block
+                        set {_x} to x-coordinate of loop-block
+                        set {_y} to y-coordinate of loop-block
+                        set {_z} to z-coordinate of loop-block
+                        add 1 to {_count}
+                        send "Found: %{_blockType}% at %{_x}% %{_y}% %{_z}% (%{_dist}% blocks away)" to player
+                        if {_count} >= 5:
+                            stop loop
+        if {_count} is 0:
+            send "No %{_blockType}% found within %{_radius}% blocks" to player
