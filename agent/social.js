@@ -109,6 +109,10 @@ function formatTimeSince(ms) {
   return `${days} day${days > 1 ? 's' : ''} ago`;
 }
 
+export function isKnownPlayer(name) {
+  return !!players[name]
+}
+
 export function savePlayers() {
   try { writeFileSync(PLAYERS_FILE, JSON.stringify(players, null, 2)); } catch {}
 }

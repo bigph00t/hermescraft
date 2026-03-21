@@ -28,8 +28,11 @@ import {
   logError, logDeathBanner, logPhaseChange, logInfo, logWarn,
   logStuck, logSkillCreated, logSessionStats, logStartupBanner,
 } from './logger.js';
-import { initSocial, trackPlayer, getPlayersForPrompt, savePlayers } from './social.js';
+import { initSocial, trackPlayer, getPlayersForPrompt, savePlayers, isKnownPlayer } from './social.js';
 import { initLocations, autoDetectLocations, getLocationsForPrompt, saveLocations } from './locations.js';
+import { initAutobiography, recordEvent } from './autobiography.js';
+import { initChests, trackChest, saveChests } from './chests.js';
+import { initChatHistory, recordChat } from './chat-history.js';
 import { startVisionLoop, stopVisionLoop, getVisionContext } from './vision.js';
 import { startPlannerLoop, stopPlannerLoop, getPlanContext } from './planner.js';
 import { startBuild, resumeBuild, getBuildProgress, cancelBuild, isBuildActive, unpauseBuild } from './builder.js';
@@ -71,6 +74,11 @@ let lastDeathTick = -999; // For death cooldown
 let currentTickPromise = null; // For graceful shutdown
 let lastPosition = null; // For position-based stuck detection
 let samePositionTicks = 0;
+
+// Deep memory: track which players we've already recorded a new_player event for
+const knownPlayers = new Set()
+// Deep memory: build completion detection — track previous tick's build state
+let wasBuildActive = false
 
 // Subtask review: tracks a subtask that was just marked "done" and needs outcome verification next tick
 let pendingReview = null; // { index, expected_outcome, reviewTick }
@@ -514,6 +522,15 @@ async function tick(precomputedResponse = null) {
     const buildResult = await resumeBuild(state.inventory || [])
     if (buildResult.complete) {
       logInfo(`[builder] Build complete! ${buildResult.placed} blocks placed.`)
+      // Record build completion to autobiographical memory
+      recordEvent({
+        timestamp: new Date().toISOString(),
+        gameDay: Math.floor((state.time || 0) / 24000) + 1,
+        type: 'build_complete',
+        description: `Built structure (${buildResult.placed} blocks)`,
+        location: state.position ? { x: Math.round(state.position.x), y: Math.round(state.position.y), z: Math.round(state.position.z) } : null,
+        importance: 8,
+      })
     } else if (buildResult.paused) {
       logInfo(`[builder] Build paused — need: ${buildResult.missingMaterials?.join(', ')}`)
     } else if (buildResult.tooFar) {
@@ -571,6 +588,16 @@ async function tick(precomputedResponse = null) {
     const phase = currentPhase || getCurrentPhase(state);
     const { progress } = getPhaseProgress(state);
     const deathRecord = memRecordDeath(state, actionHistory, phase, progress);
+
+    // Record death to autobiographical memory
+    recordEvent({
+      timestamp: new Date().toISOString(),
+      gameDay: Math.floor((state.time || 0) / 24000) + 1,
+      type: 'death',
+      description: deathRecord.cause || 'Unknown cause',
+      location: state.position ? { x: Math.round(state.position.x), y: Math.round(state.position.y), z: Math.round(state.position.z) } : null,
+      importance: 10,
+    })
 
     // Update skill outcome (failure)
     recordSkillOutcome(phase, false);
@@ -646,6 +673,7 @@ async function tick(precomputedResponse = null) {
     periodicSave();
     savePlayers();
     saveLocations();
+    saveChests();
     pruneFailureTracker();
   }
 
@@ -700,11 +728,12 @@ async function tick(precomputedResponse = null) {
           playerChatContext = newMessages.join('\n');
           logInfo(`New chat: ${playerChatContext.slice(0, 120)}`);
 
-          // Track chat interactions for social memory
+          // Track chat interactions for social memory + chat history
           for (const msg of newMessages) {
             const match = msg.match(/<(\w+)>\s*(.*)/);
             if (match) {
               trackPlayer(match[1], { type: 'chat', detail: match[2].slice(0, 100) });
+              recordChat(match[1], match[2].slice(0, 200));
             }
           }
 
@@ -750,6 +779,19 @@ async function tick(precomputedResponse = null) {
   if (state.nearbyEntities) {
     for (const e of state.nearbyEntities) {
       if (e.type?.includes('player') && e.name) {
+        // Record new player encounter to autobiography if first time seeing them
+        if (!knownPlayers.has(e.name) && !isKnownPlayer(e.name)) {
+          knownPlayers.add(e.name)
+          recordEvent({
+            timestamp: new Date().toISOString(),
+            gameDay: Math.floor((state.time || 0) / 24000) + 1,
+            type: 'new_player',
+            description: `Met ${e.name} for the first time`,
+            location: state.position ? { x: Math.round(state.position.x), y: Math.round(state.position.y), z: Math.round(state.position.z) } : null,
+            importance: 7,
+          })
+        }
+        knownPlayers.add(e.name)
         trackPlayer(e.name, { type: 'near', detail: `dist:${e.distance}` });
       }
     }
@@ -1074,6 +1116,20 @@ async function tick(precomputedResponse = null) {
     try { await executeAction({ type: 'close_screen' }); } catch {}
   }
 
+  // Deep memory: track chest interactions
+  // TODO: Read chest contents from mod response when mod supports it
+  if (actionType === 'interact_block' && success && response.action) {
+    const nearbyChest = (state.nearbyBlocks || []).find(b =>
+      b.block?.includes('chest') &&
+      Math.abs(b.x - (response.action.x || 0)) <= 1 &&
+      Math.abs(b.y - (response.action.y || 0)) <= 1 &&
+      Math.abs(b.z - (response.action.z || 0)) <= 1
+    )
+    if (nearbyChest) {
+      trackChest(nearbyChest.x, nearbyChest.y, nearbyChest.z, result?.items || [])
+    }
+  }
+
   // FARM-05: Auto-replant saplings after mining logs
   if (actionType === 'mine' && success) {
     const blockName = response.action.blockName || ''
@@ -1164,6 +1220,9 @@ async function main() {
   initGoalSystem(agentConfig);
   initSocial(agentConfig);
   initLocations(agentConfig);
+  initAutobiography(agentConfig);
+  initChests(agentConfig);
+  initChatHistory(agentConfig);
 
   // Set per-agent notepad and task plan paths
   NOTEPAD_FILE = join(agentConfig.dataDir, 'notepad.txt');
