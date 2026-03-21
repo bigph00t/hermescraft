@@ -100,7 +100,7 @@ Plans:
 
 Plans:
 - [ ] 04-01-PLAN.md — Enhance 4 SOUL files with creative drives/aesthetic prefs/emotional triggers + add FORBIDDEN_WORDS to system prompt
-- [ ] 04-02-PLAN.md — Vision BUILD: evaluation field in VISION_PROMPT for aesthetic build assessment
+- [x] 04-02-PLAN.md — Vision BUILD: evaluation field in VISION_PROMPT for aesthetic build assessment
 - [ ] 04-03-PLAN.md — Planner creative intelligence: creative need counter, per-agent CREATIVE_BEHAVIOR, BUILD observation injection, meta-game filter, specialization, trading, shared-state wiring
 
 **Scope:**

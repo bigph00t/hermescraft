@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-03-21T23:21:05.491Z"
+last_updated: "2026-03-21T23:44:00Z"
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 12
-  completed_plans: 12
+  total_plans: 15
+  completed_plans: 13
 ---
 
 # Project State
@@ -18,15 +18,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-21)
 
 **Core value:** Agents feel and play like real people with spatial awareness, creativity, and genuine interaction
-**Current focus:** Phase 03 — plugin-integration-custom-commands
+**Current focus:** Phase 04 — personality-creative-play
 
 ## Current Phase
 
-**Phase 3: Plugin Integration + Custom Commands**
+**Phase 4: Personality + Creative Play**
 
-- Status: Complete (4/4 plans complete)
-- Goal: Deploy Skript commands, wire 8 plugin tools, verify full pipeline end-to-end
-- Current plan: done
+- Status: In progress (2/3 plans complete)
+- Goal: Add creative drives, build evaluation, planner personality, anti-meta-game enforcement
+- Current plan: 04-02 complete, next: 04-03
 
 ## History
 
@@ -86,6 +86,8 @@ None currently.
 - [Phase 03]: updatePlannerPluginState() setter pattern — planner runs on own setInterval, module-level setter decouples index.js from planner internals
 - [Phase 03]: GAMEPLAY_INSTRUCTIONS no-slash phrasing uses 'natural abilities' language to avoid embedding /command patterns (D-28)
 - [Phase 03-04]: myskills.sk uses Approach B (static level 0) — PlaceholderAPI not installed; PAPI placeholders would emit literal strings breaking command-parser.js extractSkillLevels()
+- [Phase 04-02]: VISION_PROMPT uses template literal for multi-line; BUILD: field on new line parseable via /^BUILD:\s*(.+)$/m regex
+- [Phase 04-02]: No other vision.js changes — _lastVisionText + getVisionContext() already return full BUILD: field to planner
 
 ## Session Log
 
@@ -101,3 +103,4 @@ None currently.
 - 2026-03-21: Completed 03-02 (Plugin tools and action handlers). 8 tools in tools.js, 8 handlers in actions.js, ability cooldown system.
 - 2026-03-21: Completed 03-03 (Plugin wiring). GAMEPLAY_INSTRUCTIONS, planner strategy guidance, ServerTap state summary, skill cache + command result persistence, INFO_ACTIONS handlers.
 - 2026-03-21: Completed 03-04 (Deploy + verify). Skript scripts deployed to Docker container, LuckPerms permissions granted, Approach B applied for myskills.sk (no PAPI), human-verified as approved. Phase 03 complete.
+- 2026-03-21: Completed 04-02 (Vision BUILD evaluation). VISION_PROMPT enhanced with BUILD: field — Claude Haiku produces structural observations or "BUILD: none". Feeds planner Plan 03.
