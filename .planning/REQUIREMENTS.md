@@ -14,11 +14,11 @@
 
 ### Farming & Food
 
-- [ ] **FARM-01**: Agent can till soil, plant seeds, and harvest wheat
+- [x] **FARM-01**: Agent can till soil, plant seeds, and harvest wheat
 - [ ] **FARM-02**: Agent can breed animals (cows with wheat, chickens with seeds)
 - [ ] **FARM-03**: Agent can craft fishing rod and fish
-- [ ] **FARM-04**: Agent can cook food in furnace
-- [ ] **FARM-05**: Agent plants saplings to renew wood supply
+- [x] **FARM-04**: Agent can cook food in furnace
+- [x] **FARM-05**: Agent plants saplings to renew wood supply
 
 ### Memory
 

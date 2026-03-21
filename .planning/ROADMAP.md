@@ -35,7 +35,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Crop farming module, food knowledge, sapling replanting
+- [x] 02-01-PLAN.md — Crop farming module, food knowledge, sapling replanting
 - [ ] 02-02-PLAN.md — Animal breeding (mod interact_entity) and fishing (mod fish sustained action)
 
 **Deliverables:**

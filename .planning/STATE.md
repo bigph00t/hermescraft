@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-03-21T05:30:00Z"
+status: planning
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-03-21T05:49:44.763Z"
 progress:
-  total_phases: 6
-  completed_phases: 3
-  total_plans: 10
-  completed_plans: 8
+  total_phases: 7
+  completed_phases: 4
+  total_plans: 12
+  completed_plans: 11
 ---
 
 # GSD State: HermesCraft Life Simulation
@@ -19,11 +19,11 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-20)
 
 **Core value:** Agents must feel alive — indistinguishable from real players
-**Current focus:** Phase 1 — Building System
+**Current focus:** Phase 2 — Farming & Food
 
 ## Milestone: v1.0
 
-**Status:** Executing Phase 1
+**Status:** Ready to plan
 **Phases:** 6 total, 0 complete
 
 | Phase | Name | Status | Plans |
@@ -37,8 +37,8 @@ See: .planning/PROJECT.md (updated 2026-03-20)
 
 ## Session Context
 
-Last session: 2026-03-21T05:30:00Z
-Stopped At: Completed 01-03-PLAN.md
+Last session: 2026-03-21T05:49:00Z
+Stopped At: Completed 02-01-PLAN.md
 
 - Phase 03 Plan 01 complete: self-review loop with keyword-based outcome checking
 - pendingReview bridge + reviewSubtaskOutcome function in agent/index.js
@@ -70,6 +70,10 @@ Stopped At: Completed 01-03-PLAN.md
 - [Phase 01-03]: Proximity check: agent must be within 8 blocks of build origin to place
 - [Phase 01-03]: Auto-unpause: build resumes when missing materials appear in inventory
 - [Phase 01-03]: Build action handled before executeAction dispatch (managed by builder.js, not mod API)
+- [Phase 02-01]: Concatenated food + building knowledge into single variable -- avoids changing buildSystemPrompt signature
+- [Phase 02-01]: Farm cycle completes at 'waiting' phase by nulling _activeFarm -- agent free to do other tasks while crops grow
+- [Phase 02-01]: Sapling replanting is best-effort (silent catch) -- doesn't block agent if placement fails
+- [Phase 02-01]: Farm and harvest added to SUSTAINED_ACTIONS for pipelining support
 
 ## Roadmap Evolution
 
