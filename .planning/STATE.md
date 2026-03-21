@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-03-21T05:55:00.000Z"
+status: executing
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-03-21T06:13:00.000Z"
 progress:
   total_phases: 7
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 12
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # GSD State: HermesCraft Life Simulation
@@ -19,7 +19,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-20)
 
 **Core value:** Agents must feel alive — indistinguishable from real players
-**Current focus:** Phase 2 — Farming & Food
+**Current focus:** Phase 3 — Deep Memory
 
 ## Milestone: v1.0
 
@@ -30,20 +30,22 @@ See: .planning/PROJECT.md (updated 2026-03-20)
 |-------|------|--------|-------|
 | 1 | Building System | ○ Pending | 0/0 |
 | 2 | Farming & Food | ○ Pending | 0/0 |
-| 3 | Deep Memory | ○ Pending | 0/0 |
+| 3 | Deep Memory | ◐ In Progress | 1/2 |
 | 4 | Human-Like Behavior | ○ Pending | 0/0 |
 | 5 | Automatic Skill Learning | ○ Pending | 0/0 |
 | 6 | Cooperation & Exploration | ○ Pending | 0/0 |
 
 ## Session Context
 
-Last session: 2026-03-21T05:55:00Z
-Stopped At: Completed 02-02-PLAN.md
+Last session: 2026-03-21T06:13:00Z
+Stopped At: Completed 03-01-PLAN.md
 
-- Phase 03 Plan 01 complete: self-review loop with keyword-based outcome checking
-- pendingReview bridge + reviewSubtaskOutcome function in agent/index.js
-- Retry tracking with retry_count/max_retries on subtask objects
-- REVIEW PASSED / REVIEW FAILED banners + [?] reviewing marker in agent prompt
+- Phase 03 Plan 01 complete: five deep memory data modules (autobiography, chests, chat-history, locations auto-home, social persistence)
+- autobiography.js: JSONL event log, 100-entry cap, day-grouped summary
+- chests.js: coordinate-keyed chest tracking with immediate write
+- chat-history.js: 50-message ring buffer with sender-grouped relative timestamps
+- locations.js: setHome/getHome, auto-home on first bed or door
+- social.js: sentiment decay 0.1/hr, notable_interactions, getRelationshipSummary
 - Established working agent harness with multi-agent support
 - Two agents running on Survival Island (Jeffrey Enderstein, John Kwon)
 - MiniMax M2.7-highspeed as LLM, MC 1.21.1 on Glass
@@ -77,6 +79,10 @@ Stopped At: Completed 02-02-PLAN.md
 - [Phase 02-02]: Used isTouchingWater() over isSubmergedInWater() for bobber detection -- MC 1.21.1 compatibility
 - [Phase 02-02]: Breed is agent-orchestrated (two interact_entity calls with 500ms gap) for partial success reporting
 - [Phase 02-02]: Fish passes directly through executeAction to mod -- no special agent handler needed
+- [Phase 03-01]: JSONL for append-only event streams (autobiography, chat), JSON for mutable state (chests)
+- [Phase 03-01]: Sentiment decay applied before each interaction update, not on timer -- simpler, no background process
+- [Phase 03-01]: Notable interactions stored separately (max 5) from general interactions (max 20) for planner use
+- [Phase 03-01]: Chat history caps at 50 entries both in-memory and on disk with rewrite on overflow
 
 ## Roadmap Evolution
 
