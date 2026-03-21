@@ -13,7 +13,7 @@ Transform existing Minecraft AI agents from basic tool-calling bots into full li
 
 **Requirements:** BUILD-01, BUILD-02, BUILD-03, BUILD-04
 
-**Plans:** 4 plans
+**Plans:** 4/4 plans complete
 
 Plans:
 - [x] 01-01-PLAN.md — Foundation: place_at coordinates, blueprint library, 3 starter blueprints
@@ -31,6 +31,12 @@ Plans:
 **Goal:** Agents sustainably feed themselves through farming, fishing, and animal husbandry.
 
 **Requirements:** FARM-01, FARM-02, FARM-03, FARM-04, FARM-05
+
+**Plans:** 2 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Crop farming module, food knowledge, sapling replanting
+- [ ] 02-02-PLAN.md — Animal breeding (mod interact_entity) and fishing (mod fish sustained action)
 
 **Deliverables:**
 - Crop farming cycle (till → plant → wait → harvest → replant)
