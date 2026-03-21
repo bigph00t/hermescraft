@@ -11,6 +11,7 @@ import { getChestsForPrompt } from './chests.js'
 import { getChatSummary } from './chat-history.js'
 import { getRelationshipSummary } from './social.js'
 import { getHome, getLocationsForPrompt } from './locations.js'
+import { detectBehaviorMode, calculateNeeds, formatNeedsForPrompt } from './needs.js'
 
 const __dirname_planner = dirname(fileURLToPath(import.meta.url))
 
@@ -105,6 +106,21 @@ async function plannerTick() {
     const state = await fetchState()
     const stateSummary = summarizeState(state)
 
+    // 1b. Compute behavior mode and needs
+    const behaviorMode = detectBehaviorMode(state)
+    const nearbyPlayers = (state.nearbyEntities || []).filter(e => e.type?.includes('player'))
+    let lastChatTimestamp = 0
+    if (state.recentChat && state.recentChat.length > 0) {
+      lastChatTimestamp = Date.now()
+    }
+    const home = getHome()
+    const socialState = {
+      lastChatTimestamp,
+      nearbyPlayerCount: nearbyPlayers.length,
+    }
+    const needs = calculateNeeds(state, socialState, { homePos: home || undefined })
+    const needsLine = formatNeedsForPrompt(needs)
+
     // 2. Read the agent's notepad and vision context
     let notepadContent = ''
     try {
@@ -137,6 +153,17 @@ You have access to the agent's memories below. Use them to:
 Your output will be read by the action loop as the CURRENT STRATEGY section.
 Include relevant memory context in your strategy naturally.
 
+== BEHAVIOR MODE: ${behaviorMode.toUpperCase()} ==
+${needsLine}
+
+Behavior rules:
+- WORK mode: Focus on building, farming, gathering, crafting. Be productive.
+- SHELTER mode: It's getting dark. Head home or find/build shelter immediately. Safety is priority.
+- SOCIAL mode: Night time, safe in shelter. Chat with nearby players about the day, share stories from your autobiography, organize inventory, reflect. Don't start big projects.
+- SLEEP mode: Late night. Stay in shelter. Minimal activity. Update notepad with tomorrow's plan if needed.
+
+Your strategy MUST reflect the current behavior mode. ${needs.priority === 'hunger' ? 'URGENT: Agent is hungry — prioritize finding/eating food.' : needs.priority === 'safety' ? 'URGENT: Agent feels unsafe — prioritize shelter/defense.' : needs.priority === 'social' ? 'Agent is lonely — suggest chatting with nearby players or seeking them out.' : ''}
+
 Write a concise strategy (5-8 sentences). Be specific about coordinates, items, and next steps.`
 
     let userContent = `== GAME STATE ==\n${stateSummary}`
@@ -147,10 +174,19 @@ Write a concise strategy (5-8 sentences). Be specific about coordinates, items, 
       userContent += `\n\n== AGENT NOTEPAD ==\n${notepadContent}`
     }
 
-    // 4b. Append consolidated memory context
+    // 4b. Append behavior status to user content
+    userContent += `\n\n== BEHAVIOR STATUS ==\nMode: ${behaviorMode}\n${needsLine}`
+
+    // 4c. Append consolidated memory context
     const memoryContext = consolidateMemory(state)
     if (memoryContext) {
       userContent += '\n\n== MEMORY CONTEXT ==\n' + memoryContext
+    }
+
+    // 4d. Social time emphasis when in social mode near other players (D-07, D-08)
+    if (behaviorMode === 'social' && nearbyPlayers.length > 0) {
+      const playerNames = nearbyPlayers.map(p => p.name || p.type).join(', ')
+      userContent += `\n\n== SOCIAL TIME ==\nIt's night and you're near other players (${playerNames}). This is a good time to chat about:\n- What happened today (check your story above)\n- Shared experiences or things you built\n- Plans for tomorrow\n- Ask them what they've been up to`
     }
 
     // 5. Call LLM
