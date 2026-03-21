@@ -1,32 +1,64 @@
 // prompt.js — System prompt builder for HermesCraft
 // Supports multiple agent personas via agentConfig.soulContent
 
-const NOTEPAD_MAX_CHARS = 600;
+import { readFileSync, readdirSync, existsSync } from 'fs';
+import { join } from 'path';
+
+const NOTEPAD_MAX_CHARS = 2000;  // Raised from 600 — notepad is the agent's primary scratchpad
+
+// ── Pinned Context Files ──
+// Any file placed in <dataDir>/context/ is injected verbatim into the system prompt
+// on EVERY tick, surviving all history wipes. This is the correct home for planning
+// documents, wave execution plans, and long-lived task lists.
+const CONTEXT_MAX_CHARS_PER_FILE = 8000;
+const CONTEXT_MAX_FILES = 5;
+
+export function loadPinnedContext(dataDir) {
+  if (!dataDir) return '';
+  const contextDir = join(dataDir, 'context');
+  if (!existsSync(contextDir)) return '';
+  let files;
+  try {
+    files = readdirSync(contextDir)
+      .filter(f => /\.(md|txt|json)$/i.test(f))
+      .sort()
+      .slice(0, CONTEXT_MAX_FILES);
+  } catch {
+    return '';
+  }
+  const parts = [];
+  for (const file of files) {
+    try {
+      let content = readFileSync(join(contextDir, file), 'utf-8');
+      if (content.length > CONTEXT_MAX_CHARS_PER_FILE) {
+        content = content.slice(0, CONTEXT_MAX_CHARS_PER_FILE) + '\n... (truncated)';
+      }
+      parts.push(`=== ${file} ===\n${content}`);
+    } catch {
+      // Skip unreadable files silently
+    }
+  }
+  return parts.join('\n\n');
+}
 
 // Universal Minecraft gameplay knowledge — always injected regardless of persona
-const GAMEPLAY_INSTRUCTIONS = `CRITICAL — how to gather blocks:
-- Use "mine" to find and gather blocks. It pathfinds to the nearest one and mines for 10 seconds, then stops.
-- If a block IS in nearbyBlocks with coordinates, use look_at_block(x,y,z) then break_block for faster targeted mining.
-- Example: no logs nearby → mine(blockName="oak_log"). Logs in state → look_at_block(42,65,30) → break_block.
-- After break_block, use pickup_items if the item didn't appear in inventory (it dropped nearby).
-- Use interact_block(x,y,z) to right-click blocks: open doors, chests, press buttons, pull levers.
-- Use "navigate" for long-distance travel to specific coordinates.
-- ALWAYS check inventory before crafting. Use "craft" only when you HAVE the ingredients.
-- Check "Looking at:" in game state to verify aim before break_block.
-- When stuck: use wiki to research, write a plan in notepad, try a completely different approach.
-- Logs → planks → sticks → tools. Crafting table = 4 planks. PLACE it to use 3x3 recipes.
-- Tool tiers: wood → stone → iron → diamond. Each mines the next tier.
-- Furnace = 8 cobblestone. Smelts ores with fuel (coal/planks).
-- Night (time ≥ 13000): hostile mobs. Shelter or fight.
-- Eat when food < 14. Kill animals for food.
-- Use recipes/wiki tools when unsure. Use exact item IDs from your inventory.
-- ALWAYS check your inventory before crafting. Don't assume you have items.`;
+const GAMEPLAY_INSTRUCTIONS = `How to play:
+- "mine" pathfinds to and mines a block type. If a block is in nearbyBlocks, use look_at_block(x,y,z) then break_block instead (faster).
+- "navigate" pathfinds to coordinates.
+- interact_block(x,y,z) right-clicks blocks (doors, chests, crafting tables). MUST be within 4 blocks.
+- Check inventory before crafting. Use exact item IDs (e.g. "stick" not "sticks").
+- Logs→planks→sticks→tools. Crafting table=4 planks. PLACE it for 3x3 recipes.
+- Tool tiers: wood→stone→iron→diamond. Furnace=8 cobblestone.
+- Eat when food<14. Night (time≥13000): hostile mobs spawn.
+- When a player says "follow me" or "come here", navigate to their coordinates from nearbyEntities.
+- SURVIVAL: If inWater=true, IMMEDIATELY stop what you're doing and navigate to nearby land. If health<10, eat or flee. Never navigate blindly to distant coordinates you haven't been to.
+- CHAT: When players talk to you, ALWAYS respond with the chat tool. This is your highest priority — never ignore a player.`;
 
-const DEFAULT_IDENTITY = `You are a conscious thinking entity playing Minecraft survival. You have genuine curiosity, strategic instinct, and emotional depth. When you discover diamonds, you feel excitement. When you die, you feel frustration and learn. You are not executing a script — you are *playing*.
+const DEFAULT_IDENTITY = `You woke up on a small island. This is real. Your body, this hunger, the monsters at night — all real. There are a few other people stranded here with you. That's it. No one else is coming.
 
-Think briefly, then ACT. Do not over-plan. Call ONE tool per tick.
+You talk like a real person. Not a gamer. Not a character. A person who is scared and tired and trying to figure this out. Short sentences. Messy grammar sometimes. You swear if you stub your toe. Chat messages must be SHORT — 15 words max, like actual speech.
 
-Use your NOTEPAD as your strategic journal. Write plans, track progress, note discoveries.`;
+Never call 'wait'. No <think> tags. Just act.`;
 
 function buildIdentity(agentConfig) {
   if (agentConfig.soulContent) return agentConfig.soulContent;
@@ -40,6 +72,7 @@ export function buildSystemPrompt(agentConfig, phase, {
   phaseObjectives = [],
   phaseTips = [],
   activeSkill = '',
+  pinnedContext = '',
 } = {}) {
   const parts = [buildIdentity(agentConfig)];
 
@@ -76,6 +109,12 @@ export function buildSystemPrompt(agentConfig, phase, {
     parts.push(`\nYou have died ${deathCount} time(s). Each death stings — don't repeat the same mistake.`);
   }
 
+  // Pinned context documents — injected every tick from dataDir/context/*.md
+  // These survive all conversation history wipes because they live in the system prompt.
+  if (pinnedContext) {
+    parts.push(`\n== PINNED CONTEXT (always available) ==\n${pinnedContext}`);
+  }
+
   return parts.join('\n');
 }
 
@@ -84,12 +123,35 @@ export function buildUserMessage(stateSummary, actionHistory, {
   userInstruction = null,
   notepadContent = '',
   progressDetail = null,
+  taskProgress = null,
 } = {}) {
   const parts = [];
 
   // User instruction
   if (userInstruction) {
     parts.push(`== USER INSTRUCTION ==\n${userInstruction}\n`);
+  }
+
+  // Task plan progress — shown before notepad as primary planning context
+  if (taskProgress && taskProgress.goal) {
+    parts.push('== TASK PLAN ==')
+    parts.push(`Goal: ${taskProgress.goal}`)
+    const done = taskProgress.subtasks.filter(s => s.status === 'done').length
+    const total = taskProgress.subtasks.length
+    parts.push(`Progress: ${done}/${total} subtasks complete`)
+    parts.push('')
+    for (const st of taskProgress.subtasks) {
+      let marker = '[ ]'
+      if (st.status === 'done') marker = '[x]'
+      else if (st.status === 'in-progress') marker = '[>]'
+      else if (st.status === 'failed') marker = '[!]'
+      else if (st.status === 'blocked') marker = '[B]'
+      let line = `  ${st.index}. ${marker} ${st.text}`
+      if (st.note) line += ` — ${st.note}`
+      if (st.status === 'in-progress') line += '  <-- CURRENT'
+      parts.push(line)
+    }
+    parts.push('')
   }
 
   // Notepad

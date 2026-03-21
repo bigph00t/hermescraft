@@ -615,11 +615,13 @@ async function tick(precomputedResponse = null) {
       ? `${effectiveInstruction}\n\n${chatPrefix}`
       : chatPrefix;
   }
+  const taskProgress = loadTaskState()
   const userMessage = buildUserMessage(stateSummary, actionHistory, {
     stuckInfo,
     userInstruction: effectiveInstruction,
     notepadContent,
     progressDetail: progressDetail || null,
+    taskProgress,
   });
 
   const temperature = getTemperature(currentPhase, state);
@@ -799,6 +801,7 @@ async function tick(precomputedResponse = null) {
         userInstruction: `Current action "${actionType}" is running in background. Plan your NEXT action.`,
         notepadContent: readNotepad(),
         progressDetail: getProgressDetail(currentPhase, nextState) || null,
+        taskProgress: loadTaskState(),
       });
       const nextResponse = await queryLLM(systemPrompt, nextUserMessage, { temperature });
       return nextResponse;  // Return pre-computed action for next tick
