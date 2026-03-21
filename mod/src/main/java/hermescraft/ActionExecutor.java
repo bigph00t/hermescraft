@@ -81,6 +81,9 @@ public class ActionExecutor {
         String approachBlockName;
         // pickup_items state
         int pickupPhase = 0; // 0=forward, 1=left, 2=back, 3=right
+        // fish state
+        boolean fishCast = false;
+        int fishWaitTicks = 0;
 
         SustainedAction(String type, CompletableFuture<String> future, int maxTicks) {
             this.type = type;
@@ -204,6 +207,10 @@ public class ActionExecutor {
                     startPickupItems(client, pa.future);
                     return;
                 }
+                case "fish" -> {
+                    startFish(client, pa.future);
+                    return;
+                }
             }
 
             // Instant action — execute immediately on the client thread
@@ -234,6 +241,7 @@ public class ActionExecutor {
             case "sprint" -> handleSprint(action, client);
             case "wait" -> handleWait();
             case "close_screen" -> handleCloseScreen(client);
+            case "interact_entity" -> handleInteractEntity(action, client);
             default -> errorResult("Unknown action type: " + type);
         };
     }
@@ -359,6 +367,7 @@ public class ActionExecutor {
             case "smelt" -> tickSmelt(client, sa);
             case "look_at_block" -> tickApproachBlock(client, sa);
             case "pickup_items" -> tickPickupItems(client, sa);
+            case "fish" -> tickFish(client, sa);
         }
     }
 
@@ -422,6 +431,89 @@ public class ActionExecutor {
         currentSustained = null;
         if (sa != null && !sa.future.isDone()) {
             sa.future.complete(result);
+        }
+    }
+
+    // ===================== FISHING =====================
+
+    private static void startFish(MinecraftClient client, CompletableFuture<String> future) {
+        ClientPlayerEntity player = client.player;
+        if (player == null || client.interactionManager == null) {
+            future.complete(errorResult("Player not available"));
+            return;
+        }
+
+        // Find fishing rod in inventory and equip it
+        boolean hasRod = selectHotbarItem(player, "fishing_rod");
+        if (!hasRod) {
+            future.complete(errorResult("No fishing_rod in inventory. Craft one first (3 sticks + 2 string)."));
+            return;
+        }
+
+        // Cast the line — right-click with rod
+        client.interactionManager.interactItem(player, Hand.MAIN_HAND);
+        player.swingHand(Hand.MAIN_HAND);
+
+        // Set up sustained fishing — wait for bobber catch, max 30 seconds (600 ticks)
+        SustainedAction sa = new SustainedAction("fish", future, 600);
+        sa.fishCast = true;
+        sa.fishWaitTicks = 0;
+        currentSustained = sa;
+
+        HermesBridgeMod.LOGGER.info("[HermesBridge] Started fishing");
+    }
+
+    private static void tickFish(MinecraftClient client, SustainedAction sa) {
+        ClientPlayerEntity player = client.player;
+        if (player == null) {
+            completeSustained(errorResult("Player disconnected while fishing"));
+            return;
+        }
+
+        sa.fishWaitTicks++;
+
+        // Check if the fishing bobber caught something
+        net.minecraft.entity.projectile.FishingBobberEntity bobber = player.fishHook;
+
+        if (bobber == null) {
+            // Bobber gone — either not cast or already reeled in
+            if (sa.fishWaitTicks > 10) {
+                completeSustained(errorResult("Fishing line lost. Cast again."));
+                return;
+            }
+            // Just cast — give it a moment
+            return;
+        }
+
+        // Detect bite: after bobber has landed in water, check for dip
+        if (sa.fishWaitTicks > 20) {
+            boolean fishBiting = false;
+
+            // Check bobber vertical velocity — negative Y means dipping
+            double vy = bobber.getVelocity().y;
+            if (vy < -0.04) {
+                fishBiting = true;
+            }
+
+            // Also check if bobber is underwater and pulling
+            if (bobber.isTouchingWater() && vy < -0.01) {
+                fishBiting = true;
+            }
+
+            if (fishBiting) {
+                // Reel in! Right-click again to catch the fish
+                client.interactionManager.interactItem(player, Hand.MAIN_HAND);
+                player.swingHand(Hand.MAIN_HAND);
+                completeSustained(successResult("Caught a fish! (waited " + sa.fishWaitTicks + " ticks)"));
+                return;
+            }
+        }
+
+        // Timeout
+        if (sa.ticksRemaining <= 0) {
+            // Reel in without catch
+            client.interactionManager.interactItem(player, Hand.MAIN_HAND);
+            completeSustained(errorResult("Fishing timed out after 30 seconds. No bite. Try a different spot or try again."));
         }
     }
 
@@ -957,6 +1049,61 @@ public class ActionExecutor {
         return successResult("Closed screen");
     }
 
+    // --- Interact with entity (right-click, e.g. feeding animals for breeding) ---
+    private static String handleInteractEntity(JsonObject action, MinecraftClient client) {
+        ClientPlayerEntity player = client.player;
+        if (player == null || client.interactionManager == null) {
+            return errorResult("Player not available");
+        }
+
+        String target = action.has("target") ? action.get("target").getAsString() : null;
+        if (target == null) {
+            return errorResult("interact_entity requires 'target' (entity type)");
+        }
+
+        // Equip the specified item if provided (e.g., wheat for cows)
+        if (action.has("item")) {
+            String itemName = action.get("item").getAsString();
+            boolean found = selectHotbarItem(player, itemName);
+            if (!found) {
+                return errorResult("Item not found in hotbar: " + itemName);
+            }
+        }
+
+        // Find nearest matching entity within 5 blocks
+        double radius = 5.0;
+        Box box = player.getBoundingBox().expand(radius);
+        List<Entity> entities = client.world.getOtherEntities(player, box);
+
+        Entity closest = null;
+        double closestDist = Double.MAX_VALUE;
+
+        for (Entity entity : entities) {
+            if (!(entity instanceof LivingEntity)) continue;
+
+            String entityPath = Registries.ENTITY_TYPE.getId(entity.getType()).getPath();
+            if (!entityPath.contains(target)) continue;
+
+            double dist = entity.distanceTo(player);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closest = entity;
+            }
+        }
+
+        if (closest == null) {
+            return errorResult("No " + target + " found within 5 blocks");
+        }
+
+        // Look at entity and right-click interact
+        lookAtEntity(player, closest);
+        client.interactionManager.interactEntity(player, closest, Hand.MAIN_HAND);
+        player.swingHand(Hand.MAIN_HAND);
+
+        String entityName = Registries.ENTITY_TYPE.getId(closest.getType()).getPath();
+        return successResult("Interacted with " + entityName + " at distance " + Math.round(closestDist * 10.0) / 10.0);
+    }
+
     // --- Attack nearest matching entity ---
     private static String handleAttack(JsonObject action, MinecraftClient client) {
         ClientPlayerEntity player = client.player;
@@ -1110,6 +1257,11 @@ public class ActionExecutor {
         String message = action.get("message").getAsString();
         ClientPlayerEntity player = client.player;
         if (player == null) return errorResult("Player not available");
+
+        // Cap at MC limit minus safety margin
+        if (message.length() > 200) {
+            message = message.substring(0, 200);
+        }
 
         if (message.startsWith("/")) {
             client.getNetworkHandler().sendCommand(message.substring(1));
