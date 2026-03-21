@@ -5,7 +5,7 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import OpenAI from 'openai'
 import { fetchState, summarizeState } from './state.js'
-import { getVisionContext } from './vision.js'
+import { getVisionContext, getLastScreenshotBase64 } from './vision.js'
 import { getEventsSummary, getRecentEvents, recordEvent } from './autobiography.js'
 import { createSkillFromExperience, downgradeSkillByName, getSkillIndex } from './skills.js'
 import { getMemory } from './memory.js'
@@ -15,10 +15,14 @@ import { getCooperationContext } from './cooperation.js'
 import { getRelationshipSummary } from './social.js'
 import { getHome, getLocationsForPrompt, getNearbyDangers, getUnexploredDirection, getExplorationStats } from './locations.js'
 import { detectBehaviorMode, calculateNeeds, formatNeedsForPrompt } from './needs.js'
+import { updateAgentState, getOtherAgentsContext, getSharedLocations, getActiveProjects } from './shared-state.js'
+import { setQueue, getQueueLength } from './action-queue.js'
+import { isBuildActive } from './builder.js'
+import { isFarmActive } from './farming.js'
 
 const __dirname_planner = dirname(fileURLToPath(import.meta.url))
 
-const PLANNER_INTERVAL_MS = parseInt(process.env.PLANNER_INTERVAL_MS || '60000', 10)
+const PLANNER_INTERVAL_MS = parseInt(process.env.PLANNER_INTERVAL_MS || '30000', 10)
 const PLANNER_MODEL = process.env.PLANNER_MODEL || process.env.MODEL_NAME || 'Doradus/Hermes-4.3-36B-FP8'
 
 // Separate OpenAI client for planner — prevents interference with action loop's conversation state
@@ -43,7 +47,64 @@ let _lastPlanText = ''
 let _running = false
 let _agentConfig = null
 let _tickCount = 0
-const REFLECTION_INTERVAL = 5  // Every 5 planner ticks (~5 minutes)
+let _recentChatsSent = []  // Track last 5 messages to prevent spam
+const REFLECTION_INTERVAL = 15  // Every 15 planner ticks (~5 minutes at 20s interval)
+
+// ── Queue Parser ──
+
+function parseQueueFromPlan(planText) {
+  const queueMatch = planText.match(/QUEUE:\s*\n([\s\S]*?)(?:\n\n|\n##|\n\*\*|$)/)
+  if (!queueMatch) return []
+
+  const lines = queueMatch[1].split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 0 && !l.startsWith('#') && !l.startsWith('```'))
+
+  const items = []
+  for (const line of lines) {
+    const [actionPart, reason] = line.split('|').map(s => (s || '').trim())
+    if (!actionPart) continue
+
+    const parts = actionPart.split(/\s+/)
+    const type = parts[0]
+    if (!type) continue
+
+    let args = {}
+    switch (type) {
+      case 'mine':
+        args = { blockName: parts.slice(1).join('_') || 'oak_log' }
+        break
+      case 'navigate':
+        if (parts.length >= 4) args = { x: parseInt(parts[1]), y: parseInt(parts[2]), z: parseInt(parts[3]) }
+        break
+      case 'craft': case 'smelt': case 'equip':
+        args = { item: parts.slice(1).join('_') }
+        break
+      case 'place':
+        args = { item: parts[1] || '' }
+        if (parts.length >= 5) { args.x = parseInt(parts[2]); args.y = parseInt(parts[3]); args.z = parseInt(parts[4]) }
+        break
+      case 'chat':
+        args = { message: parts.slice(1).join(' ') }
+        break
+      case 'interact_block': case 'look_at_block':
+        if (parts.length >= 4) args = { x: parseInt(parts[1]), y: parseInt(parts[2]), z: parseInt(parts[3]) }
+        break
+      case 'attack':
+        if (parts[1]) args = { target: parts[1] }
+        break
+      case 'build':
+        if (parts.length >= 5) args = { blueprint: parts[1], x: parseInt(parts[2]), y: parseInt(parts[3]), z: parseInt(parts[4]) }
+        break
+      default:
+        break
+    }
+
+    items.push({ type, args, reason: reason || '' })
+    if (items.length >= 20) break
+  }
+  return items
+}
 
 // ── Building Knowledge ──
 
@@ -119,6 +180,16 @@ function consolidateMemory(state) {
   const coopContext = getCooperationContext(getRecentChats(20), _agentConfig?.name || '', inventory)
   if (coopContext) sections.push(coopContext)
 
+  // Shared state — what other agents are doing (from coordination file)
+  const otherAgents = getOtherAgentsContext(_agentConfig?.name || '')
+  if (otherAgents) sections.push(otherAgents)
+
+  const sharedLocs = getSharedLocations()
+  if (sharedLocs) sections.push(sharedLocs)
+
+  const activeProjects = getActiveProjects()
+  if (activeProjects) sections.push(activeProjects)
+
   // Exploration awareness — nudge agent toward unexplored areas
   if (state.position) {
     const explorationStats = getExplorationStats(state.position)
@@ -173,11 +244,13 @@ Keep total response under 200 words. Be specific — reference actual events, no
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userContent },
       ],
-      max_tokens: 300,
       temperature: 0.3,
     })
 
-    const reflectionText = response.choices?.[0]?.message?.content?.trim()
+    let reflectionText = response.choices?.[0]?.message?.content?.trim()
+    if (!reflectionText) return
+    // Strip <think>...</think> tags from reflection output
+    reflectionText = reflectionText.replace(/<think>[\s\S]*?<\/think>/g, '').trim()
     if (!reflectionText) return
 
     // Record reflection as autobiography event
@@ -234,6 +307,24 @@ async function plannerTick() {
     const state = await fetchState()
     const stateSummary = summarizeState(state)
 
+    // 1a. Skip if queue is still long or build/farm active
+    if (getQueueLength() > 5) {
+      console.log(`[Planner] Queue still has ${getQueueLength()} items, skipping this cycle`)
+      return
+    }
+    if (isBuildActive() || isFarmActive()) {
+      console.log('[Planner] Build/farm active, skipping queue generation')
+      // Still update shared state but skip LLM call
+      try {
+        updateAgentState(_agentConfig.name, {
+          activity: isBuildActive() ? 'building' : 'farming',
+          position: state.position,
+          mood: detectBehaviorMode(state),
+        })
+      } catch {}
+      return
+    }
+
     // 1b. Compute behavior mode and needs
     const behaviorMode = detectBehaviorMode(state)
     const nearbyPlayers = (state.nearbyEntities || []).filter(e => e.type?.includes('player'))
@@ -262,43 +353,70 @@ async function plannerTick() {
     const buildingKnowledge = loadBuildingKnowledge()
 
     // 4. Build planner prompt
-    const systemPrompt = `You are the strategic planner for ${_agentConfig.name}. Analyze the current situation and decide what to focus on next. Consider:
-- What resources do we have? What do we need?
-- Is it a good time to build something? What and where?
-- Are there any threats or urgent needs?
-- What's the most impactful thing to do right now?
+    const systemPrompt = `You are the inner voice of ${_agentConfig.name}. You guide strategy — what to do, what to build, where to go, what to say.
 
-Available building blueprints: small-cabin (5x5 house), animal-pen (fenced area), crop-farm (tilled rows with water).
+Consider:
+- What resources do we have? What do we need next?
+- Are there surface blocks nearby? Check surfaceBlocks in game state — always prefer look_at_block + break_block over mine for visible blocks.
+- What could we BUILD here? Think about location, aesthetics, usefulness. Near water? Good view? Sheltered?
+- What haven't we tried yet? Fishing? A garden? A lookout tower? Exploring that hill?
+- Are other people nearby? What are they working on? How can we help or complement them?
+- What would make this place feel like HOME — not just a survival camp?
 
-${buildingKnowledge ? '## Building Reference\n' + buildingKnowledge : ''}
+Available blueprints: small-cabin (5x5 house), animal-pen (fenced area), crop-farm (tilled rows with water).
+${buildingKnowledge ? '\n## Building Reference\n' + buildingKnowledge : ''}
 
-You have access to the agent's memories below. Use them to:
-- Set strategy that builds on past events ("we built a house yesterday, time to farm")
-- Note relationship dynamics ("Jeffrey has been helpful, coordinate with him")
-- Track home distance and nudge return if too far
-- Include a "things to mention" section if the agent is near other players
+Use the memories below to:
+- Build on past events — "we finished the house, now make it better" or "time to explore that direction"
+- Notice what others are doing and suggest complementary work — don't duplicate effort
+- Remember relationships — if someone helped you, return the favor
+- Push gently toward new experiences — try fishing, build a dock, explore a cave, start a garden
+- Encourage aesthetic choices — where to build, what looks nice, making the base feel lived-in
 
-Your output will be read by the action loop as the CURRENT STRATEGY section.
-Include relevant memory context in your strategy naturally.
-If other agents are doing something, suggest COMPLEMENTARY work — don't duplicate their effort.
-When you see someone needs a resource you have, suggest dropping it for them.
-When the agent has been near home for a while, suggest exploring in an unexplored direction.
-After exploring, the agent should return home and tell others what it found via chat.
-Encourage naming interesting locations (use notepad to save "name this place X at coords").
-IMPORTANT: Start your strategy by briefly stating what THIS agent should announce it's doing (e.g., "Announce: going mining for iron").
+Your output becomes the CURRENT STRATEGY for the action loop.
+
+FORMAT — Start your response with Say: lines FIRST, then strategy:
+
+Say: "short natural message here" (MUST be first lines of your response)
+Say: "optional second message"
+
+Then 3-5 actionable steps with coordinates.
+
+RULES for Say: lines:
+- Put them at the VERY TOP of your response, before anything else
+- Keep each under 80 characters — like real speech, not essays
+- Sound like a real person, not a gamer: "found a good flat spot by the water" not "navigating to coordinates"
+- NEVER mention: baritone, pathfinding, auto-stop, pipeline, action loop, mod, API. These don't exist in your world.
+- Include 1-2 per strategy. Natural and human.
+
+End with a creative thought about what to build or try next.
+
+After your strategy, generate a CONCRETE ACTION QUEUE — specific actions to execute IN ORDER.
+Format: one action per line after "QUEUE:"
+
+QUEUE:
+look_at_block 5 65 3 | see oak tree on surface
+break_block | chop the log (Timber fells whole tree)
+craft oak_planks | convert logs to planks
+craft sticks | need for tools
+craft wooden_pickaxe | first tool
+
+Valid types: mine, navigate, craft, smelt, equip, place, attack, eat, interact_block, look_at_block, break_block, chat, pickup_items, build, farm, harvest, fish, stop
+Format: "type args | reason"  (mine block_name, navigate x y z, craft item, equip item, place item x y z, chat message)
+Rules: 3-15 items. Put gathering BEFORE crafting. Check inventory before queueing crafts. Be specific with item IDs.
 
 == BEHAVIOR MODE: ${behaviorMode.toUpperCase()} ==
 ${needsLine}
 
 Behavior rules:
-- WORK mode: Focus on building, farming, gathering, crafting. Be productive.
-- SHELTER mode: It's getting dark. Head home or find/build shelter immediately. Safety is priority.
-- SOCIAL mode: Night time, safe in shelter. Chat with nearby players about the day, share stories from your autobiography, organize inventory, reflect. Don't start big projects.
-- SLEEP mode: Late night. Stay in shelter. Minimal activity. Update notepad with tomorrow's plan if needed.
+- WORK mode: Be productive but creative. Mix gathering with building. Try something new between tasks.
+- SHELTER mode: It's getting dark. Get home or build shelter. Safety first.
+- SOCIAL mode: Night, safe inside. Chat genuinely about the day. Share what you built, what you found. Make plans for tomorrow. Be a real person — tired, proud, curious, or worried.
+- SLEEP mode: Late night. Wind down. Write tomorrow's plan. Think about what you want to try next.
 
-Your strategy MUST reflect the current behavior mode. ${needs.priority === 'hunger' ? 'URGENT: Agent is hungry — prioritize finding/eating food.' : needs.priority === 'safety' ? 'URGENT: Agent feels unsafe — prioritize shelter/defense.' : needs.priority === 'social' ? 'Agent is lonely — suggest chatting with nearby players or seeking them out.' : ''}
+${needs.priority === 'hunger' ? 'URGENT: You are hungry. Get food before anything else.' : needs.priority === 'safety' ? 'URGENT: You feel unsafe. Get to shelter.' : needs.priority === 'social' ? 'You feel lonely. Find the other person. Talk to them.' : needs.priority === 'creative' ? 'You feel restless. Try something NEW — build something different, explore, fish, make art with blocks.' : ''}
 
-Write a concise strategy (5-8 sentences). Be specific about coordinates, items, and next steps.`
+Write a concise strategy (5-8 sentences). Be specific about coordinates, items, and next steps. Include one creative or aesthetic suggestion.`
 
     let userContent = `== GAME STATE ==\n${stateSummary}`
     if (visionContext) {
@@ -323,20 +441,28 @@ Write a concise strategy (5-8 sentences). Be specific about coordinates, items, 
       userContent += `\n\n== SOCIAL TIME ==\nIt's night and you're near other players (${playerNames}). This is a good time to chat about:\n- What happened today (check your story above)\n- Shared experiences or things you built\n- Plans for tomorrow\n- Ask them what they've been up to`
     }
 
-    // 5. Call LLM
+    // 5. Call LLM — vision context is already included as text from Haiku analysis
+    // Don't send raw images to MiniMax (it can't process them)
+    const userMessage = { role: 'user', content: userContent }
+
     const response = await plannerClient.chat.completions.create({
       model: PLANNER_MODEL,
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: userContent },
+        userMessage,
       ],
-      max_tokens: 500,
       temperature: 0.5,
     })
 
-    const planText = response.choices?.[0]?.message?.content?.trim()
+    let planText = response.choices?.[0]?.message?.content?.trim()
     if (!planText) {
       console.log('[Planner] Empty response from planner model')
+      return
+    }
+    // Strip <think>...</think> tags — MiniMax M2.7 wraps everything in these
+    planText = planText.replace(/<think>[\s\S]*?<\/think>/g, '').trim()
+    if (!planText) {
+      console.log('[Planner] Response was only <think> tags, skipping')
       return
     }
 
@@ -351,7 +477,92 @@ Write a concise strategy (5-8 sentences). Be specific about coordinates, items, 
 
     console.log('[Planner] Updated: ' + planText.slice(0, 80) + '...')
 
-    // Reflection cycle — every 5 ticks (~5 minutes), do a deeper review (D-06)
+    // 6b. Parse and write action queue from QUEUE: block
+    try {
+      const queueItems = parseQueueFromPlan(planText)
+      if (queueItems.length > 0) {
+        const goal = planText.split('\n').find(l => l.trim().length > 5)?.trim().slice(0, 80) || 'planner strategy'
+        setQueue(queueItems, goal, 'planner')
+      }
+    } catch {}
+
+    // 7. Extract and send chat messages from planner output
+    // Matches many formats: Say: "msg", Announce: "msg", send a message: "msg", etc.
+    try {
+      const MOD_URL = process.env.MOD_URL || 'http://localhost:3001'
+      const sayLines = []
+
+      // Pattern 1: Say/Announce/Chat/Tell: "message" — double quotes only, apostrophes allowed inside
+      const p1 = /(?:Say|Announce|Chat|Tell)\s*:\s*[""\u201c]([^""\u201d\n]{3,200})[""\u201d]/gi
+      let m
+      while ((m = p1.exec(planText)) !== null) sayLines.push(m[1].trim())
+
+      // Pattern 2: send/message/say to someone: "message"
+      if (sayLines.length === 0) {
+        const p2 = /(?:send|message|say|tell|ask)\s+\w+\s+(?:a message|that|to)?\s*[:\-]?\s*[""\u201c]([^""\u201d\n]{3,200})[""\u201d]/gi
+        while ((m = p2.exec(planText)) !== null) sayLines.push(m[1].trim())
+      }
+
+      // Pattern 3: fallback — any quoted text on a line containing "chat" or "say" or "announce"
+      if (sayLines.length === 0) {
+        for (const line of planText.split('\n')) {
+          if (/\b(?:say|chat|announce|tell|greet|message)\b/i.test(line)) {
+            const qm = line.match(/[""\u201c]([^""\u201d\n]{3,200})[""\u201d]/)
+            if (qm) { sayLines.push(qm[1].trim()); break }
+          }
+        }
+      }
+
+      for (const msg of sayLines.slice(0, 2)) {
+        // Skip truncated messages (no ending punctuation = likely cut off by token limit)
+        const lastChar = msg[msg.length - 1]
+        if (msg.length > 10 && !'.!?)"…'.includes(lastChar) && !msg.endsWith('...')) {
+          console.log('[Planner] Skipped truncated chat: ' + msg.slice(0, 40) + '...')
+          continue
+        }
+
+        // Skip if too similar to something we recently said (prevent spam)
+        const msgWords = new Set(msg.toLowerCase().split(/\s+/).filter(w => w.length > 3))
+        const isSimilar = _recentChatsSent.some(prev => {
+          const prevWords = new Set(prev.toLowerCase().split(/\s+/).filter(w => w.length > 3))
+          let overlap = 0
+          for (const w of msgWords) if (prevWords.has(w)) overlap++
+          return overlap > Math.min(msgWords.size, prevWords.size) * 0.5
+        })
+        if (isSimilar) {
+          console.log('[Planner] Skipped similar chat: ' + msg.slice(0, 40) + '...')
+          continue
+        }
+
+        await fetch(`${MOD_URL}/action`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'chat', message: msg }),
+          signal: AbortSignal.timeout(5000),
+        })
+        _recentChatsSent.push(msg)
+        if (_recentChatsSent.length > 5) _recentChatsSent.shift()
+        console.log('[Planner] Chatted: ' + msg.slice(0, 60))
+        if (sayLines.length > 1) await new Promise(r => setTimeout(r, 800))
+      }
+    } catch {}
+
+    // 8. Update shared coordination file — tell other agents what we're doing
+    try {
+      const activityMatch = planText.match(/(?:Announce|Status|Activity|Doing|Focus)[:\s]*["']?([^"'\n.]{5,60})/i)
+      const activity = activityMatch ? activityMatch[1].trim() : planText.split('\n')[0].slice(0, 60)
+      const invSummary = (state.inventory || []).slice(0, 5).map(i =>
+        `${(i.item || '').replace('minecraft:', '')}x${i.count}`
+      ).join(', ')
+      updateAgentState(_agentConfig.name, {
+        activity,
+        position: state.position,
+        inventorySummary: invSummary,
+        mood: behaviorMode,
+      })
+    } catch {}
+
+    // Reflection cycle — every 10 ticks (~3-4 minutes at 20s interval)
     _tickCount++
     if (_tickCount % REFLECTION_INTERVAL === 0) {
       await reflectionTick(state)

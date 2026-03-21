@@ -1001,12 +1001,17 @@ async function tick() {
     return null;
   }
 
-  // Soft chat limiter — if 3+ of last 5 actions were chat, force gameplay
+  // D-16: Chat is sent by planner only. Action loop converts chat actions to notepad writes.
+  // Exceptions: queue-sourced chat, and Baritone-active chat (section B gives chat-only tools).
   const actionType0 = response.action.type || response.action.action;
-  const recentChatCount = actionHistory.slice(-5).filter(a => a.type === 'chat').length;
-  if (actionType0 === 'chat' && recentChatCount >= 3) {
-    logInfo('Chatted enough — doing something');
-    response.action = { type: 'mine', blockName: 'oak_log', reason: 'need resources' };
+  if (actionType0 === 'chat' && response.mode !== 'queue' && !isBaritoneActive()) {
+    // If LLM wants to chat during normal tick, redirect to planner
+    // The planner will pick it up and send it naturally
+    if (response.mode === 'tool_call') {
+      completeToolCall(JSON.stringify({ success: true, info: 'Chat queued for planner. Focus on actions.' }));
+    }
+    actionHistory.push({ type: 'chat', success: true, info: 'redirected to planner', timestamp: Date.now() });
+    return null;
   }
 
   const validation = validateAction(response.action);
