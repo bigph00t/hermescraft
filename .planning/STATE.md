@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: in-progress
-last_updated: "2026-03-21T20:57:32Z"
+status: unknown
+last_updated: "2026-03-21T22:04:52.644Z"
 progress:
   total_phases: 4
-  completed_phases: 0
-  total_plans: 4
-  completed_plans: 4
+  completed_phases: 1
+  total_plans: 8
+  completed_plans: 6
 ---
 
 # Project State
@@ -18,15 +18,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-21)
 
 **Core value:** Agents feel and play like real people with spatial awareness, creativity, and genuine interaction
-**Current focus:** Phase 01 complete — ready for Phase 02
+**Current focus:** Phase 02 — Spatial Awareness + Architecture Rework
 
 ## Current Phase
 
-**Phase 1: Paper Server + Plugin Stack**
+**Phase 2: Spatial Awareness + Architecture Rework**
 
-- Status: Complete (4/4 plans complete)
-- Goal: Migrate to Paper, install 12 plugins, verify clients connect
-- Current plan: All plans complete
+- Status: In Progress (2/4 plans complete)
+- Goal: Surface block detection, brain-hands-eyes architecture, Baritone surface-only mining
+- Current plan: 02-03
 
 ## History
 
@@ -69,6 +69,10 @@ None currently.
 - JAutoPickup instead of AutoPickup — original requires SpigotMC browser login (01-02)
 - LuckPerms YAML storage — enables file-based group management without RCON (01-02)
 - ServerTap REST API for console commands — rcon-cli not available in container (01-02)
+- [Phase 02]: Removed max_tokens entirely from text-fallback LLM path — both branches generate naturally (02-02)
+- [Phase 02]: Surface-first GAMEPLAY_INSTRUCTIONS: surfaceBlocks + look_at_block as primary, mine as fallback (02-02)
+- [Phase 02]: Baritone chat command syntax #settingName value (not #set prefix) for settings configuration (02-01)
+- [Phase 02]: Surface scan 24-block horizontal, -5/+10 vertical, capped at 20 results sorted by distance (02-01)
 
 ## Session Log
 
@@ -76,3 +80,5 @@ None currently.
 - 2026-03-21: Completed 01-02 (Batch 1 plugins). Timber, VeinMiner, AutoPickup, EssentialsX, Vault, LuckPerms, Chunky installed. Bot group configured.
 - 2026-03-21: Completed 01-03 (Batch 2 plugins). AuraSkills, QuickShop-Hikari, Skript, ServerTap, StopSpam installed. StopSpam configured.
 - 2026-03-21: Completed 01-04 (Verification). Chunky pre-gen 63,001 chunks. Timber, VeinMiner, AutoPickup verified working. Phase 1 complete.
+- 2026-03-21: Completed 02-01 (Mod surface detection + Baritone settings). surfaceBlocks array in state JSON, configureSettings() for Baritone, mod deployed to local instances.
+- 2026-03-21: Completed 02-02 (Agent code cleanup). Removed max_tokens cap from LLM, fixed dead setNavigating reference, rewrote gameplay instructions for surface-first interaction.

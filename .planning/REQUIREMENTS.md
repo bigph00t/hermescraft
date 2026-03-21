@@ -31,10 +31,10 @@
 
 - [ ] **SAW-01**: Mod adds surfaceBlocks to state (isSkyVisible filter, Y-level restriction)
 - [ ] **SAW-02**: Agent uses look_at_block + break_block as PRIMARY interaction for visible blocks
-- [ ] **SAW-03**: Baritone #mine only used as FALLBACK when no visible blocks nearby
+- [x] **SAW-03**: Baritone #mine only used as FALLBACK when no visible blocks nearby
 - [ ] **SAW-04**: Baritone minYLevelWhileMining set to 55 for surface resources (logs, crops)
 - [ ] **SAW-05**: Switch to baritone-api-fabric jar for real isPathing() and programmatic settings
-- [ ] **SAW-06**: Vision (Haiku) descriptions drive block targeting — "trees to the left" → navigate left → look_at + break
+- [x] **SAW-06**: Vision (Haiku) descriptions drive block targeting — "trees to the left" → navigate left → look_at + break
 
 ### Agent Architecture
 
@@ -43,7 +43,7 @@
 - [ ] **ARC-03**: Baritone tracker knows when mine/navigate is active, skips ticks while running
 - [ ] **ARC-04**: Chat messages sent by planner (Say: lines), not action loop
 - [ ] **ARC-05**: Chat dedup: planner tracks recent messages, skips similar content
-- [ ] **ARC-06**: No artificial token limits on any LLM call
+- [x] **ARC-06**: No artificial token limits on any LLM call
 
 ### Plugin Integration
 

@@ -44,8 +44,8 @@ Plans:
 **Plans:** 4 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Mod changes: surfaceBlocks in StateReader, Baritone settings in BaritoneIntegration, mod rebuild + deploy
-- [ ] 02-02-PLAN.md — Agent cleanup: remove MAX_TOKENS, fix dead references, surface-first gameplay instructions
+- [x] 02-01-PLAN.md — Mod changes: surfaceBlocks in StateReader, Baritone settings in BaritoneIntegration, mod rebuild + deploy
+- [x] 02-02-PLAN.md — Agent cleanup: remove MAX_TOKENS, fix dead references, surface-first gameplay instructions
 - [ ] 02-03-PLAN.md — Surface awareness: surfaceBlocks in state summary, decision tree hardening, Baritone startup config
 - [ ] 02-04-PLAN.md — Chat ownership: planner-only chat sending, dedup enforcement, queue prompt tuning
 
