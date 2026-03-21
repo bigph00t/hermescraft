@@ -12,7 +12,7 @@ import {
   getCurrentPhase, checkPhaseTransition, getPhaseProgress,
   getProgressDetail, getGoalName, setGoal, isCustomGoal,
 } from './goals.js';
-import { buildSystemPrompt, buildUserMessage } from './prompt.js';
+import { buildSystemPrompt, buildUserMessage, loadPinnedContext } from './prompt.js';
 import {
   initMemory, loadMemory, saveMemory, recordDeath as memRecordDeath,
   recordPhaseComplete, recordAction, getRelevantLessons,
@@ -28,12 +28,20 @@ import {
   logError, logDeathBanner, logPhaseChange, logInfo, logWarn,
   logStuck, logSkillCreated, logSessionStats, logStartupBanner,
 } from './logger.js';
+import { initSocial, trackPlayer, getPlayersForPrompt, savePlayers } from './social.js';
+import { initLocations, autoDetectLocations, getLocationsForPrompt, saveLocations } from './locations.js';
 
-const TICK_INTERVAL = parseInt(process.env.TICK_MS || '3000', 10);
+const TICK_INTERVAL = parseInt(process.env.TICK_MS || '2000', 10);
 const MAX_STUCK_COUNT = 2;
 const STATS_LOG_INTERVAL = 20;  // Log stats every 20 ticks (~60s)
 const DEATH_COOLDOWN_TICKS = 5; // Ignore death detection for N ticks after a death
 const FAILURE_TRACKER_MAX = 50; // Max entries before pruning
+
+// Chat dedup: track messages we've already seen so we don't respond twice
+let lastProcessedMessages = new Set()
+
+// Sustained actions that take multiple seconds — pipeline thinking during these
+const SUSTAINED_ACTIONS = new Set(['mine', 'navigate', 'break_block']);
 
 // ── Global crash handlers — CRITICAL for 24/7 operation ──
 process.on('unhandledRejection', (err) => {
@@ -217,7 +225,7 @@ async function disableBaritoneOverlays() {
 
 // ── Main Tick ──
 
-async function tick() {
+async function tick(precomputedResponse = null) {
   tickCount++;
 
   // 1. OBSERVE — fetch game state
@@ -226,7 +234,7 @@ async function tick() {
     state = await fetchState();
   } catch (err) {
     logError('Failed to fetch game state', err);
-    return;
+    return null;
   }
 
   // Position-based stuck detection — only when last action was a movement action
@@ -285,7 +293,7 @@ async function tick() {
     });
 
     await sleep(5000);
-    return;
+    return null;
   }
 
   // Determine phase
@@ -338,6 +346,8 @@ async function tick() {
     sessionStats.mode = _agentConfig.mode;
     logSessionStats(sessionStats);
     periodicSave();
+    savePlayers();
+    saveLocations();
     pruneFailureTracker();
   }
 
@@ -353,6 +363,79 @@ async function tick() {
     }
   }
 
+  // DANGER CHECK: if in water, don't just think — act
+  if (state.inWater && tickCount % 5 === 0) {
+    logWarn('IN WATER — swimming');
+    // Don't spam, just note it in the state. The LLM will see inWater=true and handle it.
+    // Only intervene if health is actually dropping (drowning)
+    if ((state.health || 20) < 10) {
+      try {
+        await executeAction({ type: 'stop' });
+        await executeAction({ type: 'chat', message: 'drowning!' });
+      } catch {}
+    }
+  }
+
+  // Proactive chat reading — every tick, but dedup to avoid responding twice
+  let playerChatContext = null;
+  try {
+    const MOD_URL = process.env.MOD_URL || 'http://localhost:3001';
+    const chatRes = await fetch(`${MOD_URL}/chat`, { signal: AbortSignal.timeout(2000) });
+    if (chatRes.ok) {
+      const chatText = await chatRes.text();
+      const botUsername = process.env.MC_USERNAME || 'Steve';
+      const playerMessages = chatText.split('\n')
+        .filter(line => line.trim() && !line.includes(`<${botUsername}>`))
+        .filter(line => line.match(/<\w+>/))
+        .slice(-5);
+
+      // Dedup: only process NEW messages we haven't seen
+      // Set-based tracking is immune to buffer cycling and message reordering
+      if (playerMessages.length > 0) {
+        // Create unique-ish keys: message text + position in batch
+        // This handles repeated identical messages correctly
+        const currentBatch = new Set(playerMessages.map((m, i) => `${i}:${m}`))
+        const newMessages = playerMessages.filter((m, i) => !lastProcessedMessages.has(`${i}:${m}`))
+        lastProcessedMessages = currentBatch
+
+        if (newMessages.length > 0) {
+          playerChatContext = newMessages.join('\n');
+          logInfo(`New chat: ${playerChatContext.slice(0, 120)}`);
+
+          // Track chat interactions for social memory
+          for (const msg of newMessages) {
+            const match = msg.match(/<(\w+)>\s*(.*)/);
+            if (match) {
+              trackPlayer(match[1], { type: 'chat', detail: match[2].slice(0, 100) });
+            }
+          }
+
+          // Quick-response: "follow me" / "come here"
+          const lastMsg = newMessages[newMessages.length - 1].toLowerCase();
+          if (lastMsg.includes('follow me') || lastMsg.includes('come here') || lastMsg.includes('come over')) {
+            const playerMatch = newMessages[newMessages.length - 1].match(/<(\w+)>/);
+            if (playerMatch && state.nearbyEntities) {
+              const playerName = playerMatch[1];
+              const playerEntity = state.nearbyEntities.find(e =>
+                e.type?.includes('player') && e.name === playerName ||
+                e.type?.includes('player') && !e.name
+              );
+              if (playerEntity?.position) {
+                const p = playerEntity.position;
+                logInfo(`Following ${playerName} to (${p.x}, ${p.y}, ${p.z})`);
+                try {
+                  await executeAction({ type: 'chat', message: `omw` });
+                  await executeAction({ type: 'navigate', x: Math.round(p.x), y: Math.round(p.y), z: Math.round(p.z) });
+                } catch {}
+                return null;
+              }
+            }
+          }
+        }
+      }
+    }
+  } catch {}
+
   // 2. THINK — build prompt and query LLM
   const stuckInfo = getStuckInfo();
   if (stuckInfo) {
@@ -364,27 +447,57 @@ async function tick() {
     setNavigating(false);
   }
 
-  // Build prompts with full Hermes ecosystem context
+  // Auto-detect and track locations + players
+  autoDetectLocations(state);
+  if (state.nearbyEntities) {
+    for (const e of state.nearbyEntities) {
+      if (e.type?.includes('player') && e.name) {
+        trackPlayer(e.name, { type: 'near', detail: `dist:${e.distance}` });
+      }
+    }
+  }
+
+  // Build prompts with full context
   const memoryText = getMemoryForPrompt();
+  const socialText = getPlayersForPrompt(state.nearbyEntities);
+  const locationText = getLocationsForPrompt();
   const skillIndex = getSkillIndex();
   const activeSkill = getActiveSkill(currentPhase);
   const sessionStats = getSessionStats();
 
   const notepadContent = readNotepad();
 
+  // Combine memory + social + location context
+  const fullMemoryText = [memoryText, socialText, locationText].filter(Boolean).join('\n');
+
+  // Load pinned context documents (survives any history wipe)
+  const pinnedContext = loadPinnedContext(_agentConfig.dataDir);
+
   const systemPrompt = buildSystemPrompt(_agentConfig, currentPhase, {
     deathCount,
     goalName: getGoalName(),
-    memoryText,
+    memoryText: fullMemoryText,
     phaseObjectives: currentPhase?.objectives || [],
     phaseTips: currentPhase?.tips || [],
     activeSkill: activeSkill?.content || '',
+    pinnedContext,
   });
 
   const stateSummary = summarizeState(state);
+  // Combine user instruction with any player chat
+  // But enforce gameplay priority — if last action was chat, DON'T show chat context
+  const lastAct2 = actionHistory.length > 0 ? actionHistory[actionHistory.length - 1] : null;
+  const lastWasChat = lastAct2 && lastAct2.type === 'chat';
+  let effectiveInstruction = userInstruction || null;
+  if (playerChatContext && !lastWasChat) {
+    const chatPrefix = `Someone said in chat: ${playerChatContext}\nYou can respond briefly (under 60 chars) OR just keep playing. Gameplay is more important.`;
+    effectiveInstruction = effectiveInstruction
+      ? `${effectiveInstruction}\n\n${chatPrefix}`
+      : chatPrefix;
+  }
   const userMessage = buildUserMessage(stateSummary, actionHistory, {
     stuckInfo,
-    userInstruction,
+    userInstruction: effectiveInstruction,
     notepadContent,
     progressDetail: progressDetail || null,
   });
@@ -392,16 +505,18 @@ async function tick() {
   const temperature = getTemperature(currentPhase, state);
 
   let response;
-  // Switch to auto (thinking) when stuck or last action failed — lets model deliberate
-  const lastAction = actionHistory.length > 0 ? actionHistory[actionHistory.length - 1] : null;
-  const lastFailed = lastAction && !lastAction.success;
-  const needsThinking = !!stuckInfo || lastFailed;
 
-  try {
-    response = await queryLLM(systemPrompt, userMessage, { temperature, needsThinking });
-  } catch (err) {
-    logError('LLM query failed', err);
-    return;
+  if (precomputedResponse && !stuckInfo && !playerChatContext) {
+    // Use pre-computed action from pipeline (skip LLM call entirely!)
+    response = precomputedResponse;
+    logInfo('⚡ Using pipelined action');
+  } else {
+    try {
+      response = await queryLLM(systemPrompt, userMessage, { temperature });
+    } catch (err) {
+      logError('LLM query failed', err);
+      return null;
+    }
   }
 
   // Log reasoning — the star of the show for viewers
@@ -414,14 +529,22 @@ async function tick() {
 
   // 3. ACT — execute the action
   if (!response.action) {
-    logWarn('No action parsed — defaulting to wait');
-    return;
+    logWarn('No action parsed');
+    return null;
+  }
+
+  // HARD RULE: never chat twice in a row — force gameplay
+  const actionType0 = response.action.type || response.action.action;
+  if (actionType0 === 'chat' && lastWasChat) {
+    logInfo('Blocked double-chat — forcing gameplay action');
+    // Default to mining wood if nothing better to do
+    response.action = { type: 'mine', blockName: 'oak_log', reason: 'need resources' };
   }
 
   const validation = validateAction(response.action);
   if (!validation.valid) {
     logError(`Invalid action: ${validation.error}`);
-    return;
+    return null;
   }
 
   logAction(response.action, response.mode);
@@ -461,7 +584,7 @@ async function tick() {
       info: infoResult,
       timestamp: Date.now(),
     });
-    return;
+    return null;
   }
 
   let result;
@@ -476,7 +599,7 @@ async function tick() {
       error: err.message,
       timestamp: Date.now(),
     });
-    return;
+    return null;
   }
 
   logActionResult(result);
@@ -529,6 +652,26 @@ async function tick() {
     success,
     mode: response.mode,
   });
+
+  // Pipeline: if we just started a sustained action, pre-think the next move
+  if (success && SUSTAINED_ACTIONS.has(actionType)) {
+    try {
+      logInfo('⚡ Pipelining: pre-thinking next action while current runs...');
+      const nextState = await fetchState();
+      const nextStateSummary = summarizeState(nextState);
+      const nextUserMessage = buildUserMessage(nextStateSummary, actionHistory, {
+        stuckInfo: null,
+        userInstruction: `Current action "${actionType}" is running in background. Plan your NEXT action.`,
+        notepadContent: readNotepad(),
+        progressDetail: getProgressDetail(currentPhase, nextState) || null,
+      });
+      const nextResponse = await queryLLM(systemPrompt, nextUserMessage, { temperature });
+      return nextResponse;  // Return pre-computed action for next tick
+    } catch {
+      // Pipeline failed — no big deal, next tick will think fresh
+    }
+  }
+  return null;  // No pipelined action
 }
 
 function sleep(ms) {
@@ -544,6 +687,8 @@ async function main() {
   initMemory(agentConfig);
   initSkills(agentConfig);
   initGoalSystem(agentConfig);
+  initSocial(agentConfig);
+  initLocations(agentConfig);
 
   // Set per-agent notepad path
   NOTEPAD_FILE = join(agentConfig.dataDir, 'notepad.txt');
@@ -599,14 +744,17 @@ async function main() {
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 
+  let pendingAction = null;  // Pre-computed next action from pipelining
+
   while (running) {
     try {
-      currentTickPromise = tick();
-      await currentTickPromise;
+      currentTickPromise = tick(pendingAction);
+      pendingAction = await currentTickPromise;
       currentTickPromise = null;
     } catch (err) {
       logError('Unexpected error in tick', err);
       currentTickPromise = null;
+      pendingAction = null;
     }
     if (running) await sleep(TICK_INTERVAL);
   }
