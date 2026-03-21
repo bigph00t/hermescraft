@@ -4,7 +4,7 @@
 
 import { fetchState, summarizeState, detectDeath, setNavigating } from './state.js';
 import { queryLLM, clearConversation, getTemperature, isToolCallingEnabled, completeToolCall } from './llm.js';
-import { executeAction, validateAction, INFO_ACTIONS } from './actions.js';
+import { executeAction, validateAction, validatePreExecution, INFO_ACTIONS } from './actions.js';
 import { fetchRecipes } from './state.js';
 import { loadAgentConfig } from './config.js';
 import {
@@ -800,10 +800,28 @@ async function tick(precomputedResponse = null) {
     return null;
   }
 
+  // Pre-execution validation gate — catch obviously invalid actions before mod API round-trip
+  const actionType = response.action.type || response.action.action;
+  if (!INFO_ACTIONS.has(actionType)) {
+    const preCheck = validatePreExecution(response.action, state);
+    if (!preCheck.valid) {
+      logWarn(`Pre-execution rejected: ${preCheck.reason}`);
+      // Complete tool call with the rejection reason so the agent sees it
+      if (response.mode === 'tool_call') {
+        completeToolCall(JSON.stringify({ success: false, error: preCheck.reason }));
+      }
+      actionHistory.push({
+        type: actionType,
+        success: false,
+        error: preCheck.reason,
+        timestamp: Date.now(),
+      });
+      return null;
+    }
+  }
+
   logAction(response.action, response.mode);
   recordAction();
-
-  const actionType = response.action.type || response.action.action;
 
   // Handle info actions (recipes, wiki) — return data to LLM, no game state change
   if (INFO_ACTIONS.has(actionType)) {
