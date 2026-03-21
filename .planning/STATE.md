@@ -6,9 +6,9 @@ status: unknown
 last_updated: "2026-03-21T23:08:59.662Z"
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 12
-  completed_plans: 11
+  completed_plans: 12
 ---
 
 # Project State
@@ -22,10 +22,10 @@ See: .planning/PROJECT.md (updated 2026-03-21)
 
 ## Current Phase
 
-**Phase 2: Spatial Awareness + Architecture Rework**
+**Phase 3: Plugin Integration + Custom Commands**
 
 - Status: Complete (4/4 plans complete)
-- Goal: Surface block detection, brain-hands-eyes architecture, Baritone surface-only mining
+- Goal: Deploy Skript commands, wire 8 plugin tools, verify full pipeline end-to-end
 - Current plan: done
 
 ## History
@@ -85,6 +85,7 @@ None currently.
 - [Phase 03-plugin-integration-custom-commands]: Skript variables namespaced as {locations::%player name%::*} to prevent multi-agent collisions (03-01)
 - [Phase 03]: updatePlannerPluginState() setter pattern — planner runs on own setInterval, module-level setter decouples index.js from planner internals
 - [Phase 03]: GAMEPLAY_INSTRUCTIONS no-slash phrasing uses 'natural abilities' language to avoid embedding /command patterns (D-28)
+- [Phase 03-04]: myskills.sk uses Approach B (static level 0) — PlaceholderAPI not installed; PAPI placeholders would emit literal strings breaking command-parser.js extractSkillLevels()
 
 ## Session Log
 
@@ -99,3 +100,4 @@ None currently.
 - 2026-03-21: Completed 03-01 (Skript commands + parser modules). /scan /share-location /myskills on server, command-parser.js and servertap.js agent modules created.
 - 2026-03-21: Completed 03-02 (Plugin tools and action handlers). 8 tools in tools.js, 8 handlers in actions.js, ability cooldown system.
 - 2026-03-21: Completed 03-03 (Plugin wiring). GAMEPLAY_INSTRUCTIONS, planner strategy guidance, ServerTap state summary, skill cache + command result persistence, INFO_ACTIONS handlers.
+- 2026-03-21: Completed 03-04 (Deploy + verify). Skript scripts deployed to Docker container, LuckPerms permissions granted, Approach B applied for myskills.sk (no PAPI), human-verified as approved. Phase 03 complete.

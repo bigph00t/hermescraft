@@ -69,13 +69,13 @@ Plans:
 
 **Requirements:** INT-01 through INT-07
 
-**Plans:** 2/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [x] 03-01-PLAN.md — Skript commands (/scan, /share-location, /myskills), command-parser.js, servertap.js
 - [x] 03-02-PLAN.md — 8 new plugin tools in tools.js + action handlers in actions.js
-- [ ] 03-03-PLAN.md — Prompt updates (GAMEPLAY_INSTRUCTIONS, planner strategy), state.js ServerTap integration, index.js plugin response wiring
-- [ ] 03-04-PLAN.md — Deploy Skript to server, grant permissions, end-to-end verification
+- [x] 03-03-PLAN.md — Prompt updates (GAMEPLAY_INSTRUCTIONS, planner strategy), state.js ServerTap integration, index.js plugin response wiring
+- [x] 03-04-PLAN.md — Deploy Skript to server, grant permissions, end-to-end verification
 
 **Scope:**
 - Write Skript: /scan <block> <radius> surface — returns nearest surface blocks with coords
