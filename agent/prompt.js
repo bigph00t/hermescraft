@@ -124,6 +124,7 @@ export function buildUserMessage(stateSummary, actionHistory, {
   notepadContent = '',
   progressDetail = null,
   taskProgress = null,
+  reviewResult = null,
 } = {}) {
   const parts = [];
 
@@ -146,12 +147,26 @@ export function buildUserMessage(stateSummary, actionHistory, {
       else if (st.status === 'in-progress') marker = '[>]'
       else if (st.status === 'failed') marker = '[!]'
       else if (st.status === 'blocked') marker = '[B]'
+      else if (st.status === 'reviewing') marker = '[?]'
       let line = `  ${st.index}. ${marker} ${st.text}`
-      if (st.note) line += ` — ${st.note}`
+      if (st.note) line += ` -- ${st.note}`
+      if (st.retry_count > 0) line += ` (retry ${st.retry_count}/${st.max_retries || 2})`
       if (st.status === 'in-progress') line += '  <-- CURRENT'
+      if (st.status === 'reviewing') line += '  <-- VERIFYING...'
       parts.push(line)
     }
     parts.push('')
+
+    // Subtask review result — shown prominently so the agent sees what passed/failed
+    if (reviewResult) {
+      if (reviewResult.passed) {
+        parts.push(`== REVIEW PASSED == Subtask ${reviewResult.subtaskIndex}: "${reviewResult.expected_outcome}" -- VERIFIED`)
+      } else {
+        parts.push(`== REVIEW FAILED == Subtask ${reviewResult.subtaskIndex}: expected "${reviewResult.expected_outcome}" but found: ${reviewResult.actual}`)
+        parts.push(`This subtask has been set back to in-progress for retry. Try a DIFFERENT approach.`)
+      }
+      parts.push('')
+    }
   }
 
   // Notepad
