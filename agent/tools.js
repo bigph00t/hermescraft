@@ -324,6 +324,112 @@ export const GAME_TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'scan_blocks',
+      description: 'Scan the area for a specific block type on the surface. Returns up to 5 nearest with coordinates.',
+      parameters: {
+        type: 'object',
+        properties: {
+          block_type: { type: 'string', description: 'Block to find, e.g. "oak_log", "iron_ore", "wheat"' },
+          radius: { type: 'integer', description: 'Search radius 1-100 (default 50)' },
+        },
+        required: ['block_type'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'go_home',
+      description: 'Teleport to your saved home location. Fast travel back to base.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Home name (default: "home")' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'set_home',
+      description: 'Save current location as home. Use at your base so you can teleport back.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Home name (default: "home")' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'share_location',
+      description: 'Mark a named location and share coordinates with everyone. Use when you find something interesting.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Location name, e.g. "iron cave", "good fishing spot"' },
+        },
+        required: ['name'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'check_skills',
+      description: 'Check your skill levels — foraging, mining, farming, excavation, fighting. See what abilities you have unlocked.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'use_ability',
+      description: 'Activate a special ability if ready. Treecapitator (fell whole tree), Speed Mine (fast mining), Terraform (fast digging). Equip the right tool first. Has a cooldown — will tell you when ready.',
+      parameters: {
+        type: 'object',
+        properties: {
+          ability_name: { type: 'string', enum: ['treecapitator', 'speed_mine', 'terraform'], description: 'Ability to activate' },
+        },
+        required: ['ability_name'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'query_shops',
+      description: 'Search for player shops selling or buying a specific item. See prices and locations.',
+      parameters: {
+        type: 'object',
+        properties: {
+          item: { type: 'string', description: 'Item to search for, e.g. "oak_log", "iron_ingot"' },
+        },
+        required: ['item'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'create_shop',
+      description: 'Final step to create a chest shop. BEFORE calling this: 1) place a chest, 2) equip the item to sell, 3) right-click the chest. Then call create_shop with the price. Skipping steps will fail silently.',
+      parameters: {
+        type: 'object',
+        properties: {
+          price: { type: 'number', description: 'Price per item' },
+          item: { type: 'string', description: 'Item to sell, e.g. "oak_log"' },
+        },
+        required: ['price', 'item'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'save_context',
       description: 'Save a persistent context document. Survives all memory wipes. Use for plans, task lists, notes.',
       parameters: {
