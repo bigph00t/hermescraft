@@ -17,7 +17,7 @@ Transform HermesCraft from a broken Baritone-puppet system into spatially-aware,
 **Plans:** 4 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Paper server setup, world migration, client connectivity verification
+- [x] 01-01-PLAN.md — Paper server setup, world migration, client connectivity verification
 - [ ] 01-02-PLAN.md — Install Timber, VeinMiner, AutoPickup, EssentialsX+Vault, LuckPerms, Chunky; configure LuckPerms bot group
 - [ ] 01-03-PLAN.md — Install mcMMO, QuickShop-Hikari, Skript, BlockBeacon, ServerTap, StopSpam; configure StopSpam
 - [ ] 01-04-PLAN.md — Chunky world pre-generation, functional verification of Timber/VeinMiner/AutoPickup

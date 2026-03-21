@@ -1,102 +1,111 @@
-# Requirements: HermesCraft Life Simulation
+# Requirements: HermesCraft v2
 
-**Defined:** 2026-03-20
-**Core Value:** Agents must feel alive — indistinguishable from real players at casual glance
+**Defined:** 2026-03-21
+**Core Value:** Agents feel and play like real people with spatial awareness, creativity, and genuine interaction
 
 ## v1 Requirements
 
-### Building
+### Server Migration
 
-- [x] **BUILD-01**: Agent can construct a basic 5x5 house (walls, roof, door, floor)
-- [x] **BUILD-02**: Agent chooses contextually appropriate materials (wood near forests, stone near caves)
-- [x] **BUILD-03**: Agent can build a fenced animal pen
-- [x] **BUILD-04**: Agent can build a crop farm plot (tilled rows with water source)
+- [x] **SRV-01**: Paper 1.21.1 server running in Docker on Glass, replacing vanilla Fabric server
+- [x] **SRV-02**: Existing Survival Island world migrated to Paper with correct directory structure
+- [x] **SRV-03**: Both Fabric clients (HermesBridge + Baritone) connect and function on Paper server
+- [ ] **SRV-04**: World pre-generated with Chunky (2000 block radius) to eliminate exploration lag
 
-### Farming & Food
+### Plugin Stack
 
-- [x] **FARM-01**: Agent can till soil, plant seeds, and harvest wheat
-- [x] **FARM-02**: Agent can breed animals (cows with wheat, chickens with seeds)
-- [x] **FARM-03**: Agent can craft fishing rod and fish
-- [x] **FARM-04**: Agent can cook food in furnace
-- [x] **FARM-05**: Agent plants saplings to renew wood supply
+- [ ] **PLG-01**: Timber/hTreecapitator installed — chop one log, whole tree falls
+- [ ] **PLG-02**: VeinMiner installed — mine one ore, get whole vein
+- [ ] **PLG-03**: AutoPickup/PickupBot installed — mined items go straight to inventory
+- [ ] **PLG-04**: EssentialsX + Vault installed — /home, /warp, /back, /pay, economy
+- [ ] **PLG-05**: mcMMO installed — RPG skill progression (mining, woodcutting, excavation, etc.)
+- [ ] **PLG-06**: QuickShop-Hikari installed — player-to-player chest shops
+- [ ] **PLG-07**: LuckPerms installed — bot permissions configured
+- [ ] **PLG-08**: Skript installed — custom command framework
+- [ ] **PLG-09**: BlockBeacon installed — /findblock for resource location
+- [ ] **PLG-10**: ServerTap installed — REST API on port 4567
+- [ ] **PLG-11**: StopSpam installed — server-side chat dedup + rate limiting
+- [ ] **PLG-12**: Chunky installed — world pre-generation
 
-### Memory
+### Spatial Awareness
 
-- [x] **MEM-01**: Agent remembers home location and navigates back from anywhere
-- [x] **MEM-02**: Agent remembers contents of chests it placed
-- [x] **MEM-03**: Agent remembers past conversations and references them naturally
-- [x] **MEM-04**: Agent maintains autobiographical memory ("I built this on day 1")
-- [x] **MEM-05**: Agent tracks relationship trust/sentiment that persists across sessions
+- [ ] **SAW-01**: Mod adds surfaceBlocks to state (isSkyVisible filter, Y-level restriction)
+- [ ] **SAW-02**: Agent uses look_at_block + break_block as PRIMARY interaction for visible blocks
+- [ ] **SAW-03**: Baritone #mine only used as FALLBACK when no visible blocks nearby
+- [ ] **SAW-04**: Baritone minYLevelWhileMining set to 55 for surface resources (logs, crops)
+- [ ] **SAW-05**: Switch to baritone-api-fabric jar for real isPathing() and programmatic settings
+- [ ] **SAW-06**: Vision (Haiku) descriptions drive block targeting — "trees to the left" → navigate left → look_at + break
 
-### Behavior
+### Agent Architecture
 
-- [x] **BEHAV-01**: Agent works during day, seeks shelter at night
-- [x] **BEHAV-02**: Agent has idle behaviors (look around, organize inventory, wander near home)
-- [x] **BEHAV-03**: Agent responds to needs (hunger → find food, danger → fight/flee, boredom → explore)
-- [x] **BEHAV-04**: Agent socializes at night (chat by fire, share stories)
+- [ ] **ARC-01**: Brain-hands-eyes: planner writes action queue, action loop pops and executes without LLM
+- [ ] **ARC-02**: Action loop only calls LLM when queue empty, emergency, or chat received
+- [ ] **ARC-03**: Baritone tracker knows when mine/navigate is active, skips ticks while running
+- [ ] **ARC-04**: Chat messages sent by planner (Say: lines), not action loop
+- [ ] **ARC-05**: Chat dedup: planner tracks recent messages, skips similar content
+- [ ] **ARC-06**: No artificial token limits on any LLM call
 
-### Skills
+### Plugin Integration
 
-- [x] **SKILL-01**: Agent learns new skills from experience (first successful craft = remembered)
-- [x] **SKILL-02**: Background reflection updates long-term memory periodically
-- [x] **SKILL-03**: Agent avoids repeating mistakes (death lessons applied automatically)
+- [ ] **INT-01**: Custom Skript: /scan <block> <radius> surface — find surface blocks with coords
+- [ ] **INT-02**: Custom Skript: /share-location <name> — broadcast location to all players
+- [ ] **INT-03**: Agent queries mcMMO skill levels and adapts behavior (specialize in what they're good at)
+- [ ] **INT-04**: Agent uses /home and /warp for fast travel
+- [ ] **INT-05**: Agent can set up QuickShop chest shops to trade surplus items
+- [ ] **INT-06**: Agent uses /findblock to locate specific resources
+- [ ] **INT-07**: Agent queries ServerTap REST API for server-side state when needed
 
-### Cooperation
+### Agent Personality
 
-- [x] **COOP-01**: Agents can divide tasks ("I'll get wood, you mine stone")
-- [x] **COOP-02**: Agents share resources (drop items for each other)
-- [x] **COOP-03**: Agents agree on building locations and build collectively
-
-### Navigation
-
-- [x] **NAV-01**: Agent establishes and returns to home base
-- [x] **NAV-02**: Agent explores and reports findings to group via chat
-- [x] **NAV-03**: Agent names and remembers discovered locations
+- [ ] **PER-01**: Agents build with aesthetic intent — choose locations for views, organize bases
+- [ ] **PER-02**: Agents try new things — fishing, gardening, decorating, exploring
+- [ ] **PER-03**: Agents have emotional responses — pride in builds, frustration when stuck, curiosity about new areas
+- [ ] **PER-04**: Agents specialize based on mcMMO skills — Jeffrey becomes a miner, John a builder (emergent)
+- [ ] **PER-05**: Agents trade with each other via QuickShop based on surplus/need
+- [ ] **PER-06**: Agents remember and reference their history naturally in conversation
+- [ ] **PER-07**: No meta-game language — agents talk about their world as real, never mention baritone/pathfinding/API
 
 ## v2 Requirements
 
-### Advanced Building
-- **BUILD-05**: Multi-room structures
-- **BUILD-06**: Glass windows, lantern lighting
-- **BUILD-07**: Bridges and pathways
+### Scaling
+- **SCL-01**: Support 5-10 agents simultaneously
+- **SCL-02**: Agent personality generation from templates
 
-### Advanced Social
-- **DRAMA-01**: Disagreements that affect cooperation
-- **DRAMA-02**: Personality-driven resource hoarding/sharing
-- **COOP-04**: Barter trading system
-- **SKILL-04**: Agents teach each other skills
+### Advanced Gameplay
+- **ADV-01**: Nether exploration and resource gathering
+- **ADV-02**: Enchanting and brewing systems
+- **ADV-03**: Redstone contraptions and automated farms
 
-### Advanced Navigation
-- **NAV-04**: Boat crafting and ocean exploration
-- **NAV-05**: Map creation and sharing
-
-### Vision
-- **VIS-01**: Screenshot capture from mod
-- **VIS-02**: MiniMax vision model for spatial awareness
+### Social
+- **SOC-01**: Agent-to-agent conflict and resolution
+- **SOC-02**: Leadership emergence and role specialization
+- **SOC-03**: Shared building projects with role assignment
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Redstone circuits | Too complex, low visual impact |
-| Nether/End progression | Overworld island focus |
-| PvP combat systems | Conflict from personality, not mechanics |
-| Custom mod features | Keep mod thin |
+| Scoreboard display | User doesn't want it |
+| Custom Java Paper plugin | Use Skript instead for rapid iteration |
+| Hostile mob combat | Peaceful mode — focus on building/cooperation |
+| Multiple server instances | Single server is sufficient |
+| Mod changes for plugin channels | HTTP bridge works fine, plugin channels are overkill |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BUILD-01..04 | Phase 1 | Complete |
-| FARM-01..05 | Phase 2 | Complete |
-| MEM-01..05 | Phase 3 | Complete |
-| BEHAV-01..04 | Phase 4 | Pending |
-| SKILL-01..02 | Phase 5 | Complete |
-| SKILL-03 | Phase 5 | Complete |
-| COOP-01..03 | Phase 6 | Complete |
-| NAV-01..03 | Phase 6 | Pending |
+| SRV-01..04 | Phase 1 | Pending |
+| PLG-01..12 | Phase 1 | Pending |
+| SAW-01..06 | Phase 2 | Pending |
+| ARC-01..06 | Phase 2 | Pending |
+| INT-01..07 | Phase 3 | Pending |
+| PER-01..07 | Phase 4 | Pending |
 
-**Coverage:** 26 v1 requirements, 26 mapped, 0 unmapped ✓
+**Coverage:**
+- v1 requirements: 35 total
+- Mapped to phases: 35
+- Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-03-20*
+*Requirements defined: 2026-03-21*

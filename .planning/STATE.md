@@ -2,144 +2,65 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
-stopped_at: Completed 06-02-PLAN.md
-last_updated: "2026-03-21T07:12:00Z"
+status: in-progress
+last_updated: "2026-03-21T20:47:31Z"
 progress:
-  total_phases: 10
-  completed_phases: 10
-  total_plans: 20
-  completed_plans: 20
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 4
+  completed_plans: 1
 ---
 
-# GSD State: HermesCraft Life Simulation
+# Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-20)
+See: .planning/PROJECT.md (updated 2026-03-21)
 
-**Core value:** Agents must feel alive — indistinguishable from real players
-**Current focus:** Phase 6 — Cooperation & Exploration
+**Core value:** Agents feel and play like real people with spatial awareness, creativity, and genuine interaction
+**Current focus:** Phase 01 — Paper Server + Plugin Stack
 
-## Milestone: v1.0
+## Current Phase
 
-**Status:** Ready to plan
-**Phases:** 6 total, 0 complete
+**Phase 1: Paper Server + Plugin Stack**
 
-| Phase | Name | Status | Plans |
-|-------|------|--------|-------|
-| 1 | Building System | ○ Pending | 0/0 |
-| 2 | Farming & Food | ○ Pending | 0/0 |
-| 3 | Deep Memory | ● Complete | 2/2 |
-| 4 | Human-Like Behavior | ● Complete | 2/2 |
-| 5 | Automatic Skill Learning | ● Complete | 2/2 |
-| 6 | Cooperation & Exploration | ● Complete | 2/2 |
+- Status: In progress (1/4 plans complete)
+- Goal: Migrate to Paper, install 12 plugins, verify clients connect
+- Current plan: 01-02 (plugin installation wave 1)
 
-## Session Context
+## History
 
-Last session: 2026-03-21T07:12:00Z
-Stopped At: Completed 06-02-PLAN.md
+### v1.0 (completed 2026-03-21)
 
-- Phase 06 Plan 02 complete: exploration awareness -- cardinal direction tracking, discovery reporting, chat-to-location coordinate parsing
-- locations.js: getUnexploredDirection (quadrant analysis), getExplorationStats (summary string), parseLocationFromChat (3 regex patterns)
-- planner.js: EXPLORATION section in consolidateMemory, exploration nudges in system prompt
-- prompt.js: work mode explore/name/200-block hints, social mode share discoveries
-- index.js: auto-save locations from chat with parseLocationFromChat + saveLocation
-- Phase 06 Plan 01 complete: chat-based cooperation awareness -- activity parsing, resource need detection, build project detection
-- cooperation.js: parseOtherActivities, parseResourceNeeds, parseBuildProjects, getCooperationContext (5-min window, self-filter)
-- planner.js: cooperation context injected into consolidateMemory, complementary work + announce instructions in system prompt
-- prompt.js: work mode announces activities, social mode discusses plans and offers resources
-- Phase 05 Plan 02 complete: experience-based skill creation + 5-minute reflection cycle
-- skills.js: createSkillFromExperience (exp- prefix, 15 cap, lowest-rate eviction), downgradeSkillByName (0.15 rate decrement)
-- planner.js: reflectionTick every 5 ticks (~5min), LLM reflects on events, auto-creates skills, downgrades on failure
-- autobiography.js: 'reflection' type events recorded from planner reflection cycle
-- Phase 05 Plan 01 complete: death avoidance learning -- recordDeathLocation saves danger zones, getNearbyDangers injects proximity warnings into planner
-- locations.js: danger-N entries (type='danger', cause, lesson), capped at 10, oldest eviction
-- index.js: recordDeathLocation called in death recording block after autobiographical event
-- planner.js: DANGER ZONES NEARBY section in consolidateMemory when agent within 30 blocks of past death site
-- Phase 04 complete: behavior-aware prompts with mode-specific hints (work/shelter/social/sleep) and idle tick tracking with boredom nudges in action loop
-- Phase 04 Plan 02: prompt.js injects HOW TO BEHAVE section per mode, index.js tracks idleTicks and generates idle hints (5+ work, 3+ social)
-- Phase 04 Plan 01 complete: needs system (hunger/safety/social/creative 0-100) and behavior mode (work/shelter/social/sleep) integrated into planner loop
-- needs.js: pure calculation module with detectBehaviorMode, calculateNeeds, formatNeedsForPrompt
-- planner.js: behavior mode + needs injected into system prompt and user content every 60s tick
-- Phase 03 Plan 02 complete: recording hooks in index.js, memory consolidation in planner.js with things-you-might-mention
-- Phase 03 Plan 01 complete: five deep memory data modules (autobiography, chests, chat-history, locations auto-home, social persistence)
-- autobiography.js: JSONL event log, 100-entry cap, day-grouped summary
-- chests.js: coordinate-keyed chest tracking with immediate write
-- chat-history.js: 50-message ring buffer with sender-grouped relative timestamps
-- locations.js: setHome/getHome, auto-home on first bed or door
-- social.js: sentiment decay 0.1/hr, notable_interactions, getRelationshipSummary
-- Established working agent harness with multi-agent support
-- Two agents running on Survival Island (Jeffrey Enderstein, John Kwon)
-- MiniMax M2.7-highspeed as LLM, MC 1.21.1 on Glass
+- Built full agent harness: Node.js with multi-level memory, skills, vision, social, locations
+- HermesBridge Fabric mod: HTTP API for game state + actions
+- 3-loop architecture: action (2s), vision (10s), planner (20-30s)
+- Claude Haiku vision, MiniMax M2.7 for text
+- Two agents: Jeffrey Enderstein, John Kwon with deep SOUL personalities
+- Known issues: Baritone underground tunneling, chat truncation, no spatial awareness
+
+### v2.0 (starting)
+
+- Paper server migration for plugin support
+- 12 plugins for enhanced gameplay (Timber, VeinMiner, mcMMO, etc.)
+- Spatial awareness rework: look+break instead of blind Baritone
+- Brain-hands-eyes architecture with action queue
+
+## Blockers
+
+None currently.
 
 ## Decisions
 
-- One-tick delay between marking done and verification prevents stale state reads (03-01)
-- Keyword-based review (not LLM call) keeps review cost-zero, no extra API calls (03-01)
-- Default-pass when no keywords match: trusts agent judgment, reduces false negatives (03-01)
-- retry_count/max_retries stored in tasks.json for persistence across restarts (03-01)
-- [Phase 03-02]: Gate skips INFO_ACTIONS entirely — they don't touch game world, no state check needed
-- [Phase 03-02]: validatePreExecution returns valid:true for unknown types — non-blocking by default
-- [Phase 03-02]: Partial-match hasItem() handles minecraft: prefix variations in inventory item IDs
-- [Phase 01]: Door placed at y=1 only in blueprint grid - MC doors auto-extend to 2-tall
-- [Phase 01]: Farmland in crop-farm blueprint requires special executor handling (place dirt then till)
-- [Phase 01]: resolvePalette falls back to first preferred block when agent has none available
-- [Phase 01]: Used temp file for NativeImage PNG export since MC 1.21.1 NativeImage.writeTo only takes Path
-- [Phase 01]: Vision loop uses separate OpenAI client to prevent action loop interference
-- [Phase 01-04]: Planner loop uses separate OpenAI client -- each cognitive layer is independent
-- [Phase 01-04]: getBuildProgress dynamically imported from builder.js with fallback for parallel plan execution
-- [Phase 01-04]: Vision context in user message, plan context in system prompt -- matches D-01 three-layer arch
-- [Phase 01-04]: Building knowledge loaded once at startup, injected every tick as static system prompt content
-- [Phase 01-03]: Place up to 3 blocks per tick to avoid overwhelming mod API
-- [Phase 01-03]: Proximity check: agent must be within 8 blocks of build origin to place
-- [Phase 01-03]: Auto-unpause: build resumes when missing materials appear in inventory
-- [Phase 01-03]: Build action handled before executeAction dispatch (managed by builder.js, not mod API)
-- [Phase 02-01]: Concatenated food + building knowledge into single variable -- avoids changing buildSystemPrompt signature
-- [Phase 02-01]: Farm cycle completes at 'waiting' phase by nulling _activeFarm -- agent free to do other tasks while crops grow
-- [Phase 02-01]: Sapling replanting is best-effort (silent catch) -- doesn't block agent if placement fails
-- [Phase 02-01]: Farm and harvest added to SUSTAINED_ACTIONS for pipelining support
-- [Phase 02-02]: Used isTouchingWater() over isSubmergedInWater() for bobber detection -- MC 1.21.1 compatibility
-- [Phase 02-02]: Breed is agent-orchestrated (two interact_entity calls with 500ms gap) for partial success reporting
-- [Phase 02-02]: Fish passes directly through executeAction to mod -- no special agent handler needed
-- [Phase 03-02]: isKnownPlayer added to social.js rather than duplicating players data -- single source of truth
-- [Phase 03-02]: Chest tracking records location even without mod content support -- hook exists for future enhancement
-- [Phase 03-02]: Build completion detected inline at resumeBuild result, not via wasBuildActive edge detection
-- [Phase 03-02]: Memory context appended as MEMORY CONTEXT section to planner user message
-- [Phase 03-01]: JSONL for append-only event streams (autobiography, chat), JSON for mutable state (chests)
-- [Phase 03-01]: Sentiment decay applied before each interaction update, not on timer -- simpler, no background process
-- [Phase 03-01]: Notable interactions stored separately (max 5) from general interactions (max 20) for planner use
-- [Phase 03-01]: Chat history caps at 50 entries both in-memory and on disk with rewrite on overflow
-- [Phase 04-01]: needs.js is pure calculation module with zero imports -- planner passes all data as arguments
-- [Phase 04-01]: Behavior mode injected into both system prompt (rules) and user content (status) for maximum LLM awareness
-- [Phase 04-01]: Social time section only added when behaviorMode is social AND nearbyPlayers.length > 0
-- [Phase 04-01]: Home position from getHome() passed to calculateNeeds for night-away-from-home safety penalty
-- [Phase 04]: Behavior hints injected after CURRENT STRATEGY section in system prompt for contextual layering
-- [Phase 04]: Idle hint placed before GAME STATE in user message so LLM sees boredom nudge early
-- [Phase 04]: meaningfulActions set determines idle counter reset — only game-world-changing actions count, not info/chat
-- [Phase 05-01]: Danger zones stored as regular location entries with type='danger' -- reuses existing locations object
-- [Phase 05-01]: Cap at 10 danger zones with oldest-eviction to prevent unbounded growth
-- [Phase 05-01]: 30-block radius for proximity warnings -- close enough to be relevant, far enough to warn early
-- [Phase 05-02]: Experience skills prefixed 'exp-' to distinguish from phase-based 'minecraft-' skills
-- [Phase 05-02]: Cap at 15 experience skills with lowest-success-rate eviction prevents unbounded growth
-- [Phase 05-02]: Downgrade rate 0.15 (vs recordSkillOutcome's 0.1) for direct failure attribution from reflection
-- [Phase 05-02]: Reflection uses temperature 0.3 for factual output vs planner's 0.5 for creative strategy
-- [Phase 05-02]: SKILL line parsing uses strict pipe-delimited regex to avoid false positive skill creation
-- [Phase 06-01]: Pure chat-based coordination — no behind-the-scenes shared state between agents
-- [Phase 06-01]: Cooperation context only injected when signals detected — no noise when agents are alone
-- [Phase 06-01]: Inventory cross-reference for resource needs — agent told it has the item someone asked for
-- [Phase 06-01]: 5-minute window for activity relevance — stale messages filtered out
-- [Phase 06-02]: Cardinal direction quadrant system for exploration tracking — locations mapped to north/south/east/west relative to home
-- [Phase 06-02]: Three regex patterns for coordinate extraction covers common chat formats (comma, x=y=z=, parenthesized)
-- [Phase 06-02]: Exploration hints in both work mode (go explore) and social mode (share discoveries)
-- [Phase 06-02]: Auto-save discovered locations with type 'discovered' for provenance tracking
+- Paper over Fabric server — plugin ecosystem
+- Skript for custom commands — no Java compilation needed
+- Look+break as primary interaction — prevents underground tunneling
+- No artificial token limits — let LLM generate naturally
+- Peaceful difficulty — focus on building and cooperation
+- Paper 1.21.1 build #133 as server platform (01-01)
+- RCON on port 25575 for runtime server configuration (01-01)
+- enforce-secure-profile=false for offline-mode bot access (01-01)
 
-## Roadmap Evolution
+## Session Log
 
-- Phase 7 added: Audit fixes — double trim bug, wait action, dead deps, missing tests, config drift (from post-Phase-1-3 codebase audit)
-
-## Notes
-
-- Research agent running in background investigating Voyager, STEVE-1, MineDojo approaches
-- Building system is highest impact — visible, immediate, makes agents feel real
-- Memory system is highest complexity — cross-cutting concern affecting everything
+- 2026-03-21: Completed 01-01 (Paper server setup + world migration). Paper running, both clients connected.
