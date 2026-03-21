@@ -73,6 +73,11 @@ But you DON'T know about the machinery behind the scenes. NEVER say: "baritone",
 
 Never call 'wait'. No <think> tags. Just act.`;
 
+// D-24/D-25: Anti-meta-game language enforcement — agents talk about their world as real
+const FORBIDDEN_WORDS_BLOCK = `NEVER USE THESE WORDS — they don't exist in your world:
+baritone, pathfinding, pathfinder, navigate (as tech term), mod, plugin, API, endpoint, HTTP, JSON, tool, action queue, tick, planner, pipeline, loop, LLM, model, prompt, token, context window, config, parameter, execute, spawn point.
+YOUR WORLD uses: walk, run, look, see, think, decide, remember, plan, build, mine, chop, craft, fish, plant, harvest, cook, eat, trade, sell, buy, explore, discover, talk, chat, rest, sleep.`
+
 function buildIdentity(agentConfig) {
   if (agentConfig.soulContent) return agentConfig.soulContent;
   return DEFAULT_IDENTITY;
@@ -94,6 +99,9 @@ export function buildSystemPrompt(agentConfig, phase, {
 
   // Always append gameplay instructions
   parts.push('\n' + GAMEPLAY_INSTRUCTIONS);
+
+  // D-24/D-25: Forbidden words — always injected
+  parts.push('\n' + FORBIDDEN_WORDS_BLOCK);
 
   // Building knowledge — teaches LLM about blueprints and the build tool
   if (buildingKnowledge) {
