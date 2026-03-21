@@ -1,0 +1,80 @@
+{
+  "name": "small_cabin",
+  "description": "A 5x7 wooden cabin with door, windows, and flat roof",
+  "size": { "x": 5, "y": 5, "z": 7 },
+  "palette": {
+    "W": { "preferred": ["oak_planks", "spruce_planks", "birch_planks"], "tag": "wall" },
+    "L": { "preferred": ["oak_log", "spruce_log", "birch_log"], "tag": "pillar" },
+    "F": { "preferred": ["oak_planks", "cobblestone", "stone"], "tag": "floor" },
+    "R": { "preferred": ["oak_slab", "spruce_slab", "cobblestone_slab"], "tag": "roof" },
+    "D": { "preferred": ["oak_door"], "tag": "door" },
+    "G": { "preferred": ["glass_pane", "glass"], "tag": "window" }
+  },
+  "layers": [
+    {
+      "y": 0,
+      "comment": "Foundation/floor — solid 5x7 floor",
+      "grid": [
+        "FFFFF",
+        "FFFFF",
+        "FFFFF",
+        "FFFFF",
+        "FFFFF",
+        "FFFFF",
+        "FFFFF"
+      ]
+    },
+    {
+      "y": 1,
+      "comment": "Ground walls — door at front center (z=0, x=2). Door is 2-tall, place at y=1 only.",
+      "grid": [
+        "LWDWL",
+        "W...W",
+        "W...W",
+        "W...W",
+        "W...W",
+        "W...W",
+        "LWWWL"
+      ]
+    },
+    {
+      "y": 2,
+      "comment": "Mid walls — windows on sides, open above door",
+      "grid": [
+        "LW.WL",
+        "G...G",
+        "W...W",
+        "G...G",
+        "W...W",
+        "G...G",
+        "LWWWL"
+      ]
+    },
+    {
+      "y": 3,
+      "comment": "Top walls — solid perimeter",
+      "grid": [
+        "LWWWL",
+        "W...W",
+        "W...W",
+        "W...W",
+        "W...W",
+        "W...W",
+        "LWWWL"
+      ]
+    },
+    {
+      "y": 4,
+      "comment": "Roof — flat slab covering",
+      "grid": [
+        "RRRRR",
+        "RRRRR",
+        "RRRRR",
+        "RRRRR",
+        "RRRRR",
+        "RRRRR",
+        "RRRRR"
+      ]
+    }
+  ]
+}
