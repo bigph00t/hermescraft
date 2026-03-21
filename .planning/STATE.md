@@ -63,6 +63,10 @@ Stopped At: Completed 01-02-PLAN.md
 - [Phase 01]: Used temp file for NativeImage PNG export since MC 1.21.1 NativeImage.writeTo only takes Path
 - [Phase 01]: Vision loop uses separate OpenAI client to prevent action loop interference
 
+## Roadmap Evolution
+
+- Phase 7 added: Audit fixes — double trim bug, wait action, dead deps, missing tests, config drift (from post-Phase-1-3 codebase audit)
+
 ## Notes
 
 - Research agent running in background investigating Voyager, STEVE-1, MineDojo approaches

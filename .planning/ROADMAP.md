@@ -97,5 +97,15 @@ Phase 4 (Behavior) ──→ Phase 6 (Cooperation, needs day/night cycle)
 
 **Recommended order:** Phase 1 → 2 → 3 → 4 → 5 → 6
 
+### Phase 7: Audit fixes — double trim bug, wait action, dead deps, missing tests, config drift
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 6
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 7 to break down)
+
 ---
 *Roadmap created: 2026-03-20*
