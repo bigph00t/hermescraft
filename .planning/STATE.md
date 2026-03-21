@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-03-21T06:15:00.000Z"
+status: planning
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-03-21T06:26:57.273Z"
 progress:
-  total_phases: 7
-  completed_phases: 5
-  total_plans: 12
-  completed_plans: 14
+  total_phases: 10
+  completed_phases: 6
+  total_plans: 16
+  completed_plans: 15
 ---
 
 # GSD State: HermesCraft Life Simulation
@@ -19,7 +19,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-20)
 
 **Core value:** Agents must feel alive — indistinguishable from real players
-**Current focus:** Phase 3 — Deep Memory
+**Current focus:** Phase 4 — Human-Like Behavior
 
 ## Milestone: v1.0
 
@@ -31,15 +31,18 @@ See: .planning/PROJECT.md (updated 2026-03-20)
 | 1 | Building System | ○ Pending | 0/0 |
 | 2 | Farming & Food | ○ Pending | 0/0 |
 | 3 | Deep Memory | ● Complete | 2/2 |
-| 4 | Human-Like Behavior | ○ Pending | 0/0 |
+| 4 | Human-Like Behavior | ◐ In Progress | 1/2 |
 | 5 | Automatic Skill Learning | ○ Pending | 0/0 |
 | 6 | Cooperation & Exploration | ○ Pending | 0/0 |
 
 ## Session Context
 
-Last session: 2026-03-21T06:15:00Z
-Stopped At: Completed 03-02-PLAN.md
+Last session: 2026-03-21T06:26:57.271Z
+Stopped At: Completed 04-01-PLAN.md
 
+- Phase 04 Plan 01 complete: needs system (hunger/safety/social/creative 0-100) and behavior mode (work/shelter/social/sleep) integrated into planner loop
+- needs.js: pure calculation module with detectBehaviorMode, calculateNeeds, formatNeedsForPrompt
+- planner.js: behavior mode + needs injected into system prompt and user content every 60s tick
 - Phase 03 Plan 02 complete: recording hooks in index.js, memory consolidation in planner.js with things-you-might-mention
 - Phase 03 Plan 01 complete: five deep memory data modules (autobiography, chests, chat-history, locations auto-home, social persistence)
 - autobiography.js: JSONL event log, 100-entry cap, day-grouped summary
@@ -88,6 +91,10 @@ Stopped At: Completed 03-02-PLAN.md
 - [Phase 03-01]: Sentiment decay applied before each interaction update, not on timer -- simpler, no background process
 - [Phase 03-01]: Notable interactions stored separately (max 5) from general interactions (max 20) for planner use
 - [Phase 03-01]: Chat history caps at 50 entries both in-memory and on disk with rewrite on overflow
+- [Phase 04-01]: needs.js is pure calculation module with zero imports -- planner passes all data as arguments
+- [Phase 04-01]: Behavior mode injected into both system prompt (rules) and user content (status) for maximum LLM awareness
+- [Phase 04-01]: Social time section only added when behaviorMode is social AND nearbyPlayers.length > 0
+- [Phase 04-01]: Home position from getHome() passed to calculateNeeds for night-away-from-home safety penalty
 
 ## Roadmap Evolution
 

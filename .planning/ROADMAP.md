@@ -71,7 +71,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Needs system + behavior mode detection in planner loop
+- [x] 04-01-PLAN.md — Needs system + behavior mode detection in planner loop
 - [ ] 04-02-PLAN.md — Prompt-side behavior hints, idle tracking, night socialization
 
 **Deliverables:**
