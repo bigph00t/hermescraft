@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-03-21T06:56:57Z"
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-03-21T07:08:00.483Z"
 progress:
   total_phases: 10
   completed_phases: 8
-  total_plans: 18
-  completed_plans: 18
+  total_plans: 20
+  completed_plans: 19
 ---
 
 # GSD State: HermesCraft Life Simulation
@@ -19,7 +19,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-20)
 
 **Core value:** Agents must feel alive — indistinguishable from real players
-**Current focus:** Phase 5 — Automatic Skill Learning
+**Current focus:** Phase 6 — Cooperation & Exploration
 
 ## Milestone: v1.0
 
@@ -37,9 +37,13 @@ See: .planning/PROJECT.md (updated 2026-03-20)
 
 ## Session Context
 
-Last session: 2026-03-21T06:56:57Z
-Stopped At: Completed 05-02-PLAN.md
+Last session: 2026-03-21T07:07:07Z
+Stopped At: Completed 06-01-PLAN.md
 
+- Phase 06 Plan 01 complete: chat-based cooperation awareness -- activity parsing, resource need detection, build project detection
+- cooperation.js: parseOtherActivities, parseResourceNeeds, parseBuildProjects, getCooperationContext (5-min window, self-filter)
+- planner.js: cooperation context injected into consolidateMemory, complementary work + announce instructions in system prompt
+- prompt.js: work mode announces activities, social mode discusses plans and offers resources
 - Phase 05 Plan 02 complete: experience-based skill creation + 5-minute reflection cycle
 - skills.js: createSkillFromExperience (exp- prefix, 15 cap, lowest-rate eviction), downgradeSkillByName (0.15 rate decrement)
 - planner.js: reflectionTick every 5 ticks (~5min), LLM reflects on events, auto-creates skills, downgrades on failure
@@ -116,6 +120,10 @@ Stopped At: Completed 05-02-PLAN.md
 - [Phase 05-02]: Downgrade rate 0.15 (vs recordSkillOutcome's 0.1) for direct failure attribution from reflection
 - [Phase 05-02]: Reflection uses temperature 0.3 for factual output vs planner's 0.5 for creative strategy
 - [Phase 05-02]: SKILL line parsing uses strict pipe-delimited regex to avoid false positive skill creation
+- [Phase 06-01]: Pure chat-based coordination — no behind-the-scenes shared state between agents
+- [Phase 06-01]: Cooperation context only injected when signals detected — no noise when agents are alone
+- [Phase 06-01]: Inventory cross-reference for resource needs — agent told it has the item someone asked for
+- [Phase 06-01]: 5-minute window for activity relevance — stale messages filtered out
 
 ## Roadmap Evolution
 

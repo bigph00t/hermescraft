@@ -105,7 +105,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Cooperation awareness: chat-based activity parsing, resource need detection, planner coordination hints
+- [x] 06-01-PLAN.md — Cooperation awareness: chat-based activity parsing, resource need detection, planner coordination hints
 - [ ] 06-02-PLAN.md — Exploration system: unexplored direction tracking, discovery reporting, chat-to-location parsing
 
 **Deliverables:**

@@ -43,9 +43,9 @@
 
 ### Cooperation
 
-- [ ] **COOP-01**: Agents can divide tasks ("I'll get wood, you mine stone")
-- [ ] **COOP-02**: Agents share resources (drop items for each other)
-- [ ] **COOP-03**: Agents agree on building locations and build collectively
+- [x] **COOP-01**: Agents can divide tasks ("I'll get wood, you mine stone")
+- [x] **COOP-02**: Agents share resources (drop items for each other)
+- [x] **COOP-03**: Agents agree on building locations and build collectively
 
 ### Navigation
 
@@ -93,7 +93,8 @@
 | BEHAV-01..04 | Phase 4 | Pending |
 | SKILL-01..02 | Phase 5 | Complete |
 | SKILL-03 | Phase 5 | Complete |
-| COOP-01..03, NAV-01..03 | Phase 6 | Pending |
+| COOP-01..03 | Phase 6 | Complete |
+| NAV-01..03 | Phase 6 | Pending |
 
 **Coverage:** 26 v1 requirements, 26 mapped, 0 unmapped ✓
 
