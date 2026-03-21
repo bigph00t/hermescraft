@@ -41,8 +41,8 @@
 - [x] **ARC-01**: Brain-hands-eyes: planner writes action queue, action loop pops and executes without LLM
 - [x] **ARC-02**: Action loop only calls LLM when queue empty, emergency, or chat received
 - [x] **ARC-03**: Baritone tracker knows when mine/navigate is active, skips ticks while running
-- [ ] **ARC-04**: Chat messages sent by planner (Say: lines), not action loop
-- [ ] **ARC-05**: Chat dedup: planner tracks recent messages, skips similar content
+- [x] **ARC-04**: Chat messages sent by planner (Say: lines), not action loop
+- [x] **ARC-05**: Chat dedup: planner tracks recent messages, skips similar content
 - [x] **ARC-06**: No artificial token limits on any LLM call
 
 ### Plugin Integration
