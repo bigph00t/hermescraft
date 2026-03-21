@@ -10,7 +10,7 @@ import { getEventsSummary, getRecentEvents } from './autobiography.js'
 import { getChestsForPrompt } from './chests.js'
 import { getChatSummary } from './chat-history.js'
 import { getRelationshipSummary } from './social.js'
-import { getHome, getLocationsForPrompt } from './locations.js'
+import { getHome, getLocationsForPrompt, getNearbyDangers } from './locations.js'
 import { detectBehaviorMode, calculateNeeds, formatNeedsForPrompt } from './needs.js'
 
 const __dirname_planner = dirname(fileURLToPath(import.meta.url))
@@ -83,6 +83,17 @@ function consolidateMemory(state) {
     const distFromHome = Math.round(Math.sqrt(dx * dx + dz * dz))
     if (distFromHome > 100) {
       sections.push(`You are ${distFromHome} blocks from home (${home.x}, ${home.y}, ${home.z}). Consider heading back soon.`)
+    }
+  }
+
+  // Death proximity warning — SKILL-03 death avoidance learning
+  if (state.position) {
+    const dangers = getNearbyDangers(state.position, 30)
+    if (dangers.length > 0) {
+      const warnings = dangers.map(d =>
+        `WARNING: You died ${Math.round(d.distance)} blocks from here — ${d.cause}. ${d.lesson}`
+      )
+      sections.push('== DANGER ZONES NEARBY ==\n' + warnings.join('\n'))
     }
   }
 

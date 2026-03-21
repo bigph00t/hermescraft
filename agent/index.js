@@ -29,7 +29,7 @@ import {
   logStuck, logSkillCreated, logSessionStats, logStartupBanner,
 } from './logger.js';
 import { initSocial, trackPlayer, getPlayersForPrompt, savePlayers, isKnownPlayer } from './social.js';
-import { initLocations, autoDetectLocations, getLocationsForPrompt, saveLocations } from './locations.js';
+import { initLocations, autoDetectLocations, getLocationsForPrompt, saveLocations, recordDeathLocation } from './locations.js';
 import { initAutobiography, recordEvent } from './autobiography.js';
 import { initChests, trackChest, saveChests } from './chests.js';
 import { initChatHistory, recordChat } from './chat-history.js';
@@ -604,6 +604,11 @@ async function tick(precomputedResponse = null) {
       location: state.position ? { x: Math.round(state.position.x), y: Math.round(state.position.y), z: Math.round(state.position.z) } : null,
       importance: 10,
     })
+
+    // Record death location as danger zone for future avoidance (SKILL-03)
+    if (state.position) {
+      recordDeathLocation(state.position.x, state.position.y, state.position.z, deathRecord.cause, deathRecord.lesson)
+    }
 
     // Update skill outcome (failure)
     recordSkillOutcome(phase, false);
