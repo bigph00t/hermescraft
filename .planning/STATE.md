@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-03-21T06:26:57.273Z"
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-03-21T06:31:41.194Z"
 progress:
   total_phases: 10
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 16
-  completed_plans: 15
+  completed_plans: 16
 ---
 
 # GSD State: HermesCraft Life Simulation
@@ -31,15 +31,17 @@ See: .planning/PROJECT.md (updated 2026-03-20)
 | 1 | Building System | ○ Pending | 0/0 |
 | 2 | Farming & Food | ○ Pending | 0/0 |
 | 3 | Deep Memory | ● Complete | 2/2 |
-| 4 | Human-Like Behavior | ◐ In Progress | 1/2 |
+| 4 | Human-Like Behavior | ● Complete | 2/2 |
 | 5 | Automatic Skill Learning | ○ Pending | 0/0 |
 | 6 | Cooperation & Exploration | ○ Pending | 0/0 |
 
 ## Session Context
 
-Last session: 2026-03-21T06:26:57.271Z
-Stopped At: Completed 04-01-PLAN.md
+Last session: 2026-03-21T06:31:41.192Z
+Stopped At: Completed 04-02-PLAN.md
 
+- Phase 04 complete: behavior-aware prompts with mode-specific hints (work/shelter/social/sleep) and idle tick tracking with boredom nudges in action loop
+- Phase 04 Plan 02: prompt.js injects HOW TO BEHAVE section per mode, index.js tracks idleTicks and generates idle hints (5+ work, 3+ social)
 - Phase 04 Plan 01 complete: needs system (hunger/safety/social/creative 0-100) and behavior mode (work/shelter/social/sleep) integrated into planner loop
 - needs.js: pure calculation module with detectBehaviorMode, calculateNeeds, formatNeedsForPrompt
 - planner.js: behavior mode + needs injected into system prompt and user content every 60s tick
@@ -95,6 +97,9 @@ Stopped At: Completed 04-01-PLAN.md
 - [Phase 04-01]: Behavior mode injected into both system prompt (rules) and user content (status) for maximum LLM awareness
 - [Phase 04-01]: Social time section only added when behaviorMode is social AND nearbyPlayers.length > 0
 - [Phase 04-01]: Home position from getHome() passed to calculateNeeds for night-away-from-home safety penalty
+- [Phase 04]: Behavior hints injected after CURRENT STRATEGY section in system prompt for contextual layering
+- [Phase 04]: Idle hint placed before GAME STATE in user message so LLM sees boredom nudge early
+- [Phase 04]: meaningfulActions set determines idle counter reset — only game-world-changing actions count, not info/chat
 
 ## Roadmap Evolution
 

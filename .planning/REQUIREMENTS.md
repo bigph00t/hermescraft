@@ -31,9 +31,9 @@
 ### Behavior
 
 - [x] **BEHAV-01**: Agent works during day, seeks shelter at night
-- [ ] **BEHAV-02**: Agent has idle behaviors (look around, organize inventory, wander near home)
+- [x] **BEHAV-02**: Agent has idle behaviors (look around, organize inventory, wander near home)
 - [x] **BEHAV-03**: Agent responds to needs (hunger → find food, danger → fight/flee, boredom → explore)
-- [ ] **BEHAV-04**: Agent socializes at night (chat by fire, share stories)
+- [x] **BEHAV-04**: Agent socializes at night (chat by fire, share stories)
 
 ### Skills
 
