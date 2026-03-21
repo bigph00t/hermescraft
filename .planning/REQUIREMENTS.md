@@ -39,7 +39,7 @@
 
 - [ ] **SKILL-01**: Agent learns new skills from experience (first successful craft = remembered)
 - [ ] **SKILL-02**: Background reflection updates long-term memory periodically
-- [ ] **SKILL-03**: Agent avoids repeating mistakes (death lessons applied automatically)
+- [x] **SKILL-03**: Agent avoids repeating mistakes (death lessons applied automatically)
 
 ### Cooperation
 

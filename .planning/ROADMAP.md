@@ -88,7 +88,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Death avoidance learning: danger zone tracking in locations.js, proximity warnings in planner
+- [x] 05-01-PLAN.md — Death avoidance learning: danger zone tracking in locations.js, proximity warnings in planner
 - [ ] 05-02-PLAN.md — Experience-based skill creation + 5-minute reflection cycle in planner loop
 
 **Deliverables:**

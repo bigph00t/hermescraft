@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-03-21T06:31:41.194Z"
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-03-21T06:52:59.914Z"
 progress:
   total_phases: 10
   completed_phases: 7
-  total_plans: 16
-  completed_plans: 16
+  total_plans: 18
+  completed_plans: 17
 ---
 
 # GSD State: HermesCraft Life Simulation
@@ -19,7 +19,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-20)
 
 **Core value:** Agents must feel alive — indistinguishable from real players
-**Current focus:** Phase 4 — Human-Like Behavior
+**Current focus:** Phase 5 — Automatic Skill Learning
 
 ## Milestone: v1.0
 
@@ -32,14 +32,18 @@ See: .planning/PROJECT.md (updated 2026-03-20)
 | 2 | Farming & Food | ○ Pending | 0/0 |
 | 3 | Deep Memory | ● Complete | 2/2 |
 | 4 | Human-Like Behavior | ● Complete | 2/2 |
-| 5 | Automatic Skill Learning | ○ Pending | 0/0 |
+| 5 | Automatic Skill Learning | ◐ In Progress | 1/2 |
 | 6 | Cooperation & Exploration | ○ Pending | 0/0 |
 
 ## Session Context
 
-Last session: 2026-03-21T06:31:41.192Z
-Stopped At: Completed 04-02-PLAN.md
+Last session: 2026-03-21T06:52:59.912Z
+Stopped At: Completed 05-01-PLAN.md
 
+- Phase 05 Plan 01 complete: death avoidance learning -- recordDeathLocation saves danger zones, getNearbyDangers injects proximity warnings into planner
+- locations.js: danger-N entries (type='danger', cause, lesson), capped at 10, oldest eviction
+- index.js: recordDeathLocation called in death recording block after autobiographical event
+- planner.js: DANGER ZONES NEARBY section in consolidateMemory when agent within 30 blocks of past death site
 - Phase 04 complete: behavior-aware prompts with mode-specific hints (work/shelter/social/sleep) and idle tick tracking with boredom nudges in action loop
 - Phase 04 Plan 02: prompt.js injects HOW TO BEHAVE section per mode, index.js tracks idleTicks and generates idle hints (5+ work, 3+ social)
 - Phase 04 Plan 01 complete: needs system (hunger/safety/social/creative 0-100) and behavior mode (work/shelter/social/sleep) integrated into planner loop
@@ -100,6 +104,9 @@ Stopped At: Completed 04-02-PLAN.md
 - [Phase 04]: Behavior hints injected after CURRENT STRATEGY section in system prompt for contextual layering
 - [Phase 04]: Idle hint placed before GAME STATE in user message so LLM sees boredom nudge early
 - [Phase 04]: meaningfulActions set determines idle counter reset — only game-world-changing actions count, not info/chat
+- [Phase 05-01]: Danger zones stored as regular location entries with type='danger' -- reuses existing locations object
+- [Phase 05-01]: Cap at 10 danger zones with oldest-eviction to prevent unbounded growth
+- [Phase 05-01]: 30-block radius for proximity warnings -- close enough to be relevant, far enough to warn early
 
 ## Roadmap Evolution
 
