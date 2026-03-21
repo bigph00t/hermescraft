@@ -68,6 +68,9 @@ let currentTickPromise = null; // For graceful shutdown
 let lastPosition = null; // For position-based stuck detection
 let samePositionTicks = 0;
 
+// Subtask review: tracks a subtask that was just marked "done" and needs outcome verification next tick
+let pendingReview = null; // { index, expected_outcome, reviewTick }
+
 // Stuck detection
 const failureTracker = new Map();
 
@@ -226,7 +229,7 @@ function handlePlanTask(goal, subtasks) {
   return `Plan created: "${goal}" with ${subtasks.length} subtasks\n${summary}`
 }
 
-function handleUpdateTask(index, status, note) {
+function handleUpdateTask(index, status, note, expected_outcome) {
   const taskState = loadTaskState()
   if (!taskState) {
     return 'No active plan. Use plan_task first.'
@@ -238,22 +241,142 @@ function handleUpdateTask(index, status, note) {
   if (!validStatuses.includes(status)) {
     return `Invalid status "${status}". Use: ${validStatuses.join(', ')}`
   }
-  taskState.subtasks[index].status = status
-  if (note) taskState.subtasks[index].note = note
 
-  // Auto-advance: if marking done and next subtask is pending, set it to in-progress
-  if (status === 'done') {
+  const subtask = taskState.subtasks[index]
+  if (note) subtask.note = note
+
+  if (status === 'done' && expected_outcome) {
+    // Defer actual done marking — queue a review for next tick
+    subtask.status = 'reviewing'
+    subtask.expected_outcome = expected_outcome
+    subtask.retry_count = subtask.retry_count || 0
+    subtask.max_retries = 2
+    pendingReview = { index, expected_outcome, reviewTick: tickCount + 1 }
+    saveTaskState(taskState)
+    return `Subtask ${index} marked for review. Will verify: ${expected_outcome}`
+  } else if (status === 'done') {
+    // Immediate done (no expected_outcome) — keep original behavior
+    subtask.status = 'done'
+    // Auto-advance: if marking done and next subtask is pending, set it to in-progress
     const nextPending = taskState.subtasks.find(s => s.status === 'pending')
     if (nextPending) {
       nextPending.status = 'in-progress'
     }
+  } else if (status === 'failed') {
+    // Retry tracking: increment retry_count, block if max exceeded
+    subtask.retry_count = (subtask.retry_count || 0) + 1
+    subtask.max_retries = subtask.max_retries || 2
+    if (subtask.retry_count >= subtask.max_retries) {
+      subtask.status = 'blocked'
+      // Auto-advance to next pending subtask after blocking
+      const nextPending = taskState.subtasks.find(s => s.status === 'pending')
+      if (nextPending) {
+        nextPending.status = 'in-progress'
+      }
+    } else {
+      subtask.status = 'in-progress' // retry
+    }
+  } else {
+    subtask.status = status
   }
 
   saveTaskState(taskState)
 
   const done = taskState.subtasks.filter(s => s.status === 'done').length
   const total = taskState.subtasks.length
-  return `Updated subtask ${index} to ${status}. Progress: ${done}/${total} done.`
+  return `Updated subtask ${index} to ${subtask.status}. Progress: ${done}/${total} done.`
+}
+
+// ── Subtask Outcome Review ──
+// Called at the start of each tick to check if a pending review is due.
+// Compares game state against expected_outcome keywords and marks pass/fail.
+
+function reviewSubtaskOutcome(state) {
+  if (!pendingReview) return null
+  if (tickCount < pendingReview.reviewTick) return null
+
+  const taskState = loadTaskState()
+  if (!taskState) {
+    pendingReview = null
+    return null
+  }
+
+  const subtask = taskState.subtasks[pendingReview.index]
+  if (!subtask || subtask.status !== 'reviewing') {
+    pendingReview = null
+    return null
+  }
+
+  const expected = pendingReview.expected_outcome.toLowerCase()
+  let passed = true
+  let actual = 'unknown'
+
+  // Keyword-based checks against game state
+  // Check inventory items (e.g. "have wooden_pickaxe", "wooden_pickaxe in inventory")
+  const itemMatch = expected.match(/(?:have\s+|have a\s+|in inventory[:\s]+)?([a-z_]+(?:_[a-z]+)*)\s*(?:in inventory|in hand)?/)
+  if (itemMatch && state.inventory && (expected.includes('have ') || expected.includes('inventory') || expected.includes('in hand'))) {
+    const itemName = itemMatch[1]
+    const found = state.inventory.some(i => i.item && i.item.toLowerCase().includes(itemName))
+    if (!found) {
+      passed = false
+      actual = `inventory does not contain ${itemName} (have: ${state.inventory.map(i => i.item).filter(Boolean).join(', ') || 'nothing'})`
+    }
+  }
+
+  // Check position (e.g. "be at X,Y,Z" or "at -120,64,30")
+  const coordMatch = expected.match(/(?:be at|at|near|position)\s*(-?\d+)[,\s]+(-?\d+)[,\s]+(-?\d+)/)
+  if (coordMatch && state.position) {
+    const tx = parseInt(coordMatch[1]), ty = parseInt(coordMatch[2]), tz = parseInt(coordMatch[3])
+    const dx = Math.abs(state.position.x - tx)
+    const dy = Math.abs(state.position.y - ty)
+    const dz = Math.abs(state.position.z - tz)
+    if (dx > 5 || dy > 5 || dz > 5) {
+      passed = false
+      actual = `position (${Math.round(state.position.x)},${Math.round(state.position.y)},${Math.round(state.position.z)}) is more than 5 blocks from target (${tx},${ty},${tz})`
+    }
+  }
+
+  // Check health (e.g. "health above 15" or "health > 10")
+  const healthMatch = expected.match(/health\s*(?:above|>|>=|at least)\s*(\d+)/)
+  if (healthMatch && state.health !== undefined) {
+    const minHealth = parseInt(healthMatch[1])
+    if (state.health < minHealth) {
+      passed = false
+      actual = `health is ${state.health} (expected >= ${minHealth})`
+    }
+  }
+
+  // Default: if no keywords matched, pass the review (trust the agent)
+  const subtaskIndex = pendingReview.index
+  const expected_outcome = pendingReview.expected_outcome
+  pendingReview = null
+
+  if (passed) {
+    subtask.status = 'done'
+    // Auto-advance to next pending subtask
+    const nextPending = taskState.subtasks.find(s => s.status === 'pending')
+    if (nextPending) {
+      nextPending.status = 'in-progress'
+    }
+    saveTaskState(taskState)
+    return { passed: true, subtaskIndex, expected_outcome }
+  } else {
+    // Mark as failed — handleUpdateTask retry logic will increment retry_count
+    // We call the retry logic inline here instead of routing through handleUpdateTask
+    subtask.retry_count = (subtask.retry_count || 0) + 1
+    subtask.max_retries = subtask.max_retries || 2
+    if (subtask.retry_count >= subtask.max_retries) {
+      subtask.status = 'blocked'
+      const nextPending = taskState.subtasks.find(s => s.status === 'pending')
+      if (nextPending) {
+        nextPending.status = 'in-progress'
+      }
+    } else {
+      subtask.status = 'in-progress' // retry
+    }
+    saveTaskState(taskState)
+    return { passed: false, subtaskIndex, expected_outcome, actual }
+  }
 }
 
 function readNotepad() {
@@ -354,6 +477,13 @@ async function tick(precomputedResponse = null) {
   } catch (err) {
     logError('Failed to fetch game state', err);
     return null;
+  }
+
+  // Review pending subtask outcome (one-tick delay after marking done with expected_outcome)
+  // reviewSubtaskOutcome compares game state keywords against expected_outcome
+  let reviewResult = reviewSubtaskOutcome(state);
+  if (reviewResult) {
+    logInfo(`[reviewSubtaskOutcome] Subtask ${reviewResult.subtaskIndex}: ${reviewResult.passed ? 'PASSED' : `FAILED — ${reviewResult.actual}`}`)
   }
 
   // Position-based stuck detection — only when last action was a movement action
@@ -622,6 +752,7 @@ async function tick(precomputedResponse = null) {
     notepadContent,
     progressDetail: progressDetail || null,
     taskProgress,
+    reviewResult,
   });
 
   const temperature = getTemperature(currentPhase, state);
@@ -702,7 +833,7 @@ async function tick(precomputedResponse = null) {
       infoResult = handlePlanTask(response.action.goal, response.action.subtasks)
       logInfo(`[plan_task] ${infoResult.split('\n')[0]}`)
     } else if (actionType === 'update_task') {
-      infoResult = handleUpdateTask(response.action.index, response.action.status, response.action.note)
+      infoResult = handleUpdateTask(response.action.index, response.action.status, response.action.note, response.action.expected_outcome)
       logInfo(`[update_task] ${infoResult}`)
     }
     logInfo(`[${actionType}] ${infoResult}`);
@@ -802,6 +933,7 @@ async function tick(precomputedResponse = null) {
         notepadContent: readNotepad(),
         progressDetail: getProgressDetail(currentPhase, nextState) || null,
         taskProgress: loadTaskState(),
+        reviewResult: null,
       });
       const nextResponse = await queryLLM(systemPrompt, nextUserMessage, { temperature });
       return nextResponse;  // Return pre-computed action for next tick

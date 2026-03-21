@@ -297,6 +297,7 @@ export const GAME_TOOLS = [
           index: { type: 'integer', description: 'Subtask index (0-based)' },
           status: { type: 'string', enum: ['done', 'failed', 'in-progress', 'blocked'], description: 'New status' },
           note: { type: 'string', description: 'Optional note about result or failure reason' },
+          expected_outcome: { type: 'string', description: 'What should be true after this subtask (e.g. "have wooden_pickaxe in inventory"). Used for automatic review.' },
         },
         required: ['index', 'status'],
       },
