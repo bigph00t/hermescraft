@@ -75,6 +75,7 @@ export function buildSystemPrompt(agentConfig, phase, {
   pinnedContext = '',
   buildingKnowledge = '',
   planContext = '',
+  behaviorMode = '',
 } = {}) {
   const parts = [buildIdentity(agentConfig)];
 
@@ -121,6 +122,34 @@ export function buildSystemPrompt(agentConfig, phase, {
     parts.push(`\n== CURRENT STRATEGY ==\n${planContext}`);
   }
 
+  // Behavior mode hints — nudge agent toward human-like idle/social/shelter/sleep behaviors
+  if (behaviorMode) {
+    const behaviorHints = {
+      work: `You're in WORK mode. Be productive — gather, build, farm, craft. But you're human, not a machine. It's okay to:
+- Pause and look around occasionally (look_at_block on something interesting)
+- Chat briefly if someone is nearby
+- Reorganize your inventory between tasks
+- Walk to a nice vantage point and appreciate what you've built`,
+      shelter: `SHELTER mode — it's getting dark and dangerous. Get inside NOW.
+- Navigate home immediately if not already there
+- If no home exists, dig a hole or build emergency shelter
+- Don't start new projects — just get safe
+- Close any doors behind you`,
+      social: `SOCIAL mode — night time, safe in shelter. This is YOUR time.
+- Chat with nearby players about the day's events
+- Share stories — reference things that happened to you (your autobiography)
+- Organize your inventory and plan tomorrow
+- Look around your shelter, maybe improve it a little
+- DON'T go outside. DON'T start big projects. Just... be human.`,
+      sleep: `SLEEP mode — late night. Wind down.
+- Stay put in shelter
+- Maybe update your notepad with plans for tomorrow
+- Minimal activity — you're tired
+- If someone chats, respond sleepily`,
+    }
+    parts.push('\n== HOW TO BEHAVE RIGHT NOW ==\n' + (behaviorHints[behaviorMode] || ''))
+  }
+
   // Pinned context documents — injected every tick from dataDir/context/*.md
   // These survive all conversation history wipes because they live in the system prompt.
   if (pinnedContext) {
@@ -139,6 +168,7 @@ export function buildUserMessage(stateSummary, actionHistory, {
   reviewResult = null,
   visionContext = '',
   buildProgress = '',
+  idleHint = '',
 } = {}) {
   const parts = [];
 
@@ -215,6 +245,11 @@ export function buildUserMessage(stateSummary, actionHistory, {
     if (last && !last.success && last.error) {
       parts.push(`\n!! LAST ACTION FAILED: ${last.type} — ${last.error}`);
     }
+  }
+
+  // Idle hint — nudges agent to do human things when idle too long
+  if (idleHint) {
+    parts.push(`\n== IDLE ==\n${idleHint}`)
   }
 
   // Game state
