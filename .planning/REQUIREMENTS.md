@@ -7,9 +7,9 @@
 
 ### Memory & Compression
 
-- [ ] **MEM-01**: Graduated trim respects conversation round boundaries — a `tool` role message never becomes the first history entry after trimming
-- [ ] **MEM-02**: All context overflow and error recovery paths use graduated trim — no remaining `conversationHistory.length = 0` full-wipe paths
-- [ ] **MEM-03**: Conversation history (L1) is persisted to disk on periodic save and restored on startup — survives OOM/SIGKILL
+- [x] **MEM-01**: Graduated trim respects conversation round boundaries — a `tool` role message never becomes the first history entry after trimming
+- [x] **MEM-02**: All context overflow and error recovery paths use graduated trim — no remaining `conversationHistory.length = 0` full-wipe paths
+- [x] **MEM-03**: Conversation history (L1) is persisted to disk on periodic save and restored on startup — survives OOM/SIGKILL
 - [ ] **MEM-04**: Agent can write planning documents to `dataDir/context/` via a tool call — pinned context is agent-writable, not human-only
 
 ### Skill & Routing
@@ -60,9 +60,9 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MEM-01 | Phase 1 | Pending |
-| MEM-02 | Phase 1 | Pending |
-| MEM-03 | Phase 1 | Pending |
+| MEM-01 | Phase 1 | Complete |
+| MEM-02 | Phase 1 | Complete |
+| MEM-03 | Phase 1 | Complete |
 | MEM-04 | Phase 2 | Pending |
 | SKL-01 | Phase 1 | Pending |
 | SKL-02 | Phase 2 | Pending |

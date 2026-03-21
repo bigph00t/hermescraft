@@ -1,3 +1,17 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: unknown
+stopped_at: Completed 01-reliability-01-PLAN.md
+last_updated: "2026-03-21T04:23:03.398Z"
+progress:
+  total_phases: 3
+  completed_phases: 0
+  total_plans: 2
+  completed_plans: 1
+---
+
 # Project State
 
 ## Project Reference
@@ -5,20 +19,17 @@
 See: .planning/PROJECT.md (updated 2026-03-20)
 
 **Core value:** The agent must never silently lose its execution context — and when given a complex task, it must plan, execute, and review its own work instead of fire-and-forget.
-**Current focus:** Phase 1 — Reliability
+**Current focus:** Phase 01 — reliability
 
 ## Current Position
 
-Phase: 1 of 3 (Reliability)
-Plan: 0 of 2 in current phase
-Status: Ready to plan
-Last activity: 2026-03-20 — Roadmap created
-
-Progress: [░░░░░░░░░░] 0%
+Phase: 01 (reliability) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed: 0
 - Average duration: -
 - Total execution time: -
@@ -30,10 +41,12 @@ Progress: [░░░░░░░░░░] 0%
 | - | - | - | - |
 
 **Recent Trend:**
+
 - Last 5 plans: -
 - Trend: -
 
 *Updated after each plan completion*
+| Phase 01-reliability P01 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -46,6 +59,9 @@ Recent decisions affecting current work:
 - Persist L1 to disk on periodic save — survives crashes without per-tick I/O overhead
 - Plan/review via notepad extension, not separate LLM calls — fits within 2s tick budget
 - Chat dedup via timestamp tracking on Node.js side — simpler than modifying Java mod
+- [Phase 01-reliability]: trimHistoryGraduated now removes complete rounds from front, never leaving orphaned tool message at index 0
+- [Phase 01-reliability]: Corrupt tool call handler uses trimHistoryGraduated(0.5) instead of conversationHistory.length = 0 — no more silent full-wipe
+- [Phase 01-reliability]: L1 history persisted to dataDir/history.json on periodicSave, restored on startup with silent-catch for corruption
 
 ### Pending Todos
 
@@ -58,6 +74,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-20
-Stopped at: Roadmap created, no plans written yet
+Last session: 2026-03-21T04:23:03.397Z
+Stopped at: Completed 01-reliability-01-PLAN.md
 Resume file: None

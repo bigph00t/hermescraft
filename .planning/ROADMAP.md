@@ -32,7 +32,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Memory and compression fixes: round-boundary graduated trim, eliminate full-wipe paths, L1 history disk persistence (MEM-01, MEM-02, MEM-03)
+- [x] 01-01-PLAN.md — Memory and compression fixes: round-boundary graduated trim, eliminate full-wipe paths, L1 history disk persistence (MEM-01, MEM-02, MEM-03)
 - [ ] 01-02-PLAN.md — Skill injection, chat dedup, and autoconnect fixes (SKL-01, COM-01, COM-02)
 
 ### Phase 2: Planning Capability
@@ -71,6 +71,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Reliability | 0/2 | Not started | - |
+| 1. Reliability | 1/2 | In Progress|  |
 | 2. Planning Capability | 0/2 | Not started | - |
 | 3. Self-Review Loop | 0/2 | Not started | - |
