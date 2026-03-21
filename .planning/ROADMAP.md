@@ -9,9 +9,17 @@ Transform existing Minecraft AI agents from basic tool-calling bots into full li
 ## Phases
 
 ### Phase 1: Building System
-**Goal:** Agents can construct real structures that look intentional to a human eye.
+**Goal:** Agents can construct real structures that look intentional to a human eye, powered by a three-loop architecture (action/vision/planner) and blueprint-executor pattern.
 
 **Requirements:** BUILD-01, BUILD-02, BUILD-03, BUILD-04
+
+**Plans:** 4 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Foundation: place_at coordinates, blueprint library, 3 starter blueprints
+- [ ] 01-02-PLAN.md — Vision system: mod screenshot endpoint, agent vision loop
+- [ ] 01-03-PLAN.md — Blueprint executor engine, build tool integration
+- [ ] 01-04-PLAN.md — Multi-loop architecture, planner loop, building knowledge
 
 **Deliverables:**
 - Blueprint system in agent (common structure templates: house, pen, farm)
