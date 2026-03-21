@@ -132,46 +132,102 @@ export function getSkillIndex() {
   return lines.join('\n');
 }
 
-// ── Active Skill (for user message — full content) ──
+// ── Active Skill (multi-signal selection) ──
 
-export function getActiveSkill(phase) {
-  if (!phase) return null;
+// Keyword banks for signal matching
+const SKILL_KEYWORDS = {
+  combat: ['fight', 'kill', 'attack', 'defend', 'mob', 'monster', 'zombie', 'skeleton', 'creeper', 'spider', 'enderman', 'blaze', 'wither', 'dragon', 'hostile', 'sword', 'bow', 'shield', 'armor'],
+  building: ['build', 'house', 'shelter', 'wall', 'roof', 'floor', 'door', 'window', 'tower', 'bridge', 'farm', 'base', 'structure', 'construct', 'place'],
+  mining: ['mine', 'dig', 'ore', 'diamond', 'iron', 'gold', 'coal', 'stone', 'cave', 'tunnel', 'pickaxe', 'excavate', 'strip', 'branch'],
+  crafting: ['craft', 'recipe', 'table', 'furnace', 'smelt', 'tool', 'armor', 'enchant', 'anvil', 'brew'],
+  exploration: ['explore', 'find', 'discover', 'travel', 'navigate', 'nether', 'end', 'village', 'temple', 'fortress', 'stronghold', 'biome'],
+  survival: ['survive', 'food', 'hunger', 'eat', 'farm', 'breed', 'cook', 'first-night', 'shelter', 'bed'],
+  gathering: ['gather', 'collect', 'harvest', 'wood', 'log', 'resource', 'material', 'chop'],
+}
 
-  if (skillsAgentConfig && skillsAgentConfig.mode !== 'phased') {
-    // In open-ended mode, return the most general skill available
-    // (first-night or resource-gathering skills are always useful)
-    const generalSkills = skills.filter(s =>
-      s.name.includes('first-night') || s.name.includes('resource-gathering') || s.name.includes('combat')
-    )
-    if (generalSkills.length === 0) return null
-    const skill = generalSkills[0]
-    return {
-      name: skill.name,
-      content: skill.body,
+function scoreSkill(skill, { phase, mode, goalText, gameState }) {
+  let score = 0
+
+  // Signal 1: Phase match (strongest for phased mode)
+  if (mode === 'phased' && phase && skill.phase === phase.id) {
+    score += 100
+  }
+
+  // Signal 2: Goal text keyword matching (strongest for directed mode)
+  if (goalText) {
+    const goalLower = goalText.toLowerCase()
+    const skillText = `${skill.name} ${skill.description} ${skill.body}`.toLowerCase()
+    for (const [category, keywords] of Object.entries(SKILL_KEYWORDS)) {
+      const goalHasCategory = keywords.some(kw => goalLower.includes(kw))
+      const skillHasCategory = keywords.some(kw => skillText.includes(kw))
+      if (goalHasCategory && skillHasCategory) {
+        score += 30
+      }
     }
   }
 
-  // Find skill matching current phase
-  const phaseSkill = skills.find(s => s.phase === phase.id);
-
-  // Also include general skills (phase 0) — core knowledge
-  const generalSkills = skills.filter(s => s.phase === 0);
-
-  const parts = [];
-  if (phaseSkill) {
-    parts.push(`[${phaseSkill.name}]\n${phaseSkill.body}`);
+  // Signal 3: Game state context
+  if (gameState) {
+    // Low health + combat skill = high priority
+    if ((gameState.health || 20) < 10) {
+      const isCombatSkill = skill.name.includes('combat') || skill.name.includes('survival') || skill.body?.includes('flee')
+      if (isCombatSkill) score += 50
+    }
+    // Night time + survival skill
+    if ((gameState.time || 0) >= 13000) {
+      const isSurvivalSkill = skill.name.includes('first-night') || skill.name.includes('survival')
+      if (isSurvivalSkill) score += 20
+    }
   }
-  // Only include 1 general skill to save tokens
-  if (generalSkills.length > 0) {
-    parts.push(`[${generalSkills[0].name}]\n${generalSkills[0].body}`);
+
+  // Signal 4: Skill success rate as tiebreaker
+  const successRate = parseFloat(skill.metadata?.success_rate || '0.5')
+  score += successRate * 5
+
+  return score
+}
+
+export function getActiveSkill(phase, { mode, goalText, gameState } = {}) {
+  if (skills.length === 0) return null
+
+  // Use config mode as fallback
+  const effectiveMode = mode || (skillsAgentConfig && skillsAgentConfig.mode) || 'open_ended'
+  const effectiveGoal = goalText || (skillsAgentConfig && skillsAgentConfig.goal) || ''
+
+  // Score all skills
+  const scored = skills.map(skill => ({
+    skill,
+    score: scoreSkill(skill, { phase, mode: effectiveMode, goalText: effectiveGoal, gameState }),
+  }))
+
+  // Sort by score descending
+  scored.sort((a, b) => b.score - a.score)
+
+  // Take top skill (must have score > 0), plus general skills
+  const topSkill = scored[0]?.score > 0 ? scored[0].skill : null
+  const generalSkills = skills.filter(s => s.phase === 0)
+
+  const parts = []
+  if (topSkill) {
+    parts.push(`[${topSkill.name}]\n${topSkill.body}`)
+  }
+  // Include 1 general skill if it's different from topSkill
+  if (generalSkills.length > 0 && (!topSkill || generalSkills[0].name !== topSkill.name)) {
+    parts.push(`[${generalSkills[0].name}]\n${generalSkills[0].body}`)
   }
 
-  if (parts.length === 0) return null;
+  // Fallback: if nothing scored, try returning first available skill
+  if (parts.length === 0 && skills.length > 0) {
+    const fallback = skills[0]
+    return { name: fallback.name, content: fallback.body }
+  }
+
+  if (parts.length === 0) return null
 
   return {
-    name: phaseSkill?.name || generalSkills[0]?.name || 'general',
+    name: topSkill?.name || generalSkills[0]?.name || 'general',
     content: parts.join('\n\n'),
-  };
+  }
 }
 
 // ── Create Skill from Phase Completion ──

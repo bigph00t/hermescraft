@@ -501,7 +501,11 @@ async function tick(precomputedResponse = null) {
   const socialText = getPlayersForPrompt(state.nearbyEntities);
   const locationText = getLocationsForPrompt();
   const skillIndex = getSkillIndex();
-  const activeSkill = getActiveSkill(currentPhase);
+  const activeSkill = getActiveSkill(currentPhase, {
+    mode: _agentConfig.mode,
+    goalText: _agentConfig.goal || getGoalName(),
+    gameState: state,
+  });
   const sessionStats = getSessionStats();
 
   const notepadContent = readNotepad();
@@ -523,13 +527,10 @@ async function tick(precomputedResponse = null) {
   });
 
   const stateSummary = summarizeState(state);
-  // Combine user instruction with any player chat
-  // But enforce gameplay priority — if last action was chat, DON'T show chat context
-  const lastAct2 = actionHistory.length > 0 ? actionHistory[actionHistory.length - 1] : null;
-  const lastWasChat = lastAct2 && lastAct2.type === 'chat';
+  // Show chat context naturally — let the model decide how to respond
   let effectiveInstruction = userInstruction || null;
-  if (playerChatContext && !lastWasChat) {
-    const chatPrefix = `Someone said in chat: ${playerChatContext}\nYou can respond briefly (under 60 chars) OR just keep playing. Gameplay is more important.`;
+  if (playerChatContext) {
+    const chatPrefix = `Chat: ${playerChatContext}`;
     effectiveInstruction = effectiveInstruction
       ? `${effectiveInstruction}\n\n${chatPrefix}`
       : chatPrefix;
@@ -572,11 +573,11 @@ async function tick(precomputedResponse = null) {
     return null;
   }
 
-  // HARD RULE: never chat twice in a row — force gameplay
+  // Soft chat limiter — if 3+ of last 5 actions were chat, force gameplay
   const actionType0 = response.action.type || response.action.action;
-  if (actionType0 === 'chat' && lastWasChat) {
-    logInfo('Blocked double-chat — forcing gameplay action');
-    // Default to mining wood if nothing better to do
+  const recentChatCount = actionHistory.slice(-5).filter(a => a.type === 'chat').length;
+  if (actionType0 === 'chat' && recentChatCount >= 3) {
+    logInfo('Chatted enough — doing something');
     response.action = { type: 'mine', blockName: 'oak_log', reason: 'need resources' };
   }
 
