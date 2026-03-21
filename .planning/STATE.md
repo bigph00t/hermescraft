@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-03-21T06:52:59.914Z"
+stopped_at: Completed 05-02-PLAN.md
+last_updated: "2026-03-21T06:56:57Z"
 progress:
   total_phases: 10
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 18
-  completed_plans: 17
+  completed_plans: 18
 ---
 
 # GSD State: HermesCraft Life Simulation
@@ -32,14 +32,18 @@ See: .planning/PROJECT.md (updated 2026-03-20)
 | 2 | Farming & Food | ○ Pending | 0/0 |
 | 3 | Deep Memory | ● Complete | 2/2 |
 | 4 | Human-Like Behavior | ● Complete | 2/2 |
-| 5 | Automatic Skill Learning | ◐ In Progress | 1/2 |
+| 5 | Automatic Skill Learning | ● Complete | 2/2 |
 | 6 | Cooperation & Exploration | ○ Pending | 0/0 |
 
 ## Session Context
 
-Last session: 2026-03-21T06:52:59.912Z
-Stopped At: Completed 05-01-PLAN.md
+Last session: 2026-03-21T06:56:57Z
+Stopped At: Completed 05-02-PLAN.md
 
+- Phase 05 Plan 02 complete: experience-based skill creation + 5-minute reflection cycle
+- skills.js: createSkillFromExperience (exp- prefix, 15 cap, lowest-rate eviction), downgradeSkillByName (0.15 rate decrement)
+- planner.js: reflectionTick every 5 ticks (~5min), LLM reflects on events, auto-creates skills, downgrades on failure
+- autobiography.js: 'reflection' type events recorded from planner reflection cycle
 - Phase 05 Plan 01 complete: death avoidance learning -- recordDeathLocation saves danger zones, getNearbyDangers injects proximity warnings into planner
 - locations.js: danger-N entries (type='danger', cause, lesson), capped at 10, oldest eviction
 - index.js: recordDeathLocation called in death recording block after autobiographical event
@@ -107,6 +111,11 @@ Stopped At: Completed 05-01-PLAN.md
 - [Phase 05-01]: Danger zones stored as regular location entries with type='danger' -- reuses existing locations object
 - [Phase 05-01]: Cap at 10 danger zones with oldest-eviction to prevent unbounded growth
 - [Phase 05-01]: 30-block radius for proximity warnings -- close enough to be relevant, far enough to warn early
+- [Phase 05-02]: Experience skills prefixed 'exp-' to distinguish from phase-based 'minecraft-' skills
+- [Phase 05-02]: Cap at 15 experience skills with lowest-success-rate eviction prevents unbounded growth
+- [Phase 05-02]: Downgrade rate 0.15 (vs recordSkillOutcome's 0.1) for direct failure attribution from reflection
+- [Phase 05-02]: Reflection uses temperature 0.3 for factual output vs planner's 0.5 for creative strategy
+- [Phase 05-02]: SKILL line parsing uses strict pipe-delimited regex to avoid false positive skill creation
 
 ## Roadmap Evolution
 

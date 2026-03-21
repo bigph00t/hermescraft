@@ -37,8 +37,8 @@
 
 ### Skills
 
-- [ ] **SKILL-01**: Agent learns new skills from experience (first successful craft = remembered)
-- [ ] **SKILL-02**: Background reflection updates long-term memory periodically
+- [x] **SKILL-01**: Agent learns new skills from experience (first successful craft = remembered)
+- [x] **SKILL-02**: Background reflection updates long-term memory periodically
 - [x] **SKILL-03**: Agent avoids repeating mistakes (death lessons applied automatically)
 
 ### Cooperation
@@ -91,7 +91,8 @@
 | FARM-01..05 | Phase 2 | Complete |
 | MEM-01..05 | Phase 3 | Complete |
 | BEHAV-01..04 | Phase 4 | Pending |
-| SKILL-01..03 | Phase 5 | Pending |
+| SKILL-01..02 | Phase 5 | Complete |
+| SKILL-03 | Phase 5 | Complete |
 | COOP-01..03, NAV-01..03 | Phase 6 | Pending |
 
 **Coverage:** 26 v1 requirements, 26 mapped, 0 unmapped ✓
