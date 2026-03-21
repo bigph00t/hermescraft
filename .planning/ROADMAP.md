@@ -1,141 +1,98 @@
-# Roadmap: HermesCraft Life Simulation
+# Roadmap: HermesCraft v2
 
 ## Overview
 
-Transform existing Minecraft AI agents from basic tool-calling bots into full life simulation — agents that build, farm, remember, cooperate, and feel alive.
+Transform HermesCraft from a broken Baritone-puppet system into spatially-aware, plugin-enhanced AI agents that play Minecraft like real people.
 
-**Milestone:** v1.0 — Agents that pass the eye test (human observer can't tell they're AI for several minutes)
+**Milestone:** Paper Migration + Plugin-Enhanced Agents
+**Phases:** 4
+**Core metric:** Agents gather wood from visible trees (not underground), build structures, trade, and converse naturally without chat truncation or Baritone conflicts.
 
-## Phases
+## Phase 1: Paper Server + Plugin Stack
 
-### Phase 1: Building System
-**Goal:** Agents can construct real structures that look intentional to a human eye, powered by a three-loop architecture (action/vision/planner) and blueprint-executor pattern.
+**Goal:** Migrate to Paper server and install all plugins. Both clients connect. Plugins verified working.
 
-**Requirements:** BUILD-01, BUILD-02, BUILD-03, BUILD-04
+**Requirements:** SRV-01, SRV-02, SRV-03, SRV-04, PLG-01 through PLG-12
 
-**Plans:** 4/4 plans complete
-
-Plans:
-- [x] 01-01-PLAN.md — Foundation: place_at coordinates, blueprint library, 3 starter blueprints
-- [x] 01-02-PLAN.md — Vision system: mod screenshot endpoint, agent vision loop
-- [x] 01-03-PLAN.md — Blueprint executor engine, build tool integration
-- [x] 01-04-PLAN.md — Multi-loop architecture, planner loop, building knowledge
-
-**Deliverables:**
-- Blueprint system in agent (common structure templates: house, pen, farm)
-- Block palette selection based on available materials
-- Multi-step build execution (foundation → walls → roof → door → interior)
-- Farm plot construction with tilling and water placement
-
-### Phase 2: Farming & Food Production
-**Goal:** Agents sustainably feed themselves through farming, fishing, and animal husbandry.
-
-**Requirements:** FARM-01, FARM-02, FARM-03, FARM-04, FARM-05
-
-**Plans:** 2/2 plans complete
+**Plans:** 4 plans
 
 Plans:
-- [x] 02-01-PLAN.md — Crop farming module, food knowledge, sapling replanting
-- [x] 02-02-PLAN.md — Animal breeding (mod interact_entity) and fishing (mod fish sustained action)
+- [ ] 01-01-PLAN.md — Paper server setup, world migration, client connectivity verification
+- [ ] 01-02-PLAN.md — Install Timber, VeinMiner, AutoPickup, EssentialsX+Vault, LuckPerms, Chunky; configure LuckPerms bot group
+- [ ] 01-03-PLAN.md — Install mcMMO, QuickShop-Hikari, Skript, BlockBeacon, ServerTap, StopSpam; configure StopSpam
+- [ ] 01-04-PLAN.md — Chunky world pre-generation, functional verification of Timber/VeinMiner/AutoPickup
 
-**Deliverables:**
-- Crop farming cycle (till → plant → wait → harvest → replant)
-- Animal breeding mechanics (attract with food, breed, pen management)
-- Fishing skill (craft rod, find water, cast, collect)
-- Food cooking automation (furnace management)
-- Tree replanting for sustainable wood supply
+**Scope:**
+- Download Paper 1.21.1 jar, set up in Docker
+- Migrate Survival Island world files (reorganize Nether/End dirs)
+- Install all 12 plugins: Timber, VeinMiner, AutoPickup, EssentialsX+Vault, mcMMO, QuickShop-Hikari, LuckPerms, Skript, BlockBeacon, ServerTap, StopSpam, Chunky
+- Configure each plugin (permissions, settings, economy)
+- Pre-generate world with Chunky (2000 block radius)
+- Verify both Fabric clients connect and HermesBridge + Baritone work
+- Set up LuckPerms: bot group with plugin command access
+- Configure StopSpam: 5-second cooldown, similarity detection
+- Test: Timber fells whole trees, VeinMiner gets whole veins, AutoPickup sends items to inventory
 
-### Phase 3: Deep Memory System
-**Goal:** Agents remember everything — places, people, events, conversations — across sessions and reference them naturally.
+**Done when:** Paper server running, all 12 plugins active, both clients connected, tree-felling/vein-mining/auto-pickup working.
 
-**Requirements:** MEM-01, MEM-02, MEM-03, MEM-04, MEM-05
+## Phase 2: Spatial Awareness + Architecture Rework
 
-**Plans:** 2/2 plans complete
+**Goal:** Agents see the world and interact with visible blocks. No more underground Baritone disasters. Brain-hands-eyes architecture fully operational.
 
-Plans:
-- [x] 03-01-PLAN.md — Memory data modules: autobiography, chest tracking, chat history, auto-home, relationship persistence
-- [x] 03-02-PLAN.md — Integration: recording hooks in index.js, planner memory consolidation with "things you might mention"
+**Requirements:** SAW-01 through SAW-06, ARC-01 through ARC-06
 
-**Deliverables:**
-- Home base concept (establish, remember, navigate to from anywhere)
-- Chest inventory tracking (what's in which chest where)
-- Conversation memory with natural recall ("you said yesterday...")
-- Autobiographical timeline ("day 1: arrived, day 2: built house")
-- Deep relationship model with trust, history, sentiment persistence
+**Scope:**
+- Switch to baritone-api-fabric jar (real isPathing(), programmatic settings)
+- Add surfaceBlocks to mod state (isSkyVisible filter)
+- Implement look_at_block + break_block as primary interaction (not #mine)
+- Configure Baritone: minYLevelWhileMining=55 for surface resources
+- Action queue system: planner writes queue, action loop pops and executes without LLM
+- Baritone tracker: knows when mine/navigate active, skips ticks
+- Chat sent by planner only (Say: lines), action loop focuses on gameplay
+- Chat dedup in planner (skip similar messages)
+- Remove all artificial token limits
+- Vision descriptions drive block targeting
 
-### Phase 4: Human-Like Behavior
-**Goal:** Agents behave like real people — work/rest cycles, idle actions, needs-driven decisions, social time.
+**Done when:** Agent walks to visible tree, chops it (Timber fells whole tree, AutoPickup collects), crafts tools. Never goes underground unless intentionally mining ores. Planner chats naturally without truncation or spam.
 
-**Requirements:** BEHAV-01, BEHAV-02, BEHAV-03, BEHAV-04
+## Phase 3: Plugin Integration + Custom Commands
 
-**Plans:** 2/2 plans complete
+**Goal:** Agents use plugins as tools — /findblock, /home, mcMMO skills, QuickShop trading, ServerTap queries.
 
-Plans:
-- [x] 04-01-PLAN.md — Needs system + behavior mode detection in planner loop
-- [x] 04-02-PLAN.md — Prompt-side behavior hints, idle tracking, night socialization
+**Requirements:** INT-01 through INT-07
 
-**Deliverables:**
-- Day/night behavior engine (work daylight, shelter night)
-- Needs system (hunger, safety, social, creative → drive action selection)
-- Idle behavior set (look around, organize, wander, sit, stare at view)
-- Night socialization (gather near fire, chat, share stories, plan tomorrow)
+**Scope:**
+- Write Skript: /scan <block> <radius> surface — returns nearest surface blocks with coords
+- Write Skript: /share-location <name> — broadcasts location to all
+- Agent tool: execute /findblock via chat, parse response for coordinates
+- Agent tool: /home set, /home, /warp for fast travel
+- Agent reads mcMMO skill levels from ServerTap API, adapts behavior
+- Agent can set up QuickShop chest shops (place chest, set price)
+- Agent queries ServerTap REST API for player/world data
+- Update prompt.js and tools.js with new plugin-enabled actions
+- Update planner to suggest plugin-enabled strategies
 
-### Phase 5: Automatic Skill Learning
-**Goal:** Agents get better over time without explicit programming — they learn from experience.
+**Done when:** Agent uses /findblock to locate iron, /home to return to base, reads mcMMO level and says "I'm getting better at mining", sets up a shop with surplus wood.
 
-**Requirements:** SKILL-01, SKILL-02, SKILL-03
+## Phase 4: Personality + Creative Play
 
-**Plans:** 2/2 plans complete
+**Goal:** Agents feel like real people — they build with style, explore with curiosity, trade with intent, and specialize based on what they're good at.
 
-Plans:
-- [x] 05-01-PLAN.md — Death avoidance learning: danger zone tracking in locations.js, proximity warnings in planner
-- [x] 05-02-PLAN.md — Experience-based skill creation + 5-minute reflection cycle in planner loop
+**Requirements:** PER-01 through PER-07
 
-**Deliverables:**
-- Experience-based skill creation (successful action sequences → saved skill)
-- Background reflection process (periodic memory consolidation, insight generation)
-- Death avoidance learning (death context → countermeasure → applied next time)
-- Skill effectiveness tracking (which skills actually help vs. don't)
+**Scope:**
+- Enhance SOUL files with creative drives, aesthetic preferences, emotional range
+- Planner suggests creative projects based on mcMMO skills ("you're good at woodcutting, build a dock")
+- Agent evaluates builds aesthetically via vision ("this house needs windows")
+- Agent explores new areas, names locations, shares discoveries
+- Agent trades surplus items via QuickShop based on inventory analysis
+- Agent references autobiography and relationships in conversation
+- Agent tries new activities (fishing, gardening, decorating) based on creative need score
+- Ensure no meta-game language (baritone, pathfinding, API, etc.)
+- Test: extended play session where agents build, explore, trade, and converse naturally
 
-### Phase 6: Cooperation & Exploration
-**Goal:** Agents work together as a community and explore the world beyond their base.
-
-**Requirements:** COOP-01, COOP-02, COOP-03, NAV-01, NAV-02, NAV-03
-
-**Plans:** 2/2 plans complete
-
-Plans:
-- [x] 06-01-PLAN.md — Cooperation awareness: chat-based activity parsing, resource need detection, planner coordination hints
-- [x] 06-02-PLAN.md — Exploration system: unexplored direction tracking, discovery reporting, chat-to-location parsing
-
-**Deliverables:**
-- Task division system (agents announce what they're doing, avoid duplication)
-- Resource sharing (drop items for each other, stock shared chests)
-- Collective building (agree on project, divide work, build together)
-- Exploration with return (venture out, discover, come back, report)
-- Location naming and shared map knowledge
-
-## Phase Dependencies
-
-```
-Phase 1 (Building) ──→ Phase 4 (Behavior, needs shelter)
-Phase 2 (Farming) ──→ Phase 4 (Behavior, needs food system)
-Phase 3 (Memory) ──→ Phase 5 (Skills, needs memory to learn)
-Phase 3 (Memory) ──→ Phase 6 (Cooperation, needs location memory)
-Phase 4 (Behavior) ──→ Phase 6 (Cooperation, needs day/night cycle)
-```
-
-**Recommended order:** Phase 1 → 2 → 3 → 4 → 5 → 6
-
-### Phase 7: Audit fixes — double trim bug, wait action, dead deps, missing tests, config drift
-
-**Goal:** [To be planned]
-**Requirements**: TBD
-**Depends on:** Phase 6
-**Plans:** 0 plans
-
-Plans:
-- [ ] TBD (run /gsd:plan-phase 7 to break down)
+**Done when:** 30-minute play session where both agents gather resources, build a base with aesthetic choices, trade items, explore the island, and chat naturally about their lives. A human observer can't immediately tell they're bots.
 
 ---
-*Roadmap created: 2026-03-20*
+*Roadmap created: 2026-03-21*
+*Milestone: Paper Migration + Plugin-Enhanced Agents*
