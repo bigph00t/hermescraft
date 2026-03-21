@@ -40,6 +40,7 @@ import { startFarm, resumeFarm, getFarmProgress, cancelFarm, isFarmActive, start
 import { detectBehaviorMode } from './needs.js';
 import { initQueue, popAction, peekAction, clearQueue, getQueueLength, getQueueSummary, getQueueGoal } from './action-queue.js';
 import { startBaritone, updatePosition, getStatus as getBaritoneStatus, stopBaritone, isBaritoneActive, getBaritoneContext } from './baritone-tracker.js';
+import { GAME_TOOLS } from './tools.js';
 
 const TICK_INTERVAL = parseInt(process.env.TICK_MS || '2000', 10);
 const MAX_STUCK_COUNT = 2;
@@ -485,13 +486,17 @@ function handleDeleteContext(filename) {
 
 // ── Baritone Overlay Removal ──
 
-async function disableBaritoneOverlays() {
+async function configureBaritone() {
   const settings = [
+    // Disable overlays for clean stream visuals
     '#set renderPath false',
     '#set renderGoal false',
     '#set renderSelectionBoxes false',
     '#set renderGoalXZ false',
     '#set renderGoalAnimated false',
+    // Surface mining settings (SAW-04, SAW-05 — D-02, D-03)
+    '#minYLevelWhileMining 55',
+    '#legitMine true',
   ];
   for (const cmd of settings) {
     try {
@@ -499,7 +504,7 @@ async function disableBaritoneOverlays() {
       await sleep(200);
     } catch {}
   }
-  logInfo('Baritone overlays disabled');
+  logInfo('Baritone configured: overlays disabled, surface mining enabled');
 }
 
 // ── Main Tick ──
@@ -674,6 +679,7 @@ async function tick() {
     currentPhase = transition.to;
     clearAllFailures();
     clearConversation();  // Fresh context for new phase
+    clearQueue('phase transition');
     idleTicks = 0;
   }
 
@@ -908,6 +914,18 @@ async function tick() {
   let response;
 
   // ── BRAIN-HANDS DECISION TREE ──
+
+  // EMERGENCY: Health critical — skip queue, call LLM with full tools for survival
+  if ((state.health || 20) < 6 && !isBaritoneActive()) {
+    logWarn('EMERGENCY: Health critical, bypassing queue for survival')
+    clearQueue('emergency')
+    try {
+      response = await queryLLM(systemPrompt, userMessage, { temperature: 0.3 })
+    } catch (err) {
+      logError('Emergency LLM query failed', err)
+    }
+  }
+
   const baritoneStatus = getBaritoneStatus()
 
   // A. Baritone done? Reset tracker.
@@ -920,7 +938,6 @@ async function tick() {
   if (isBaritoneActive() && !stuckInfo) {
     if (playerChatContext) {
       // Respond to chat while busy, but only allow chat/notepad actions
-      const { GAME_TOOLS } = await import('./tools.js')
       const chatOnlyTools = GAME_TOOLS.filter(t => ['chat', 'notepad', 'read_chat'].includes(t.function.name))
       try {
         response = await queryLLM(systemPrompt, userMessage, { temperature, tools: chatOnlyTools })
@@ -1363,11 +1380,11 @@ async function main() {
 
   logInfo('Starting observe-think-act loop...\n');
 
-  // Disable Baritone overlays for clean stream visuals
+  // Configure Baritone: disable overlays + set surface mining settings
   try {
-    await disableBaritoneOverlays();
+    await configureBaritone();
   } catch (err) {
-    logWarn(`Could not disable Baritone overlays: ${err.message}`);
+    logWarn(`Could not configure Baritone: ${err.message}`);
   }
 
   // Graceful shutdown — wait for current tick to finish
