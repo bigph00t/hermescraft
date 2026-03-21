@@ -1,32 +1,16 @@
-// tools.js — OpenAI-format tool definitions for Hermes native function calling
-// Descriptions kept concise to fit within 8K context window
+// tools.js — Stripped-down tool set for maximum speed
+// Only core Minecraft actions. No fluff.
 
 export const GAME_TOOLS = [
   {
     type: 'function',
     function: {
-      name: 'navigate',
-      description: 'Pathfind to coordinates via Baritone (10-60s). Use for long-distance travel.',
-      parameters: {
-        type: 'object',
-        properties: {
-          x: { type: 'integer', description: 'X coordinate' },
-          y: { type: 'integer', description: 'Y coordinate (sea level=63)' },
-          z: { type: 'integer', description: 'Z coordinate' },
-        },
-        required: ['x', 'y', 'z'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
       name: 'mine',
-      description: 'Find and mine a block type via pathfinding (auto-stops after 10s). Use when the block is NOT in nearbyBlocks.',
+      description: 'Pathfind to and mine a block type (10s). Use for any resource gathering.',
       parameters: {
         type: 'object',
         properties: {
-          blockName: { type: 'string', description: 'e.g. "oak_log", "iron_ore", "cobblestone"' },
+          blockName: { type: 'string', description: 'e.g. "oak_log", "iron_ore"' },
         },
         required: ['blockName'],
       },
@@ -35,14 +19,30 @@ export const GAME_TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'navigate',
+      description: 'Pathfind to coordinates.',
+      parameters: {
+        type: 'object',
+        properties: {
+          x: { type: 'integer' },
+          y: { type: 'integer' },
+          z: { type: 'integer' },
+        },
+        required: ['x', 'y', 'z'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'look_at_block',
-      description: 'Walk to and face block at x,y,z. Auto-walks, auto-jumps obstacles. Use before break_block.',
+      description: 'Walk to and face a block. Use before break_block for targeted mining.',
       parameters: {
         type: 'object',
         properties: {
-          x: { type: 'integer', description: 'X coordinate of block' },
-          y: { type: 'integer', description: 'Y coordinate of block' },
-          z: { type: 'integer', description: 'Z coordinate of block' },
+          x: { type: 'integer' },
+          y: { type: 'integer' },
+          z: { type: 'integer' },
         },
         required: ['x', 'y', 'z'],
       },
@@ -51,24 +51,8 @@ export const GAME_TOOLS = [
   {
     type: 'function',
     function: {
-      name: 'interact_block',
-      description: 'Right-click a block. Opens doors, chests, presses buttons, pulls levers, opens crafting tables.',
-      parameters: {
-        type: 'object',
-        properties: {
-          x: { type: 'integer', description: 'X coordinate' },
-          y: { type: 'integer', description: 'Y coordinate' },
-          z: { type: 'integer', description: 'Z coordinate' },
-        },
-        required: ['x', 'y', 'z'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'pickup_items',
-      description: 'Walk around briefly to collect dropped items nearby. Use after break_block if items not in inventory.',
+      name: 'break_block',
+      description: 'Mine the block at crosshair. Use look_at_block first.',
       parameters: { type: 'object', properties: {} },
     },
   },
@@ -76,25 +60,11 @@ export const GAME_TOOLS = [
     type: 'function',
     function: {
       name: 'craft',
-      description: 'Craft an item. Need ingredients in inventory. 3x3 recipes need nearby crafting table.',
+      description: 'Craft item. Need ingredients in inventory. 3x3 recipes need nearby crafting_table.',
       parameters: {
         type: 'object',
         properties: {
-          item: { type: 'string', description: 'e.g. "oak_planks", "crafting_table", "wooden_pickaxe", "furnace"' },
-        },
-        required: ['item'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'smelt',
-      description: 'Smelt in nearby furnace. Need raw item + fuel in inventory.',
-      parameters: {
-        type: 'object',
-        properties: {
-          item: { type: 'string', description: 'e.g. "raw_iron", "beef"' },
+          item: { type: 'string', description: 'e.g. "oak_planks", "stick", "wooden_pickaxe"' },
         },
         required: ['item'],
       },
@@ -104,11 +74,11 @@ export const GAME_TOOLS = [
     type: 'function',
     function: {
       name: 'attack',
-      description: 'Attack nearest entity. Equip sword first for more damage.',
+      description: 'Attack nearest entity or specific target.',
       parameters: {
         type: 'object',
         properties: {
-          target: { type: 'string', description: 'Optional: "zombie", "pig", etc.' },
+          target: { type: 'string', description: 'e.g. "zombie", "pig"' },
         },
       },
     },
@@ -117,36 +87,19 @@ export const GAME_TOOLS = [
     type: 'function',
     function: {
       name: 'eat',
-      description: 'Eat best food from hotbar. Eat when food < 14.',
+      description: 'Eat food from hotbar.',
       parameters: { type: 'object', properties: {} },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'place',
-      description: 'Place a block from inventory at crosshair or coordinates.',
-      parameters: {
-        type: 'object',
-        properties: {
-          item: { type: 'string', description: 'e.g. "crafting_table", "furnace", "torch"' },
-          x: { type: 'integer' },
-          y: { type: 'integer' },
-          z: { type: 'integer' },
-        },
-        required: ['item'],
-      },
     },
   },
   {
     type: 'function',
     function: {
       name: 'equip',
-      description: 'Select item in hotbar. Use before attacking/mining/placing.',
+      description: 'Select item in hotbar.',
       parameters: {
         type: 'object',
         properties: {
-          item: { type: 'string', description: 'e.g. "diamond_sword", "iron_pickaxe"' },
+          item: { type: 'string', description: 'e.g. "iron_sword", "stone_pickaxe"' },
         },
         required: ['item'],
       },
@@ -155,43 +108,46 @@ export const GAME_TOOLS = [
   {
     type: 'function',
     function: {
-      name: 'look',
-      description: 'Set camera direction by angle. NOT for mining — use look_at_block instead. Only for scanning surroundings.',
+      name: 'place',
+      description: 'Place block from inventory.',
       parameters: {
         type: 'object',
         properties: {
-          yaw: { type: 'number' },
-          pitch: { type: 'number' },
+          item: { type: 'string', description: 'e.g. "crafting_table", "furnace", "torch"' },
         },
+        required: ['item'],
       },
     },
   },
   {
     type: 'function',
     function: {
-      name: 'break_block',
-      description: 'Mine the block you are looking at. Use look first to aim.',
+      name: 'interact_block',
+      description: 'Right-click block (open chests, doors, crafting tables). Must be within 4 blocks.',
+      parameters: {
+        type: 'object',
+        properties: {
+          x: { type: 'integer' },
+          y: { type: 'integer' },
+          z: { type: 'integer' },
+        },
+        required: ['x', 'y', 'z'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'pickup_items',
+      description: 'Walk around to collect dropped items nearby.',
       parameters: { type: 'object', properties: {} },
     },
   },
   {
     type: 'function',
     function: {
-      name: 'walk',
-      description: 'Walk forward for N ticks (20 ticks = ~1 second). Use after look.',
-      parameters: {
-        type: 'object',
-        properties: {
-          ticks: { type: 'integer', description: 'How many ticks (max 200)' },
-        },
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
       name: 'chat',
-      description: 'Send chat message or /command. Prefix # for Baritone commands.',
+      description: 'Say something in game chat. Use to talk to players.',
       parameters: {
         type: 'object',
         properties: {
@@ -204,79 +160,22 @@ export const GAME_TOOLS = [
   {
     type: 'function',
     function: {
-      name: 'use_item',
-      description: 'Right-click with held item (bow, shield, bucket, ender pearl, etc).',
-      parameters: { type: 'object', properties: {} },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'drop',
-      description: 'Drop held item. Use -1 for whole stack.',
+      name: 'smelt',
+      description: 'Smelt item in nearby furnace.',
       parameters: {
         type: 'object',
         properties: {
-          count: { type: 'integer', description: 'Number to drop (-1 for all)' },
+          item: { type: 'string', description: 'e.g. "raw_iron", "beef"' },
         },
+        required: ['item'],
       },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'swap_hands',
-      description: 'Swap main hand and offhand items.',
-      parameters: { type: 'object', properties: {} },
     },
   },
   {
     type: 'function',
     function: {
       name: 'stop',
-      description: 'Cancel all current actions (Baritone, mining, walking).',
-      parameters: { type: 'object', properties: {} },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'jump',
-      description: 'Jump once.',
-      parameters: { type: 'object', properties: {} },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'sneak',
-      description: 'Toggle sneaking. Prevents falling off edges.',
-      parameters: {
-        type: 'object',
-        properties: {
-          enabled: { type: 'boolean' },
-        },
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'sprint',
-      description: 'Toggle sprinting. Faster but drains food.',
-      parameters: {
-        type: 'object',
-        properties: {
-          enabled: { type: 'boolean' },
-        },
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'wait',
-      description: 'Do nothing this tick. Use when waiting for Baritone/furnace.',
+      description: 'Cancel current action (pathfinding, mining).',
       parameters: { type: 'object', properties: {} },
     },
   },
@@ -284,7 +183,7 @@ export const GAME_TOOLS = [
     type: 'function',
     function: {
       name: 'close_screen',
-      description: 'Close any open GUI (inventory, crafting, furnace, chest).',
+      description: 'Close any open GUI.',
       parameters: { type: 'object', properties: {} },
     },
   },
@@ -292,11 +191,11 @@ export const GAME_TOOLS = [
     type: 'function',
     function: {
       name: 'recipes',
-      description: 'Look up how to craft an item. Returns ingredients and pattern. Use when unsure about a recipe.',
+      description: 'Look up crafting recipe for an item.',
       parameters: {
         type: 'object',
         properties: {
-          item: { type: 'string', description: 'Item to look up, e.g. "shield", "golden_apple"' },
+          item: { type: 'string', description: 'e.g. "iron_pickaxe", "furnace"' },
         },
         required: ['item'],
       },
@@ -306,11 +205,11 @@ export const GAME_TOOLS = [
     type: 'function',
     function: {
       name: 'wiki',
-      description: 'Search the Minecraft wiki for info. Use when stuck or unsure about game mechanics, mob behavior, item IDs, etc.',
+      description: 'Search Minecraft wiki.',
       parameters: {
         type: 'object',
         properties: {
-          query: { type: 'string', description: 'What to search, e.g. "blaze", "nether fortress", "enchanting"' },
+          query: { type: 'string', description: 'Search query' },
         },
         required: ['query'],
       },
@@ -320,12 +219,12 @@ export const GAME_TOOLS = [
     type: 'function',
     function: {
       name: 'notepad',
-      description: 'Read or write your personal notepad. Use to plan your strategy, track progress, and remember things across ticks. Always write a plan at the start!',
+      description: 'Read or write persistent notepad.',
       parameters: {
         type: 'object',
         properties: {
-          action: { type: 'string', enum: ['read', 'write'], description: 'read = see current notepad, write = overwrite with new content' },
-          content: { type: 'string', description: 'New notepad content (only for write)' },
+          action: { type: 'string', enum: ['read', 'write'], description: 'read or write' },
+          content: { type: 'string', description: 'Text to write (ignored on read)' },
         },
         required: ['action'],
       },
@@ -335,19 +234,45 @@ export const GAME_TOOLS = [
     type: 'function',
     function: {
       name: 'read_chat',
-      description: 'Read recent chat messages from players and the server. Returns the last 10 messages. Use this to check if a player said something to you.',
+      description: 'Read recent chat messages.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'save_context',
+      description: 'Save a persistent context document. Survives all memory wipes. Use for plans, task lists, notes.',
       parameters: {
         type: 'object',
-        properties: {},
+        properties: {
+          filename: { type: 'string', description: 'e.g. "plan.md", "tasks.md". Only .md/.txt/.json allowed.' },
+          content: { type: 'string', description: 'Document content (max 8000 chars)' },
+        },
+        required: ['filename', 'content'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'delete_context',
+      description: 'Delete a persistent context document.',
+      parameters: {
+        type: 'object',
+        properties: {
+          filename: { type: 'string', description: 'Filename to delete' },
+        },
+        required: ['filename'],
       },
     },
   },
 ];
 
-// Inject a 'reason' field so the model explains each action (visible to viewers)
+// Inject 'reason' field for viewer-facing explanation
 for (const tool of GAME_TOOLS) {
   const props = tool.function.parameters.properties || {};
-  props.reason = { type: 'string', description: 'Why you chose this action (1 sentence for viewers)' };
+  props.reason = { type: 'string', description: 'Brief reason (5 words max)' };
   tool.function.parameters.properties = props;
 }
 

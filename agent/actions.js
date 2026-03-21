@@ -4,14 +4,17 @@ const MOD_URL = process.env.MOD_URL || 'http://localhost:3001';
 
 const VALID_ACTIONS = new Set([
   'navigate', 'mine', 'look_at_block', 'interact_block', 'pickup_items',
-  'craft', 'smelt', 'attack', 'eat', 'place',
-  'equip', 'look', 'chat', 'use_item', 'drop', 'swap_hands',
-  'stop', 'jump', 'sneak', 'sprint', 'wait', 'close_screen',
-  'break_block', 'walk', 'recipes', 'wiki', 'notepad', 'read_chat',
+  'craft', 'smelt', 'attack', 'eat', 'place', 'equip', 'chat',
+  'stop', 'break_block', 'close_screen',
+  // Keep these for backward compat but they're not in the tool list:
+  'look', 'use_item', 'drop', 'swap_hands', 'jump', 'sneak', 'sprint', 'walk',
+  'recipes', 'wiki', 'notepad', 'read_chat',
+  'save_context', 'delete_context',
+  // 'wait' deliberately removed — force real actions
 ]);
 
 // Info actions return data to the LLM — they don't execute in the game world
-export const INFO_ACTIONS = new Set(['recipes', 'wiki', 'notepad', 'read_chat']);
+export const INFO_ACTIONS = new Set(['recipes', 'wiki', 'notepad', 'read_chat', 'save_context', 'delete_context']);
 
 // Schema validators per action type
 const ACTION_SCHEMAS = {
@@ -43,6 +46,8 @@ const ACTION_SCHEMAS = {
   break_block:  () => true,
   walk:         () => true,
   read_chat:    () => true,
+  save_context: (a) => typeof a.filename === 'string' && typeof a.content === 'string',
+  delete_context: (a) => typeof a.filename === 'string',
 };
 
 const actionQueue = [];

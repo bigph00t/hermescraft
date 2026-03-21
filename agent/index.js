@@ -169,7 +169,7 @@ async function handleWikiLookup(query) {
 
 // ── Notepad (persistent plan) ──
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -202,6 +202,45 @@ function handleNotepad(action, content) {
     return `Notepad updated (${(content || '').length} chars)`;
   }
   return 'Invalid notepad action. Use read or write.';
+}
+
+// ── Persistent Context Documents (save_context / delete_context tools) ──
+
+function handleSaveContext(filename, content) {
+  // Validate filename: only .md, .txt, .json extensions
+  if (!/\.(md|txt|json)$/i.test(filename)) {
+    return 'Invalid filename — must end with .md, .txt, or .json'
+  }
+  // Sanitize: strip path separators to prevent directory traversal
+  const safeName = filename.replace(/[/\\]/g, '')
+  // Enforce limits matching loadPinnedContext constants
+  const MAX_FILES = 5
+  const MAX_CHARS = 8000
+  if (content.length > MAX_CHARS) {
+    return `Content too long (${content.length} chars, max ${MAX_CHARS})`
+  }
+  const contextDir = join(_agentConfig.dataDir, 'context')
+  if (!existsSync(contextDir)) mkdirSync(contextDir, { recursive: true })
+  // Check file count (only count if this is a NEW file)
+  const targetPath = join(contextDir, safeName)
+  if (!existsSync(targetPath)) {
+    const existing = readdirSync(contextDir).filter(f => /\.(md|txt|json)$/i.test(f))
+    if (existing.length >= MAX_FILES) {
+      return `Too many context files (${existing.length}/${MAX_FILES}). Delete one first.`
+    }
+  }
+  writeFileSync(targetPath, content, 'utf-8')
+  return `Saved ${safeName} (${content.length} chars) — will appear in your prompt next tick`
+}
+
+function handleDeleteContext(filename) {
+  const safeName = filename.replace(/[/\\]/g, '')
+  const targetPath = join(_agentConfig.dataDir, 'context', safeName)
+  if (!existsSync(targetPath)) {
+    return `File "${safeName}" not found in context/`
+  }
+  unlinkSync(targetPath)
+  return `Deleted ${safeName}`
 }
 
 // ── Baritone Overlay Removal ──
@@ -572,6 +611,10 @@ async function tick(precomputedResponse = null) {
       } catch {
         infoResult = 'Chat not available (mod may need update)';
       }
+    } else if (actionType === 'save_context') {
+      infoResult = handleSaveContext(response.action.filename, response.action.content)
+    } else if (actionType === 'delete_context') {
+      infoResult = handleDeleteContext(response.action.filename)
     }
     logInfo(`[${actionType}] ${infoResult}`);
     // Complete tool call protocol so model sees result in history
