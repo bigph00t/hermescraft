@@ -29,7 +29,7 @@ import {
   logStuck, logSkillCreated, logSessionStats, logStartupBanner,
 } from './logger.js';
 import { initSocial, trackPlayer, getPlayersForPrompt, savePlayers, isKnownPlayer } from './social.js';
-import { initLocations, autoDetectLocations, getLocationsForPrompt, saveLocations, recordDeathLocation } from './locations.js';
+import { initLocations, autoDetectLocations, getLocationsForPrompt, saveLocations, saveLocation, recordDeathLocation, parseLocationFromChat } from './locations.js';
 import { initAutobiography, recordEvent } from './autobiography.js';
 import { initChests, trackChest, saveChests } from './chests.js';
 import { initChatHistory, recordChat } from './chat-history.js';
@@ -747,6 +747,20 @@ async function tick(precomputedResponse = null) {
             if (match) {
               trackPlayer(match[1], { type: 'chat', detail: match[2].slice(0, 100) });
               recordChat(match[1], match[2].slice(0, 200));
+
+              // Auto-save locations mentioned in chat by other players
+              const botUsername = process.env.MC_USERNAME || 'Steve'
+              if (match[1] !== botUsername) {
+                const coords = parseLocationFromChat(match[2])
+                if (coords) {
+                  // Extract a name from the message — first noun-like phrase before "at"
+                  const nameMatch = match[2].match(/(?:found|discovered|there's|built)\s+(?:a\s+)?(.+?)\s+(?:at|near)/i)
+                  const locName = nameMatch ? nameMatch[1].trim().slice(0, 30) : `${match[1]}-spot`
+                  saveLocation(locName, coords.x, coords.y, coords.z, 'discovered')
+                  saveLocations()
+                  console.log(`[Chat] Saved location "${locName}" at (${coords.x}, ${coords.y}, ${coords.z}) from ${match[1]}`)
+                }
+              }
             }
           }
 

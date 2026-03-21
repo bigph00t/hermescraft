@@ -13,7 +13,7 @@ import { getChestsForPrompt } from './chests.js'
 import { getChatSummary, getRecentChats } from './chat-history.js'
 import { getCooperationContext } from './cooperation.js'
 import { getRelationshipSummary } from './social.js'
-import { getHome, getLocationsForPrompt, getNearbyDangers } from './locations.js'
+import { getHome, getLocationsForPrompt, getNearbyDangers, getUnexploredDirection, getExplorationStats } from './locations.js'
 import { detectBehaviorMode, calculateNeeds, formatNeedsForPrompt } from './needs.js'
 
 const __dirname_planner = dirname(fileURLToPath(import.meta.url))
@@ -118,6 +118,12 @@ function consolidateMemory(state) {
   }))
   const coopContext = getCooperationContext(getRecentChats(20), _agentConfig?.name || '', inventory)
   if (coopContext) sections.push(coopContext)
+
+  // Exploration awareness — nudge agent toward unexplored areas
+  if (state.position) {
+    const explorationStats = getExplorationStats(state.position)
+    if (explorationStats) sections.push('== EXPLORATION ==\n' + explorationStats)
+  }
 
   return sections.join('\n\n')
 }
@@ -276,6 +282,9 @@ Your output will be read by the action loop as the CURRENT STRATEGY section.
 Include relevant memory context in your strategy naturally.
 If other agents are doing something, suggest COMPLEMENTARY work — don't duplicate their effort.
 When you see someone needs a resource you have, suggest dropping it for them.
+When the agent has been near home for a while, suggest exploring in an unexplored direction.
+After exploring, the agent should return home and tell others what it found via chat.
+Encourage naming interesting locations (use notepad to save "name this place X at coords").
 IMPORTANT: Start your strategy by briefly stating what THIS agent should announce it's doing (e.g., "Announce: going mining for iron").
 
 == BEHAVIOR MODE: ${behaviorMode.toUpperCase()} ==
