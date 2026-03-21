@@ -29,11 +29,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Skill body is correctly injected in open-ended mode — agent receives and can reference skill content during open-ended gameplay
   5. Player chat messages are processed exactly once — re-sending the same chat line from a player does not trigger a second agent response
   6. Agent reconnects after a server kick without requiring a restart — `autoConnectAttempted` resets when the player disconnects post-connection
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 01-01: Memory & compression fixes (MEM-01, MEM-02, MEM-03)
-- [ ] 01-02: Skill injection, chat dedup, and autoconnect fixes (SKL-01, COM-01, COM-02)
+- [ ] 01-01-PLAN.md — Memory and compression fixes: round-boundary graduated trim, eliminate full-wipe paths, L1 history disk persistence (MEM-01, MEM-02, MEM-03)
+- [ ] 01-02-PLAN.md — Skill injection, chat dedup, and autoconnect fixes (SKL-01, COM-01, COM-02)
 
 ### Phase 2: Planning Capability
 **Goal**: The agent can write its own persistent context and decompose complex instructions into tracked multi-step plans
