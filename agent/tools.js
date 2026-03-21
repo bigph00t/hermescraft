@@ -267,6 +267,41 @@ export const GAME_TOOLS = [
       },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'plan_task',
+      description: 'Create a plan with subtasks. Replaces any existing plan. Use for complex multi-step goals.',
+      parameters: {
+        type: 'object',
+        properties: {
+          goal: { type: 'string', description: 'Overall goal (e.g. "build a house")' },
+          subtasks: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Ordered list of subtasks (e.g. ["gather 20 oak_log", "craft planks", "build walls"])',
+          },
+        },
+        required: ['goal', 'subtasks'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_task',
+      description: 'Update subtask status. Mark done, failed, or in-progress. Use index from your task plan.',
+      parameters: {
+        type: 'object',
+        properties: {
+          index: { type: 'integer', description: 'Subtask index (0-based)' },
+          status: { type: 'string', enum: ['done', 'failed', 'in-progress', 'blocked'], description: 'New status' },
+          note: { type: 'string', description: 'Optional note about result or failure reason' },
+        },
+        required: ['index', 'status'],
+      },
+    },
+  },
 ];
 
 // Inject 'reason' field for viewer-facing explanation

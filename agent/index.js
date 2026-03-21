@@ -176,6 +176,86 @@ import { fileURLToPath } from 'url';
 const __dirname_idx = dirname(fileURLToPath(import.meta.url));
 let NOTEPAD_FILE = join(__dirname_idx, 'data', 'notepad.txt');
 
+// ── Task Plan State ──
+// Persists to dataDir/tasks.json. Loaded each tick for prompt injection.
+
+let TASKS_FILE = join(__dirname_idx, 'data', 'tasks.json')
+
+function loadTaskState() {
+  try {
+    if (existsSync(TASKS_FILE)) {
+      const raw = readFileSync(TASKS_FILE, 'utf-8')
+      const parsed = JSON.parse(raw)
+      if (parsed && typeof parsed.goal === 'string' && Array.isArray(parsed.subtasks)) {
+        return parsed
+      }
+    }
+  } catch {}
+  return null
+}
+
+function saveTaskState(taskState) {
+  try {
+    const dir = dirname(TASKS_FILE)
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+    writeFileSync(TASKS_FILE, JSON.stringify(taskState, null, 2), 'utf-8')
+  } catch {}
+}
+
+function handlePlanTask(goal, subtasks) {
+  if (!subtasks || subtasks.length === 0) {
+    return 'Plan must have at least one subtask'
+  }
+  if (subtasks.length > 20) {
+    return 'Too many subtasks (max 20). Break into smaller plans.'
+  }
+  const taskState = {
+    goal,
+    createdAt: new Date().toISOString(),
+    subtasks: subtasks.map((text, i) => ({
+      index: i,
+      text,
+      status: i === 0 ? 'in-progress' : 'pending',
+      note: '',
+    })),
+  }
+  saveTaskState(taskState)
+  const summary = taskState.subtasks.map((s, i) =>
+    `  ${i}. [${s.status === 'in-progress' ? '>' : ' '}] ${s.text}`
+  ).join('\n')
+  return `Plan created: "${goal}" with ${subtasks.length} subtasks\n${summary}`
+}
+
+function handleUpdateTask(index, status, note) {
+  const taskState = loadTaskState()
+  if (!taskState) {
+    return 'No active plan. Use plan_task first.'
+  }
+  if (index < 0 || index >= taskState.subtasks.length) {
+    return `Invalid index ${index}. Plan has ${taskState.subtasks.length} subtasks (0-${taskState.subtasks.length - 1}).`
+  }
+  const validStatuses = ['done', 'failed', 'in-progress', 'blocked']
+  if (!validStatuses.includes(status)) {
+    return `Invalid status "${status}". Use: ${validStatuses.join(', ')}`
+  }
+  taskState.subtasks[index].status = status
+  if (note) taskState.subtasks[index].note = note
+
+  // Auto-advance: if marking done and next subtask is pending, set it to in-progress
+  if (status === 'done') {
+    const nextPending = taskState.subtasks.find(s => s.status === 'pending')
+    if (nextPending) {
+      nextPending.status = 'in-progress'
+    }
+  }
+
+  saveTaskState(taskState)
+
+  const done = taskState.subtasks.filter(s => s.status === 'done').length
+  const total = taskState.subtasks.length
+  return `Updated subtask ${index} to ${status}. Progress: ${done}/${total} done.`
+}
+
 function readNotepad() {
   try {
     const dir = dirname(NOTEPAD_FILE);
@@ -616,6 +696,12 @@ async function tick(precomputedResponse = null) {
       infoResult = handleSaveContext(response.action.filename, response.action.content)
     } else if (actionType === 'delete_context') {
       infoResult = handleDeleteContext(response.action.filename)
+    } else if (actionType === 'plan_task') {
+      infoResult = handlePlanTask(response.action.goal, response.action.subtasks)
+      logInfo(`[plan_task] ${infoResult.split('\n')[0]}`)
+    } else if (actionType === 'update_task') {
+      infoResult = handleUpdateTask(response.action.index, response.action.status, response.action.note)
+      logInfo(`[update_task] ${infoResult}`)
     }
     logInfo(`[${actionType}] ${infoResult}`);
     // Complete tool call protocol so model sees result in history
@@ -629,6 +715,11 @@ async function tick(precomputedResponse = null) {
       timestamp: Date.now(),
     });
     return null;
+  }
+
+  // Truncate chat messages to prevent MC client crash
+  if (actionType === 'chat' && response.action.message && response.action.message.length > 180) {
+    response.action.message = response.action.message.substring(0, 180);
   }
 
   let result;
@@ -734,8 +825,9 @@ async function main() {
   initSocial(agentConfig);
   initLocations(agentConfig);
 
-  // Set per-agent notepad path
+  // Set per-agent notepad and task plan paths
   NOTEPAD_FILE = join(agentConfig.dataDir, 'notepad.txt');
+  TASKS_FILE = join(agentConfig.dataDir, 'tasks.json')
 
   // Load persistent state
   const { memory, stats } = loadMemory();

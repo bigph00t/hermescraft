@@ -10,11 +10,12 @@ const VALID_ACTIONS = new Set([
   'look', 'use_item', 'drop', 'swap_hands', 'jump', 'sneak', 'sprint', 'walk',
   'recipes', 'wiki', 'notepad', 'read_chat',
   'save_context', 'delete_context',
+  'plan_task', 'update_task',
   // 'wait' deliberately removed — force real actions
 ]);
 
 // Info actions return data to the LLM — they don't execute in the game world
-export const INFO_ACTIONS = new Set(['recipes', 'wiki', 'notepad', 'read_chat', 'save_context', 'delete_context']);
+export const INFO_ACTIONS = new Set(['recipes', 'wiki', 'notepad', 'read_chat', 'save_context', 'delete_context', 'plan_task', 'update_task']);
 
 // Schema validators per action type
 const ACTION_SCHEMAS = {
@@ -48,6 +49,8 @@ const ACTION_SCHEMAS = {
   read_chat:    () => true,
   save_context: (a) => typeof a.filename === 'string' && typeof a.content === 'string',
   delete_context: (a) => typeof a.filename === 'string',
+  plan_task:    (a) => typeof a.goal === 'string' && Array.isArray(a.subtasks) && a.subtasks.length > 0,
+  update_task:  (a) => typeof a.index === 'number' && typeof a.status === 'string',
 };
 
 const actionQueue = [];
