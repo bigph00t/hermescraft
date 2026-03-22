@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Creative Building + Bug Fixes
-status: Executing Phase 07
-last_updated: "2026-03-22T20:42:00Z"
+status: Phase 07 complete — both plans done
+last_updated: "2026-03-22T21:00:00Z"
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -22,20 +22,21 @@ See: .planning/PROJECT.md (updated 2026-03-22)
 
 ## Current Position
 
-Phase: 07 (live-testing-bug-fixes) — EXECUTING
-Plan: 2 of 2
+Phase: 07 (live-testing-bug-fixes) — COMPLETE
+Plan: 2 of 2 (done)
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 1
-- Average duration: 12min
-- Total execution time: 12min
+- Total plans completed: 2
+- Average duration: 13.5min
+- Total execution time: 27min
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 07-live-testing-bug-fixes | 01 | 12min | 2 | 4 |
+| 07-live-testing-bug-fixes | 02 | 15min | 1 | 2 |
 
 *Updated after each plan completion*
 
@@ -51,6 +52,8 @@ Plan: 2 of 2
 - Build skill saves state every 5 blocks for cross-session resume
 - Blueprint JSON: LLM generates it as !command text, not structured output — needs validation layer
 - Normalizer: registry identity check (=== ITEM_REGISTRY) gates item-only aliases — iron_ore/gold_ore block lookups are NOT aliased to raw_iron/raw_gold (07-01)
+- Smoke test pattern: pure Node.js ESM, no test framework, assert(name, condition) helper, process.exit(failed>0?1:0) (07-02)
+- bot.js and start.js excluded from smoke test imports — both attempt live MC server connection (07-02)
 
 ### Critical Pitfalls (from v2.0)
 
@@ -78,3 +81,5 @@ None currently.
 - 2026-03-22: Milestone v2.1 started — Creative Building + Bug Fixes
 - 2026-03-22: Roadmap created — 4 phases (7-10), 9/9 requirements mapped
 - 2026-03-22: Plan 07-01 complete — fixed deps, ore alias, and missing prompt commands
+- 2026-03-22: Plan 07-02 complete — 152-assertion smoke test, npm test passes 0 failures
+- 2026-03-22: Phase 07 complete — all v2 bug fixes and smoke test gate shipped
