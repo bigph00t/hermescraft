@@ -62,11 +62,11 @@ Plans:
   1. Player says "build a dock here" and the bot generates a blueprint and begins placing blocks at the current location without further instruction
   2. Player says "use stone on this wall" and the active build plan updates to use the specified material before the next block is placed
   3. Bot scans a 3D bounding region using bot.blockAt() and returns an accurate inventory of block types and positions found
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 09-01-PLAN.md — Create scan skill and palette mutation in body/ layer
-- [ ] 09-02-PLAN.md — Wire !scan and !material into registry, prompt guidance for directed building
+- [x] 09-02-PLAN.md — Wire !scan and !material into registry, prompt guidance for directed building
 
 ### Phase 10: Build Memory
 **Goal**: Build history persists across sessions and the bot can return to a previous site and extend it autonomously
@@ -85,5 +85,5 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 7. Live Testing + Bug Fixes | v2.1 | 2/2 | Complete   | 2026-03-22 |
 | 8. Blueprint Intelligence | v2.1 | 2/2 | Complete   | 2026-03-22 |
-| 9. Directed Building | v2.1 | 0/2 | In progress | - |
+| 9. Directed Building | v2.1 | 2/2 | Complete   | 2026-03-22 |
 | 10. Build Memory | v2.1 | 0/TBD | Not started | - |

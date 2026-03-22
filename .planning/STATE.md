@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Creative Building + Bug Fixes
-status: Ready to execute
-last_updated: "2026-03-22T21:03:27.274Z"
+status: Phase complete — ready for verification
+last_updated: "2026-03-22T21:09:30.619Z"
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
 ---
 
 # Project State
@@ -18,12 +18,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-22)
 
 **Core value:** Agents feel and play like real people — creative, emotional, able to interact with the world
-**Current focus:** Phase 09 — directed-building
+**Current focus:** Phase 09 — directed-building (COMPLETE)
 
 ## Current Position
 
-Phase: 09 (directed-building) — EXECUTING
-Plan: 2 of 2
+Phase: 09 (directed-building) — COMPLETE
+Plan: 2 of 2 (DONE)
 
 ## Performance Metrics
 
@@ -43,6 +43,7 @@ Plan: 2 of 2
 | 09-directed-building | 01 | 8min | 2 | 3 |
 
 *Updated after each plan completion*
+| Phase 09-directed-building P02 | 2min | 1 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -69,6 +70,9 @@ Plan: 2 of 2
 - _buildQueue is in-memory only (not JSON-serialized) to avoid bloating build_state.json (09-01)
 - resolvedPalette stored in _activeBuild and persisted so palette changes survive session restarts (09-01)
 - updatePalette loops all palette chars (no break) — multiple chars can map to same block (09-01)
+- !scan and !material use normal dispatch() path — no pre-dispatch handling needed (09-02)
+- !scan defaults to 16x8x16 box centered on bot (±8 x/z, ±4 y) when no coords given (09-02)
+- !material accepts old/from and new/to as synonym arg names for ergonomic LLM output (09-02)
 
 ### Critical Pitfalls (from v2.0)
 
@@ -102,3 +106,5 @@ None currently.
 - 2026-03-22: Plan 08-02 complete — !design pipeline: buildDesignPrompt() + designAndBuild() + registry wiring, 194 smoke tests pass
 - 2026-03-22: Phase 08 complete — blueprint intelligence shipped
 - 2026-03-22: Plan 09-01 complete — scanArea() + updatePalette() body skills, 213 smoke tests pass
+- 2026-03-22: Plan 09-02 complete — !scan + !material registry wiring, directed building guidance in prompt, 220 smoke tests pass
+- 2026-03-22: Phase 09 complete — directed building fully shipped (CBUILD-01/02/05)
