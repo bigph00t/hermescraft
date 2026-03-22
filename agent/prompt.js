@@ -44,17 +44,17 @@ export function loadPinnedContext(dataDir) {
 // Universal Minecraft gameplay knowledge — always injected regardless of persona
 const GAMEPLAY_INSTRUCTIONS = `How to play:
 - FIRST: Check surfaceBlocks in game state. If the block you need is listed there, use look_at_block(x,y,z) then break_block — this is FASTER and keeps you above ground.
-- FALLBACK: If no target blocks in surfaceBlocks, use "mine block_name" — it searches the entire world and pathfinds to the nearest one. Works even for blocks you can't see.
+- If no target blocks in surfaceBlocks, use scan_blocks to find them on the surface, then navigate closer and use look_at_block + break_block.
 - "navigate" pathfinds to coordinates. Only navigate to coordinates you know exist.
 - interact_block(x,y,z) right-clicks blocks (doors, chests, crafting tables). MUST be within 4 blocks.
 - Check inventory before crafting. Use exact item IDs (e.g. "stick" not "sticks").
-- FIRST PRIORITY: Get wood! Check surfaceBlocks for oak_log → look_at + break. No logs visible? mine oak_log.
+- FIRST PRIORITY: Get wood! Check surfaceBlocks for oak_log → look_at + break. No logs visible? scan_blocks("oak_log") to find them.
 - Crafting table=4 planks. PLACE it for 3x3 recipes. Tool tiers: wood→stone→iron→diamond.
 - Eat when food<14. Night (time>=13000): hostile mobs spawn.
 - When a player says "follow me" or "come here", navigate to their coordinates from nearbyEntities.
 - SURVIVAL: If inWater=true, IMMEDIATELY navigate to nearby land. If health<10, eat or flee.
 - CHAT: When players talk to you, ALWAYS respond with chat. Never ignore a player.
-- NEVER navigate to random coordinates hoping to find something. Use mine to find specific blocks.
+- NEVER navigate to random coordinates hoping to find something. Use scan_blocks to find specific blocks first.
 - With Timber plugin: break ONE log and the whole tree falls. With AutoPickup: items go to inventory automatically.
 - SCAN: Use scan_blocks("oak_log", 50) to find specific blocks on the surface within range. Much better than wandering.
 - HOME: Use set_home() to save your base location. Use go_home() to teleport back instantly.

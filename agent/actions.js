@@ -5,7 +5,7 @@ import { normalizeItemName } from './normalizer.js'
 const MOD_URL = process.env.MOD_URL || 'http://localhost:3001';
 
 const VALID_ACTIONS = new Set([
-  'navigate', 'mine', 'look_at_block', 'interact_block', 'pickup_items',
+  'navigate', 'look_at_block', 'interact_block', 'pickup_items',
   'craft', 'smelt', 'attack', 'eat', 'place', 'equip', 'chat',
   'stop', 'break_block', 'close_screen',
   'build', 'cancel_build', 'farm', 'harvest', 'breed', 'fish', 'interact_entity',
@@ -29,7 +29,6 @@ const ACTION_SCHEMAS = {
   wiki:         (a) => typeof a.query === 'string',
   notepad:      (a) => a.action === 'read' || (a.action === 'write' && typeof a.content === 'string'),
   navigate:     (a) => a.x !== undefined && a.y !== undefined && a.z !== undefined,
-  mine:         (a) => typeof a.blockName === 'string',
   look_at_block: (a) => a.x !== undefined && a.y !== undefined && a.z !== undefined,
   interact_block: (a) => a.x !== undefined && a.y !== undefined && a.z !== undefined,
   pickup_items: () => true,

@@ -5,20 +5,6 @@ export const GAME_TOOLS = [
   {
     type: 'function',
     function: {
-      name: 'mine',
-      description: 'Pathfind to and mine a block type (10s). Use for any resource gathering.',
-      parameters: {
-        type: 'object',
-        properties: {
-          blockName: { type: 'string', description: 'e.g. "oak_log", "iron_ore"' },
-        },
-        required: ['blockName'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
       name: 'navigate',
       description: 'Pathfind to coordinates.',
       parameters: {
@@ -36,7 +22,7 @@ export const GAME_TOOLS = [
     type: 'function',
     function: {
       name: 'look_at_block',
-      description: 'Walk to and face a block. Use before break_block for targeted mining.',
+      description: 'Walk to and face a block. Primary way to mine — look at a surface block, then break_block.',
       parameters: {
         type: 'object',
         properties: {
