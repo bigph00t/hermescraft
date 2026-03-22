@@ -69,6 +69,9 @@ Plan: 2 of 2
 - [02-01] body/crafter.js is a utility module (not a skill) — solveCraft imported by skills, not dispatched directly; module-level mcData init replaces initCrafter() wrapper
 - [02-01] Two-recipe-system bridge: BFS solver uses mcData.recipes for dependency analysis; bot.recipesFor() provides prismarine-recipe objects; raw mcData recipes must never be passed to bot.craft()
 - [02-01] findOrPlaceCraftingTable tries 4 cardinal ground offsets for placement — more robust than fixed single position in varied terrain
+- [02-02] Fuel count Math.ceil(count/8)+1 — coal smelts 8 items; +1 handles partial fuel safety for edge counts
+- [02-02] FOOD_NAMES Set from mcData.foodsArray at module load — O(1) food lookup for eatIfHungry, avoids per-call array search
+- [02-02] initChestMemory is explicit call pattern — matches init<Subsystem> convention; chest memory at agent/data/{agentName}/chests.json
 
 ### Critical Pitfalls (from research)
 
@@ -99,3 +102,4 @@ None currently.
 - 2026-03-22: Completed 01-02 — body/navigate.js, body/dig.js, body/place.js created; all three action primitives with safety wrappers
 - 2026-03-22: Completed 01-03 — body/skills/gather.js and body/skills/mine.js created; Phase 1 complete (3/3 plans done)
 - 2026-03-22: Completed 02-01 — body/crafter.js (BFS solver) and body/skills/craft.js (craft skill) created; SKILL-03 complete
+- 2026-03-22: Completed 02-02 — body/skills/smelt.js, body/skills/chest.js, body/skills/inventory.js created; SKILL-04, SKILL-07, SKILL-08 complete; Phase 2 complete

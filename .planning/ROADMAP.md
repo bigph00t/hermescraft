@@ -39,7 +39,7 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
 ## Phase Checklist
 
 - [x] **Phase 1: Bot Foundation + Core Skills** — Headless bot connects, navigates, digs, places; interrupt harness; gather and mine skills (completed 2026-03-22)
-- [ ] **Phase 2: Crafting + Inventory** — Craft chain solver, smelt, chest interaction, auto-eat and armor
+- [x] **Phase 2: Crafting + Inventory** — Craft chain solver, smelt, chest interaction, auto-eat and armor (completed 2026-03-22)
 - [ ] **Phase 3: Mind Loop + LLM** — Event-driven self-prompter, command registry, rolling conversation history
 - [ ] **Phase 4: Survival Modes** — Autonomous reactive behaviors that run without the LLM: self-preservation, self-defense, unstuck, idle, item collection
 - [ ] **Phase 5: Personality + Social** — SOUL files, persistent memory, grounded chat, two-agent coordination, day/night routine
@@ -72,7 +72,7 @@ Plans:
   2. Bot smelts raw iron by placing it in a furnace with fuel and collecting the output when done
   3. Bot deposits items into a chest and later withdraws them, remembering the chest's location
   4. Bot equips best available tool before digging and eats food when hunger drops below threshold without being told to
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 02-01-PLAN.md — BFS crafting chain solver + craft skill (SKILL-03)
 - [x] 02-02-PLAN.md — Smelt, chest, and inventory management skills (SKILL-04, SKILL-07, SKILL-08)
@@ -130,7 +130,7 @@ v2.0 phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1. Bot Foundation + Core Skills | v2.0 | 3/3 | Complete   | 2026-03-22 |
-| 2. Crafting + Inventory | v2.0 | 0/2 | Planning complete | - |
+| 2. Crafting + Inventory | v2.0 | 2/2 | Complete   | 2026-03-22 |
 | 3. Mind Loop + LLM | v2.0 | 0/? | Not started | - |
 | 4. Survival Modes | v2.0 | 0/? | Not started | - |
 | 5. Personality + Social | v2.0 | 0/? | Not started | - |
