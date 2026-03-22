@@ -9,11 +9,11 @@ Requirements for Mineflayer Rewrite milestone.
 
 ### Bot Foundation
 
-- [ ] **BOT-01**: Mineflayer bot connects to Paper 1.21.1 server in offline mode and spawns successfully
+- [x] **BOT-01**: Mineflayer bot connects to Paper 1.21.1 server in offline mode and spawns successfully
 - [ ] **BOT-02**: Bot navigates to any reachable coordinate using mineflayer-pathfinder with wall-clock timeout on unreachable goals
 - [ ] **BOT-03**: Bot digs blocks using bot.dig() with post-dig verification (block actually changed)
 - [ ] **BOT-04**: Bot places blocks using bot.placeBlock() with post-place verification
-- [ ] **BOT-05**: Cooperative interrupt system — all skill functions check interrupt flag and yield cleanly
+- [x] **BOT-05**: Cooperative interrupt system — all skill functions check interrupt flag and yield cleanly
 
 ### Gameplay Skills
 
@@ -81,11 +81,11 @@ Requirements for Mineflayer Rewrite milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BOT-01 | Phase 1 | Pending |
+| BOT-01 | Phase 1 | Complete |
 | BOT-02 | Phase 1 | Pending |
 | BOT-03 | Phase 1 | Pending |
 | BOT-04 | Phase 1 | Pending |
-| BOT-05 | Phase 1 | Pending |
+| BOT-05 | Phase 1 | Complete |
 | SKILL-01 | Phase 1 | Pending |
 | SKILL-02 | Phase 1 | Pending |
 | SKILL-03 | Phase 2 | Pending |

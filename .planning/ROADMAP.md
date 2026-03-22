@@ -57,9 +57,9 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
   3. Bot digs a block and post-dig check confirms the block state changed; false success from server-side protection is detected
   4. Bot collects N of a named resource by finding, navigating to, and digging nearest sources until inventory count is met
   5. Bot mines ore with the best tool auto-selected from inventory
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 Plans:
-- [ ] 01-01-PLAN.md — Bot lifecycle, interrupt harness, normalizer (BOT-01, BOT-05)
+- [x] 01-01-PLAN.md — Bot lifecycle, interrupt harness, normalizer (BOT-01, BOT-05)
 - [ ] 01-02-PLAN.md — Navigate, dig, place primitives with safety wrappers (BOT-02, BOT-03, BOT-04)
 - [ ] 01-03-PLAN.md — Gather and mine skills (SKILL-01, SKILL-02)
 
@@ -126,7 +126,7 @@ v2.0 phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 1. Bot Foundation + Core Skills | v2.0 | 0/3 | Planned | - |
+| 1. Bot Foundation + Core Skills | v2.0 | 1/3 | In Progress|  |
 | 2. Crafting + Inventory | v2.0 | 0/? | Not started | - |
 | 3. Mind Loop + LLM | v2.0 | 0/? | Not started | - |
 | 4. Survival Modes | v2.0 | 0/? | Not started | - |

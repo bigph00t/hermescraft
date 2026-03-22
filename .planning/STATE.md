@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Mineflayer Rewrite
-status: ready_to_plan
-last_updated: "2026-03-22T00:00:00.000Z"
+status: Ready to execute
+last_updated: "2026-03-22T17:24:33.402Z"
 progress:
   total_phases: 6
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 3
+  completed_plans: 1
 ---
 
 # Project State
@@ -18,20 +18,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-22)
 
 **Core value:** Agents feel and play like real people — creative, emotional, able to interact with the world
-**Current focus:** Phase 1 — Bot Foundation + Core Skills
+**Current focus:** Phase 01 — bot-foundation-core-skills
 
 ## Current Position
 
-Phase: 1 of 6 (Bot Foundation + Core Skills)
-Plan: — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-03-22 — v2.0 roadmap created
-
-Progress: [░░░░░░░░░░] 0%
+Phase: 01 (bot-foundation-core-skills) — EXECUTING
+Plan: 2 of 3
 
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed: 0
 - Average duration: —
 - Total execution time: —
@@ -43,6 +40,7 @@ Progress: [░░░░░░░░░░] 0%
 | - | - | - | - |
 
 *Updated after each plan completion*
+| Phase 01-bot-foundation-core-skills P01 | 2min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -54,6 +52,10 @@ Progress: [░░░░░░░░░░] 0%
 - NO ARTIFICIAL CAPS: don't hardcode turn limits, message limits, or action limits. Use graduated trimming when context gets large, but don't preemptively throttle. Let the agent be as active as it wants.
 - Cooperative interrupt: every skill checks `bot.interrupt_code` after every `await` — no forced termination
 - v1 data isolation: fresh `data/jeffrey/` and `data/john/` directories; v1 data archived as `*_v1/`
+- [01-01] Promise-based createBot with 30s spawn timeout — skills await connection before proceeding; spawn_timeout surfaces clearly
+- [01-01] bot.interrupt_code on bot object (not module state) — supports multiple concurrent bot instances
+- [01-01] normalizeBlockName shares _normalize helper with normalizeItemName — avoids duplicating 9-step pipeline; ALIASES apply to both items and blocks
+- [01-01] Movements set inside spawn handler per research Pitfall 6 — new Movements(bot) requires initialized world state
 
 ### Critical Pitfalls (from research)
 
@@ -80,3 +82,4 @@ None currently.
 
 - 2026-03-22: Milestone v2.0 started — Mineflayer Rewrite
 - 2026-03-22: v2.0 roadmap created — 6 phases, 30 requirements mapped
+- 2026-03-22: Completed 01-01 — body/bot.js, body/interrupt.js, body/normalizer.js created; mineflayer-pathfinder + mineflayer-tool installed
