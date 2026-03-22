@@ -27,9 +27,9 @@ Requirements for Tool Quality & Building Intelligence milestone. Each maps to ro
 ### Building Intelligence
 
 - [x] **BUILD-01**: Agent can design structures via LLM-generated markdown building plans stored in context files
-- [ ] **BUILD-02**: Agent executes building plans block-by-block using smart place action
+- [x] **BUILD-02**: Agent executes building plans block-by-block using smart place action
 - [x] **BUILD-03**: Agent tracks all placed blocks persistently (block type, position, timestamp)
-- [ ] **BUILD-04**: Agent verifies completed builds against original plan using vision + block tracking
+- [x] **BUILD-04**: Agent verifies completed builds against original plan using vision + block tracking
 
 ### Spatial Memory
 
@@ -110,9 +110,9 @@ Deferred to next milestone. Tracked but not in current roadmap.
 | CRAFT-01 | Phase 6 | Complete |
 | CRAFT-02 | Phase 6 | Complete |
 | BUILD-01 | Phase 7 | Complete |
-| BUILD-02 | Phase 7 | Pending |
+| BUILD-02 | Phase 7 | Complete |
 | BUILD-03 | Phase 7 | Complete |
-| BUILD-04 | Phase 7 | Pending |
+| BUILD-04 | Phase 7 | Complete |
 | SPACE-01 | Phase 8 | Pending |
 | SPACE-02 | Phase 8 | Pending |
 | SCRIPT-01 | Phase 8 | Pending |

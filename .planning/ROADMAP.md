@@ -25,7 +25,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 
 - [x] **Phase 5: Tool Primitives** — Fix place, equip, chest interaction, mine removal, and sustained action lock in one mod rebuild (completed 2026-03-22)
 - [x] **Phase 6: Crafting Intelligence** — Full recipe chain solver so the agent can craft wooden_pickaxe from oak_log in a single plan step (completed 2026-03-22)
-- [ ] **Phase 7: Building Intelligence** — Freestyle building with LLM-designed plans, block placement tracking, and post-build verification
+- [x] **Phase 7: Building Intelligence** — Freestyle building with LLM-designed plans, block placement tracking, and post-build verification (completed 2026-03-22)
 - [ ] **Phase 8: Spatial Memory + Server Scripts** — Persistent typed world map, proximity-filtered prompt injection, new Skript server commands
 
 ## Phase Details
@@ -74,7 +74,7 @@ Plans:
 Plans:
 - [x] 07-01-PLAN.md — freestyle.js parser + placement-tracker.js module (new standalone modules)
 - [x] 07-02-PLAN.md — Wire freestyle execution into planner + placement tracking into actions + startup init
-- [ ] 07-03-PLAN.md — Post-build verification: placed_count keyword in reviewSubtaskOutcome + prompt injection
+- [x] 07-03-PLAN.md — Post-build verification: placed_count keyword in reviewSubtaskOutcome + prompt injection
 
 ### Phase 8: Spatial Memory + Server Scripts
 **Goal**: Agent maintains a typed, proximity-filtered world map of resource patches and build sites, and new server commands give it richer environmental awareness
@@ -103,7 +103,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8
 | 4. Personality + Creative Play | v1.0 | 3/3 | Complete | 2026-03-22 |
 | 5. Tool Primitives | v1.1 | 3/3 | Complete   | 2026-03-22 |
 | 6. Crafting Intelligence | v1.1 | 2/2 | Complete   | 2026-03-22 |
-| 7. Building Intelligence | v1.1 | 2/3 | In Progress|  |
+| 7. Building Intelligence | v1.1 | 3/3 | Complete   | 2026-03-22 |
 | 8. Spatial Memory + Server Scripts | v1.1 | 0/2 | Not started | - |
 
 ---

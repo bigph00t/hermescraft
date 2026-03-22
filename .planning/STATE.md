@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Tool Quality & Building Intelligence
 status: unknown
-last_updated: "2026-03-22T05:11:08.825Z"
+last_updated: "2026-03-22T05:14:36.233Z"
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
 ---
 
 # Project State
@@ -51,6 +51,7 @@ Plan: 3 of 3
 | Phase 06 P02 | 525595min | 1 tasks | 2 files |
 | Phase 07 P01 | 2 | 2 tasks | 2 files |
 | Phase 07 P02 | 2 | 2 tasks | 3 files |
+| Phase 07 P03 | 68s | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,9 @@ Plan: 3 of 3
 - [Phase 07]: getFreestyleProgress() does not expose planFile — template string in planner prompt omits planFile reference to avoid undefined property access
 - [Phase 07]: Freestyle progress injected into userContent (not systemPrompt) so it shows per-cycle current state alongside CURRENT PLAN
 - [Phase 07]: case 'freestyle' uses block scoping {} to allow const declarations without conflicts with other switch cases
+- [Phase 07]: [Phase 07]: advanceFreestyle wired via response.mode === 'queue' check at post-action result site — queuedAction is out of scope there
+- [Phase 07]: [Phase 07]: PLACED BLOCKS summary placed after BUILD STATUS section — natural reading order for build context
+- [Phase 07]: [Phase 07]: 10% tolerance (0.9 multiplier) in placed_count check — accounts for occasional silent tracking pipeline failures
 
 ### Pending Todos
 
