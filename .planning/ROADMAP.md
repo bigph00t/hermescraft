@@ -42,7 +42,7 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
 - [x] **Phase 2: Crafting + Inventory** — Craft chain solver, smelt, chest interaction, auto-eat and armor (completed 2026-03-22)
 - [ ] **Phase 3: Mind Loop + LLM** — Event-driven self-prompter, command registry, rolling conversation history
 - [ ] **Phase 4: Survival Modes** — Autonomous reactive behaviors that run without the LLM: self-preservation, self-defense, unstuck, idle, item collection
-- [ ] **Phase 5: Personality + Social** — SOUL files, persistent memory, grounded chat, two-agent coordination, day/night routine
+- [x] **Phase 5: Personality + Social** — SOUL files, persistent memory, grounded chat, two-agent coordination, day/night routine (completed 2026-03-22)
 - [ ] **Phase 6: Creative Building** — Real structures from plans, personality-driven build choices, base expansion across sessions
 
 ## Phase Details
@@ -116,10 +116,10 @@ Plans:
   3. Bot never references items, locations, or events it has not actually observed in the current game world
   4. Two bots on the same server exchange messages, cooperate on a task, and do not echo their own messages back as if from another player
   5. Bot goes to shelter at nightfall, reduces activity, and resumes normal behavior at dawn
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 05-01-PLAN.md — Create mind/config.js, mind/memory.js, mind/social.js, mind/locations.js (SOUL-01, SOUL-02, SOUL-04)
-- [ ] 05-02-PLAN.md — Wire personality+memory+social into start.js, mind loop, prompts, and night shelter (SOUL-01, SOUL-02, SOUL-03, SOUL-04, SOUL-05)
+- [x] 05-02-PLAN.md — Wire personality+memory+social into start.js, mind loop, prompts, and night shelter (SOUL-01, SOUL-02, SOUL-03, SOUL-04, SOUL-05)
 
 ### Phase 6: Creative Building
 **Goal**: Agents build complete structures — walls, roof, floor — from structured plans, choose what to build based on their personality and the state of the world, and return across sessions to expand their base
@@ -142,7 +142,7 @@ v2.0 phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 2. Crafting + Inventory | v2.0 | 2/2 | Complete   | 2026-03-22 |
 | 3. Mind Loop + LLM | v2.0 | 1/2 | In Progress|  |
 | 4. Survival Modes | v2.0 | 1/2 | In Progress|  |
-| 5. Personality + Social | v2.0 | 1/2 | In Progress|  |
+| 5. Personality + Social | v2.0 | 2/2 | Complete   | 2026-03-22 |
 | 6. Creative Building | v2.0 | 0/? | Not started | - |
 
 ---

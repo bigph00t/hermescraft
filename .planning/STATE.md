@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Mineflayer Rewrite
-status: Ready to execute
-last_updated: "2026-03-22T19:18:49.157Z"
+status: Phase complete — ready for verification
+last_updated: "2026-03-22T19:24:32.177Z"
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 11
-  completed_plans: 10
+  completed_plans: 11
 ---
 
 # Project State
@@ -22,8 +22,8 @@ See: .planning/PROJECT.md (updated 2026-03-22)
 
 ## Current Position
 
-Phase: 05 (personality-social) — EXECUTING
-Plan: 2 of 2
+Phase: 05 (personality-social) — COMPLETE
+Plan: 2 of 2 (all plans done)
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Plan: 2 of 2
 | Phase 04-survival-modes P04-01 | 2min | 2 tasks | 2 files |
 | Phase 04-survival-modes P04-02 | 2m 6s | 2 tasks | 3 files |
 | Phase 05-personality-social P05-01 | 2min | 2 tasks | 4 files |
+| Phase 05-personality-social P05-02 | 3min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,10 @@ Plan: 2 of 2
 - [05-01] getPlayersForPrompt takes bot object directly — reads bot.players + bot.entities for nearby detection; no intermediate array needed
 - [05-01] partner seeded at sentiment:3/acquaintance in social.js — jeffrey and john recognize each other from session 1, not treated as strangers
 - [05-01] getLocationsForPrompt radius 500 blocks (v1: 150) — open world exploration warrants wider location awareness
+- [05-02] bot.homeLocation as mind/body boundary — setHome() updates locations.json, start.js sets bot.homeLocation, modes.js reads it without any mind/ import
+- [05-02] timeLabel() uses 7 rich labels — dusk/night/late-night labels include shelter guidance baked into the time string
+- [05-02] Night shelter Priority 0, gated on !getSkillRunning() — shelter does not interrupt active skills; unlike starvation which overrides unconditionally
+- [05-02] Anti-hallucination constraint injected as Part 2 of system prompt — immediately after SOUL identity, before memory/social/locations
 
 ### Critical Pitfalls (from research)
 
@@ -126,3 +131,4 @@ None currently.
 - 2026-03-22: Completed 04-01 — body/skills/combat.js created (attackTarget + combatLoop + HOSTILE_MOBS 42-entry Set); !combat wired into mind/registry.js; SKILL-06, MODE-02 complete
 - 2026-03-22: Completed 04-02 — body/modes.js created (300ms body tick, 5-priority cascade: survival+flee, combat, unstuck, item pickup, idle look); isSkillRunning exported from mind/index.js; initModes wired in start.js; MODE-01, MODE-03, MODE-04, MODE-05 complete; Phase 04 complete
 - 2026-03-22: Completed 05-01 — mind/config.js, mind/memory.js, mind/social.js, mind/locations.js created; SOUL discovery, per-agent data dirs, player sentiment tracking with partner pre-seeding, named waypoints; SOUL-01, SOUL-02, SOUL-04 complete
+- 2026-03-22: Completed 05-02 — start.js + mind/index.js wired with config+memory+social+locations; mind/prompt.js extended with anti-hallucination grounding, rich time labels, memory/social/locations injection; body/modes.js night shelter Priority 0; all SOUL-01 through SOUL-05 complete; Phase 05 complete
