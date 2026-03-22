@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Creative Building + Bug Fixes
-status: Milestone complete
-last_updated: "2026-03-22T21:22:09.285Z"
+status: v2.1 milestone complete
+last_updated: "2026-03-22T21:22:30.538Z"
 progress:
   total_phases: 4
   completed_phases: 4

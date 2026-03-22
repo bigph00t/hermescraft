@@ -102,6 +102,15 @@ None - no external service configuration required.
 - Ready for Plan 02: navigate.js (goto with wall-clock timeout) and dig.js (with post-dig verification)
 - mineflayer-pathfinder live validation against Paper 1.21.1 still needed (flagged in STATE.md research flags) — Plan 02 smoke test will cover this
 
+## Self-Check: PASSED
+
+- body/bot.js: FOUND
+- body/interrupt.js: FOUND
+- body/normalizer.js: FOUND
+- SUMMARY.md: FOUND
+- Commit f4cdaa3: FOUND
+- Commit 9ac6522: FOUND
+
 ---
 *Phase: 01-bot-foundation-core-skills*
 *Completed: 2026-03-22*

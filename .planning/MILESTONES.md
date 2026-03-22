@@ -1,5 +1,21 @@
 # Milestones
 
+## v2.1 Creative Building + Bug Fixes (Shipped: 2026-03-22)
+
+**Phases completed:** 4 phases, 7 plans, 8 tasks
+
+**Key accomplishments:**
+
+- Three silent bugs fixed: explicit npm deps for clean install, iron/gold ore block alias preventing mining, and deposit/withdraw commands missing from LLM system prompt
+- 152-assertion pure Node.js ESM smoke test validating all 24 v2 modules without a live Minecraft server
+- One-liner:
+- buildDesignPrompt() injects 3 random reference blueprints and JSON schema rules into a dedicated LLM call; designAndBuild() validates the output and auto-executes build() at bot position; !design wired end-to-end in think() before dispatch.
+- scanArea() for 3D block inventory scans + updatePalette() for mid-build material hot-swapping, both TDD-implemented with 213 smoke tests passing
+- !scan and !material wired into 14-command registry; system prompt updated with directed building guidance and full syntax coverage; 220 smoke tests pass
+- One-liner:
+
+---
+
 ## v2.0 Mineflayer Rewrite (Shipped: 2026-03-22)
 
 **Phases completed:** 6 phases, 13 plans, 20 tasks
