@@ -81,6 +81,12 @@ async function think(bot, context) {
 
 // ── Exported Init Function ──
 
+// Getter for body/modes.js — reads skillRunning without crossing the mind/body boundary.
+// body/ never imports mind/ directly; start.js passes this function as a callback.
+export function isSkillRunning() {
+  return skillRunning
+}
+
 // initMind(bot) — registers event listeners on the bot and starts the idle timer.
 // Call once after createBot() resolves.
 export async function initMind(bot) {

@@ -1,7 +1,8 @@
 // start.js -- v2 entry point: create bot + init mind
 
 import { createBot } from './body/bot.js'
-import { initMind } from './mind/index.js'
+import { initMind, isSkillRunning } from './mind/index.js'
+import { initModes } from './body/modes.js'
 
 async function main() {
   console.log('[hermescraft] v2 starting...')
@@ -11,6 +12,9 @@ async function main() {
 
   await initMind(bot)
   console.log('[hermescraft] mind initialized — agent is live')
+
+  initModes(bot, isSkillRunning)
+  console.log('[hermescraft] body modes started — survival tick active')
 
   // Global error handlers — keep the process alive on unexpected errors.
   // The bot loop is resilient enough to recover from most failures.
