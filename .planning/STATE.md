@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Tool Quality & Building Intelligence
-status: ready_to_plan
+status: planning
 last_updated: "2026-03-21T00:00:00.000Z"
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 11
+  total_plans: 10
   completed_plans: 0
 ---
 
@@ -23,9 +23,9 @@ See: .planning/PROJECT.md (updated 2026-03-21)
 ## Current Position
 
 Phase: 5 of 8 (Tool Primitives)
-Plan: 0 of 4 in current phase
-Status: Ready to plan
-Last activity: 2026-03-21 — v1.1 roadmap created
+Plan: 0 of 3 in current phase
+Status: Planning complete, ready to execute
+Last activity: 2026-03-21 — Phase 5 plans created
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -40,7 +40,7 @@ Progress: [░░░░░░░░░░] 0%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 5. Tool Primitives | 0/4 | — | — |
+| 5. Tool Primitives | 0/3 | — | — |
 | 6. Crafting Intelligence | 0/2 | — | — |
 | 7. Building Intelligence | 0/3 | — | — |
 | 8. Spatial Memory + Server Scripts | 0/2 | — | — |
@@ -86,3 +86,4 @@ None currently.
 
 - 2026-03-21: Milestone v1.1 started — Tool Quality & Building Intelligence
 - 2026-03-21: v1.1 roadmap created — 4 phases (5-8), 11 plans, 15 requirements mapped
+- 2026-03-21: Phase 5 planned — 3 plans in 2 waves (batched mod rebuild into single plan)

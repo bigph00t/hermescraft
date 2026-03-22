@@ -40,13 +40,12 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
   3. Agent never uses the mine action — all block breaking goes through look_at_block + break_block
   4. LLM-generated item names (e.g. "sticks", "oak_planks_4") are transparently normalized to valid 1.21.1 registry names before any dispatch, with no silent failures
   5. After a sustained action times out, the agent's next action dispatches immediately without a permanent stuck state
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 05-01: normalizer.js + mine action removal (agent-only, zero risk)
-- [ ] 05-02: ActionExecutor.java — smart place (full 36-slot equip + surface+face coordinate model) + sustained action timeout fix
-- [ ] 05-03: ActionExecutor.java — chest_deposit + chest_withdraw sustained actions
-- [ ] 05-04: Agent-side chest tool wiring + end-to-end verification
+- [ ] 05-01-PLAN.md — normalizer.js + mine action removal (agent-only, zero risk)
+- [ ] 05-02-PLAN.md — ActionExecutor.java: smart place + sustained action timeout fix + chest_deposit/chest_withdraw (single mod rebuild)
+- [ ] 05-03-PLAN.md — Agent-side smart_place/chest tool wiring + end-to-end verification
 
 ### Phase 6: Crafting Intelligence
 **Goal**: Agent resolves full crafting dependency chains at plan time so complex recipes execute in the minimum number of ticks without trial-and-error
@@ -102,7 +101,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8
 | 2. Spatial Awareness + Architecture | v1.0 | 4/4 | Complete | 2026-03-21 |
 | 3. Plugin Integration + Custom Commands | v1.0 | 4/4 | Complete | 2026-03-21 |
 | 4. Personality + Creative Play | v1.0 | 3/3 | Complete | 2026-03-22 |
-| 5. Tool Primitives | v1.1 | 0/4 | Not started | - |
+| 5. Tool Primitives | v1.1 | 0/3 | Not started | - |
 | 6. Crafting Intelligence | v1.1 | 0/2 | Not started | - |
 | 7. Building Intelligence | v1.1 | 0/3 | Not started | - |
 | 8. Spatial Memory + Server Scripts | v1.1 | 0/2 | Not started | - |
