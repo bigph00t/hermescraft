@@ -1,82 +1,81 @@
-# Requirements: HermesCraft v2
+# Requirements: HermesCraft
 
 **Defined:** 2026-03-21
-**Core Value:** Agents feel and play like real people with spatial awareness, creativity, and genuine interaction
+**Core Value:** Agents must feel and play like real people — creative, emotional, with desires, aesthetic sense, and the ability to interact with what they see
 
-## v1 Requirements
+## v1.1 Requirements
 
-### Server Migration
+Requirements for Tool Quality & Building Intelligence milestone. Each maps to roadmap phases.
 
-- [x] **SRV-01**: Paper 1.21.1 server running in Docker on Glass, replacing vanilla Fabric server
-- [x] **SRV-02**: Existing Survival Island world migrated to Paper with correct directory structure
-- [x] **SRV-03**: Both Fabric clients (HermesBridge + Baritone) connect and function on Paper server
-- [x] **SRV-04**: World pre-generated with Chunky (2000 block radius) to eliminate exploration lag
+### Tool Fixes
 
-### Plugin Stack
+- [ ] **TOOL-01**: Agent can place blocks reliably using support block + face direction (auto-equip from full inventory)
+- [ ] **TOOL-02**: All LLM-generated item names are normalized to valid MC 1.21.1 registry names before dispatch
+- [ ] **TOOL-03**: Mine action is removed — all block breaking uses look_at_block + break_block only
+- [ ] **TOOL-04**: Sustained action lock timeout clears properly so subsequent actions are never permanently blocked
 
-- [x] **PLG-01**: Timber/hTreecapitator installed — chop one log, whole tree falls
-- [x] **PLG-02**: VeinMiner installed — mine one ore, get whole vein
-- [x] **PLG-03**: AutoPickup/PickupBot installed — mined items go straight to inventory
-- [x] **PLG-04**: EssentialsX + Vault installed — /home, /warp, /back, /pay, economy
-- [x] **PLG-05**: mcMMO installed — RPG skill progression (mining, woodcutting, excavation, etc.) [AuraSkills used as equivalent alternative]
-- [x] **PLG-06**: QuickShop-Hikari installed — player-to-player chest shops
-- [x] **PLG-07**: LuckPerms installed — bot permissions configured
-- [x] **PLG-08**: Skript installed — custom command framework
-- [ ] **PLG-09**: BlockBeacon installed — /findblock for resource location [plugin not found, deferred to Skript]
-- [x] **PLG-10**: ServerTap installed — REST API on port 4567 [port 4567 Docker exposure pending]
-- [x] **PLG-11**: StopSpam installed — server-side chat dedup + rate limiting [5s cooldown, similarity detection configured]
-- [x] **PLG-12**: Chunky installed — world pre-generation
+### Chest Interaction
 
-### Spatial Awareness
+- [ ] **CHEST-01**: Agent can deposit items into a nearby chest
+- [ ] **CHEST-02**: Agent can withdraw specific items from a nearby chest
 
-- [x] **SAW-01**: Mod adds surfaceBlocks to state (isSkyVisible filter, Y-level restriction)
-- [x] **SAW-02**: Agent uses look_at_block + break_block as PRIMARY interaction for visible blocks
-- [x] **SAW-03**: Baritone #mine only used as FALLBACK when no visible blocks nearby
-- [x] **SAW-04**: Baritone minYLevelWhileMining set to 55 for surface resources (logs, crops)
-- [x] **SAW-05**: Switch to baritone-api-fabric jar for real isPathing() and programmatic settings
-- [x] **SAW-06**: Vision (Haiku) descriptions drive block targeting — "trees to the left" → navigate left → look_at + break
+### Crafting Intelligence
 
-### Agent Architecture
+- [ ] **CRAFT-01**: Agent has access to full MC 1.21.1 recipe database via minecraft-data
+- [ ] **CRAFT-02**: Agent can resolve crafting dependency chains (e.g. oak_log → planks → sticks → wooden_pickaxe) in a single plan step
 
-- [x] **ARC-01**: Brain-hands-eyes: planner writes action queue, action loop pops and executes without LLM
-- [x] **ARC-02**: Action loop only calls LLM when queue empty, emergency, or chat received
-- [x] **ARC-03**: Baritone tracker knows when mine/navigate is active, skips ticks while running
-- [x] **ARC-04**: Chat messages sent by planner (Say: lines), not action loop
-- [x] **ARC-05**: Chat dedup: planner tracks recent messages, skips similar content
-- [x] **ARC-06**: No artificial token limits on any LLM call
+### Building Intelligence
 
-### Plugin Integration
+- [ ] **BUILD-01**: Agent can design structures via LLM-generated markdown building plans stored in context files
+- [ ] **BUILD-02**: Agent executes building plans block-by-block using smart place action
+- [ ] **BUILD-03**: Agent tracks all placed blocks persistently (block type, position, timestamp)
+- [ ] **BUILD-04**: Agent verifies completed builds against original plan using vision + block tracking
 
-- [x] **INT-01**: Custom Skript: /scan <block> <radius> surface — find surface blocks with coords
-- [x] **INT-02**: Custom Skript: /share-location <name> — broadcast location to all players
-- [x] **INT-03**: Agent queries mcMMO skill levels and adapts behavior (specialize in what they're good at)
-- [x] **INT-04**: Agent uses /home and /warp for fast travel
-- [x] **INT-05**: Agent can set up QuickShop chest shops to trade surplus items
-- [x] **INT-06**: Agent uses /findblock to locate specific resources
-- [x] **INT-07**: Agent queries ServerTap REST API for server-side state when needed
+### Spatial Memory
 
-### Agent Personality
+- [ ] **SPACE-01**: Agent maintains typed resource patches (ore veins, tree clusters, build sites) in persistent spatial memory
+- [ ] **SPACE-02**: Spatial memory is proximity-filtered when injected into prompts (prevents unbounded growth)
 
-- [x] **PER-01**: Agents build with aesthetic intent — choose locations for views, organize bases
-- [x] **PER-02**: Agents try new things — fishing, gardening, decorating, exploring
-- [x] **PER-03**: Agents have emotional responses — pride in builds, frustration when stuck, curiosity about new areas
-- [x] **PER-04**: Agents specialize based on mcMMO skills — Jeffrey becomes a miner, John a builder (emergent)
-- [x] **PER-05**: Agents trade with each other via QuickShop based on surplus/need
-- [x] **PER-06**: Agents remember and reference their history naturally in conversation
-- [x] **PER-07**: No meta-game language — agents talk about their world as real, never mention baritone/pathfinding/API
+### Server Scripts
 
-## v2 Requirements
+- [ ] **SCRIPT-01**: New Skript wrappers provide server-side assistance for agent operations (e.g. /where, /nearbyplayers, /checkblock)
+
+## v1.0 Requirements (Validated)
+
+All shipped and verified in v1.0 milestone. See MILESTONES.md for details.
+
+- ✓ Paper 1.21.1 server with 12 plugins — v1.0
+- ✓ Brain-hands-eyes 3-loop architecture — v1.0
+- ✓ Surface-first spatial awareness — v1.0
+- ✓ 37 agent tools (29 game + 8 plugin) — v1.0
+- ✓ Creative intelligence with BUILD vision evaluation — v1.0
+- ✓ Deep SOUL personalities with anti-meta-game enforcement — v1.0
+
+## Future Requirements
+
+Deferred to next milestone. Tracked but not in current roadmap.
+
+### Navigation
+
+- **NAV-01**: Agent auto-navigates home when >150 blocks from base (base tether)
+
+### Communication
+
+- **COMM-01**: Agent always responds to human messages before any other action (priority response)
 
 ### Scaling
+
 - **SCL-01**: Support 5-10 agents simultaneously
 - **SCL-02**: Agent personality generation from templates
 
 ### Advanced Gameplay
+
 - **ADV-01**: Nether exploration and resource gathering
 - **ADV-02**: Enchanting and brewing systems
 - **ADV-03**: Redstone contraptions and automated farms
 
 ### Social
+
 - **SOC-01**: Agent-to-agent conflict and resolution
 - **SOC-02**: Leadership emergence and role specialization
 - **SOC-03**: Shared building projects with role assignment
@@ -85,27 +84,44 @@
 
 | Feature | Reason |
 |---------|--------|
+| Mineflayer integration | Different architecture — fix existing mod-based primitives instead |
+| LLM-generated block coordinates | Root cause of current failures — LLM designs high-level, agent executes deterministically |
+| Real-time voxel world map | Enormous memory cost for marginal gain over named POI map |
+| Automatic recipe discovery | Non-deterministic, hard to debug — use static recipe database |
+| Chest auto-scan every tick | Causes visual glitch, rate limiting — scan only on explicit interaction |
+| Baritone #mine re-use | Routes underground regardless of surface intent — committed to look+break |
+| AuraSkills PlaceholderAPI | Not blocking gameplay — skill levels show as 0 |
+| ServerTap Docker exposure | Monitoring nicety, not blocking agent behavior |
+| Multi-agent cooperation tasks | Agents must be individually functional first |
 | Scoreboard display | User doesn't want it |
 | Custom Java Paper plugin | Use Skript instead for rapid iteration |
 | Hostile mob combat | Peaceful mode — focus on building/cooperation |
-| Multiple server instances | Single server is sufficient |
-| Mod changes for plugin channels | HTTP bridge works fine, plugin channels are overkill |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SRV-01..04 | Phase 1 | Pending |
-| PLG-01..12 | Phase 1 | Pending |
-| SAW-01..06 | Phase 2 | Pending |
-| ARC-01..06 | Phase 2 | Pending |
-| INT-01..07 | Phase 3 | Pending |
-| PER-01..07 | Phase 4 | Pending |
+| TOOL-01 | — | Pending |
+| TOOL-02 | — | Pending |
+| TOOL-03 | — | Pending |
+| TOOL-04 | — | Pending |
+| CHEST-01 | — | Pending |
+| CHEST-02 | — | Pending |
+| CRAFT-01 | — | Pending |
+| CRAFT-02 | — | Pending |
+| BUILD-01 | — | Pending |
+| BUILD-02 | — | Pending |
+| BUILD-03 | — | Pending |
+| BUILD-04 | — | Pending |
+| SPACE-01 | — | Pending |
+| SPACE-02 | — | Pending |
+| SCRIPT-01 | — | Pending |
 
 **Coverage:**
-- v1 requirements: 35 total
-- Mapped to phases: 35
-- Unmapped: 0 ✓
+- v1.1 requirements: 15 total
+- Mapped to phases: 0
+- Unmapped: 15
 
 ---
 *Requirements defined: 2026-03-21*
+*Last updated: 2026-03-21 after initial definition*
