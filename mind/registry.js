@@ -9,6 +9,7 @@ import { navigateTo } from '../body/navigate.js'
 import { requestInterrupt, clearInterrupt } from '../body/interrupt.js'
 import { combatLoop } from '../body/skills/combat.js'
 import { build } from '../body/skills/build.js'
+import { depositToChest, withdrawFromChest } from '../body/skills/chest.js'
 
 // REGISTRY maps !command names to async handler functions.
 // Args come in as strings from parseCommand — registry must parseInt() numeric args.
@@ -25,6 +26,16 @@ const REGISTRY = new Map([
     const target = bot.nearestEntity(e => e.type === 'mob' && e.position.distanceTo(bot.entity.position) < 16)
     if (!target) return Promise.resolve({ success: false, reason: 'no_hostile_nearby' })
     return combatLoop(bot, target)
+  }],
+  ['deposit',  (bot, args) => {
+    const block = bot.findBlock({ matching: b => b.name === 'chest' || b.name === 'trapped_chest' || b.name === 'barrel', maxDistance: 32 })
+    if (!block) return Promise.resolve({ success: false, reason: 'no chest/barrel found within 32 blocks' })
+    return depositToChest(bot, block, args.item, parseInt(args.count) || 1)
+  }],
+  ['withdraw', (bot, args) => {
+    const block = bot.findBlock({ matching: b => b.name === 'chest' || b.name === 'trapped_chest' || b.name === 'barrel', maxDistance: 32 })
+    if (!block) return Promise.resolve({ success: false, reason: 'no chest/barrel found within 32 blocks' })
+    return withdrawFromChest(bot, block, args.item, parseInt(args.count) || 1)
   }],
   ['build',    (bot, args) => {
     const name = args.blueprint || args.blueprintName || args.name

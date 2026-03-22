@@ -1,7 +1,7 @@
 // modes.js -- 300ms autonomous body tick: survival, combat, unstuck, pickup, idle
 
 import { attackTarget, HOSTILE_MOBS } from './skills/combat.js'
-import { eatIfHungry } from './skills/inventory.js'
+import { eatIfHungry, equipBestArmor } from './skills/inventory.js'
 import { navigateTo } from './navigate.js'
 import { requestInterrupt } from './interrupt.js'
 import minecraftData from 'minecraft-data'
@@ -24,6 +24,7 @@ const COMBAT_ENGAGE_RANGE = 8    // engage hostiles within 8 blocks
 let _lastPos = null        // stuck detection: last recorded position
 let _stuckTicks = 0        // stuck detection: consecutive ticks without movement
 let _lastLookTime = 0      // idle look cooldown — once per 3s, not every 300ms
+let _lastArmorCheck = 0    // armor equip cooldown — once per 30s
 let _tickBusy = false      // guard against overlapping async ticks
 
 // ── Helpers ──
@@ -94,6 +95,13 @@ async function checkSurvival(bot, getSkillRunning) {
   if (bot.food < EAT_THRESHOLD && !getSkillRunning()) {
     await eatIfHungry(bot, EAT_THRESHOLD)
     return true
+  }
+
+  // Auto-equip best armor (every 30s when idle)
+  const now = Date.now()
+  if (now - _lastArmorCheck > 30000 && !getSkillRunning()) {
+    _lastArmorCheck = now
+    await equipBestArmor(bot)
   }
 
   // Hazard flee: check environmental hazards

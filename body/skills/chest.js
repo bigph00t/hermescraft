@@ -22,7 +22,7 @@ let _chestMemoryPath = null
  */
 function getChestMemoryPath(agentName) {
   const __dirname = dirname(fileURLToPath(import.meta.url))
-  return join(__dirname, '..', '..', 'agent', 'data', agentName, 'chests.json')
+  return join(__dirname, '..', '..', 'data', agentName, 'chests.json')
 }
 
 /**

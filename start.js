@@ -3,11 +3,12 @@
 import { createBot } from './body/bot.js'
 import { loadAgentConfig } from './mind/config.js'
 import { initMemory, loadMemory, periodicSave } from './mind/memory.js'
-import { initSocial } from './mind/social.js'
-import { initLocations, getHome } from './mind/locations.js'
+import { initSocial, savePlayers } from './mind/social.js'
+import { initLocations, getHome, saveLocations } from './mind/locations.js'
 import { initMind, isSkillRunning } from './mind/index.js'
 import { initModes } from './body/modes.js'
 import { initBuild } from './body/skills/build.js'
+import { initChestMemory } from './body/skills/chest.js'
 
 async function main() {
   console.log('[hermescraft] v2 starting...')
@@ -26,7 +27,8 @@ async function main() {
   initSocial(config)
   initLocations(config)
 
-  // 3.5. Init build state (load any persisted build plan from prior session)
+  // 3.5. Init chest memory + build state
+  initChestMemory(config.name)
   initBuild(config)
 
   // 4. Set bot.homeLocation for body/modes.js night shelter (mind/body boundary: property on bot, not import)
@@ -44,8 +46,12 @@ async function main() {
   initModes(bot, isSkillRunning)
   console.log('[hermescraft] body modes started -- survival tick active')
 
-  // 7. Periodic save every 60s — saves memory + stats to disk
-  setInterval(() => periodicSave(), 60000)
+  // 7. Periodic save every 60s — saves memory, players, locations to disk
+  setInterval(() => {
+    periodicSave()
+    savePlayers()
+    saveLocations()
+  }, 60000)
 
   // Global error handlers — keep the process alive on unexpected errors.
   // The bot loop is resilient enough to recover from most failures.
