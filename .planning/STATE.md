@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Creative Building + Bug Fixes
-status: Ready to execute
-last_updated: "2026-03-22T20:46:42.895Z"
+status: Phase complete — ready for verification
+last_updated: "2026-03-22T20:52:46.269Z"
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
@@ -22,8 +22,8 @@ See: .planning/PROJECT.md (updated 2026-03-22)
 
 ## Current Position
 
-Phase: 08 (blueprint-intelligence) — EXECUTING
-Plan: 2 of 2
+Phase: 08 (blueprint-intelligence) — COMPLETE
+Plan: 2 of 2 (all plans complete)
 
 ## Performance Metrics
 
@@ -38,6 +38,7 @@ Plan: 2 of 2
 | 07-live-testing-bug-fixes | 01 | 12min | 2 | 4 |
 | 07-live-testing-bug-fixes | 02 | 15min | 1 | 2 |
 | 08-blueprint-intelligence | 01 | 3min | 2 | 10 |
+| 08-blueprint-intelligence | 02 | 3min | 2 | 4 |
 
 *Updated after each plan completion*
 
@@ -58,6 +59,10 @@ Plan: 2 of 2
 - validateBlueprint() infers size from grid when size field absent — LLM need not include it (08-01)
 - Validator collects ALL errors before returning — LLM sees full issue list, not just first (08-01)
 - Only preferred[0] validated against mcData; preferred[1+] are fallback alternatives (08-01)
+- designAndBuild() in mind/index.js orchestrates separate LLM call for !design; handled in think() before dispatch (08-02)
+- Generated blueprints written to body/blueprints/_generated.json — avoids API changes to build() (08-02)
+- Two-stage JSON extraction for LLM blueprint output: strip think tags -> direct parse -> regex {[\s\S]*} fallback (08-02)
+- !design registry entry is a stub for listCommands() coverage; real logic is pre-dispatch in think() (08-02)
 
 ### Critical Pitfalls (from v2.0)
 
@@ -88,3 +93,5 @@ None currently.
 - 2026-03-22: Plan 07-02 complete — 152-assertion smoke test, npm test passes 0 failures
 - 2026-03-22: Phase 07 complete — all v2 bug fixes and smoke test gate shipped
 - 2026-03-22: Plan 08-01 complete — 8 new blueprints + validateBlueprint() with 41-assertion TDD suite
+- 2026-03-22: Plan 08-02 complete — !design pipeline: buildDesignPrompt() + designAndBuild() + registry wiring, 194 smoke tests pass
+- 2026-03-22: Phase 08 complete — blueprint intelligence shipped

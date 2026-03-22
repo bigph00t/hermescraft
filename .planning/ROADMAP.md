@@ -48,11 +48,11 @@ Plans:
   1. System prompt includes 10+ reference blueprint examples covering diverse structure types (dock, house, tower, bridge, shelter)
   2. Given a structure description, the LLM outputs syntactically valid blueprint JSON with layers in bottom-to-top order (floor before walls before roof)
   3. Generated blueprints pass the existing build skill's validation without manual correction
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 08-01-PLAN.md — Create 8 new reference blueprints + blueprint validation module
-- [ ] 08-02-PLAN.md — Wire !design command: prompt builder, registry, and LLM-to-build pipeline
+- [x] 08-02-PLAN.md — Wire !design command: prompt builder, registry, and LLM-to-build pipeline
 
 ### Phase 9: Directed Building
 **Goal**: Players can instruct the bot in natural language to build specific structures or change materials, and the bot executes correctly
@@ -80,6 +80,6 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 7. Live Testing + Bug Fixes | v2.1 | 2/2 | Complete   | 2026-03-22 |
-| 8. Blueprint Intelligence | v2.1 | 1/2 | In Progress|  |
+| 8. Blueprint Intelligence | v2.1 | 2/2 | Complete   | 2026-03-22 |
 | 9. Directed Building | v2.1 | 0/TBD | Not started | - |
 | 10. Build Memory | v2.1 | 0/TBD | Not started | - |
