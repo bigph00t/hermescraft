@@ -7,6 +7,7 @@ import { craft } from '../body/skills/craft.js'
 import { smelt } from '../body/skills/smelt.js'
 import { navigateTo } from '../body/navigate.js'
 import { requestInterrupt, clearInterrupt } from '../body/interrupt.js'
+import { combatLoop } from '../body/skills/combat.js'
 
 // REGISTRY maps !command names to async handler functions.
 // Args come in as strings from parseCommand — registry must parseInt() numeric args.
@@ -19,6 +20,11 @@ const REGISTRY = new Map([
   ['navigate', (bot, args) => navigateTo(bot, parseInt(args.x), parseInt(args.y), parseInt(args.z))],
   ['chat',     (bot, args) => { bot.chat(args.message || ''); return { success: true } }],
   ['idle',     (_bot, _args) => Promise.resolve({ success: true, reason: 'idle' })],
+  ['combat',   (bot, _args) => {
+    const target = bot.nearestEntity(e => e.type === 'mob' && e.position.distanceTo(bot.entity.position) < 16)
+    if (!target) return Promise.resolve({ success: false, reason: 'no_hostile_nearby' })
+    return combatLoop(bot, target)
+  }],
 ])
 
 // Dispatch a !command to the corresponding body/ skill.
