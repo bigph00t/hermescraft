@@ -410,6 +410,43 @@ export const GAME_TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'where',
+      description: 'Check your current coordinates and biome. Useful to confirm position after navigating.',
+      parameters: { type: 'object', properties: {} },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'nearby_players',
+      description: 'List players within range with distance and direction. Useful to find others.',
+      parameters: {
+        type: 'object',
+        properties: {
+          radius: { type: 'integer', description: 'Search radius 1-200 (default 100)' },
+        },
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'check_block',
+      description: 'Check what block is at specific coordinates. Useful to verify builds or scout.',
+      parameters: {
+        type: 'object',
+        properties: {
+          x: { type: 'integer' },
+          y: { type: 'integer' },
+          z: { type: 'integer' },
+        },
+        required: ['x', 'y', 'z'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'use_ability',
       description: 'Activate a special ability if ready. Treecapitator (fell whole tree), Speed Mine (fast mining), Terraform (fast digging). Equip the right tool first. Has a cooldown — will tell you when ready.',
       parameters: {

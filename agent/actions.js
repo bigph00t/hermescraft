@@ -19,12 +19,13 @@ const VALID_ACTIONS = new Set([
   'plan_task', 'update_task',
   'scan_blocks', 'go_home', 'set_home', 'share_location',
   'check_skills', 'use_ability', 'query_shops', 'create_shop',
+  'where', 'nearby_players', 'check_block',
   // 'wait' deliberately removed — force real actions
 ]);
 
 // Info actions return data to the LLM — they don't execute in the game world
 // scan_blocks and check_skills are INFO_ACTIONS: results arrive via chat and the LLM must see them before deciding next action
-export const INFO_ACTIONS = new Set(['recipes', 'wiki', 'notepad', 'read_chat', 'save_context', 'delete_context', 'plan_task', 'update_task', 'scan_blocks', 'check_skills']);
+export const INFO_ACTIONS = new Set(['recipes', 'wiki', 'notepad', 'read_chat', 'save_context', 'delete_context', 'plan_task', 'update_task', 'scan_blocks', 'check_skills', 'where', 'nearby_players', 'check_block']);
 
 // Schema validators per action type
 const ACTION_SCHEMAS = {
@@ -74,6 +75,9 @@ const ACTION_SCHEMAS = {
   set_home:       () => true,
   share_location: (a) => typeof a.name === 'string',
   check_skills:   () => true,
+  where:          () => true,
+  nearby_players: () => true,
+  check_block:    (a) => a.x !== undefined && a.y !== undefined && a.z !== undefined,
   use_ability:    (a) => typeof a.ability_name === 'string',
   query_shops:    (a) => typeof a.item === 'string',
   create_shop:    (a) => typeof a.price === 'number' && typeof a.item === 'string',
@@ -351,6 +355,22 @@ export async function executeAction(action) {
 
   if (type === 'check_skills') {
     return sendSingleAction({ type: 'chat', message: '/myskills' })
+  }
+
+  if (type === 'where') {
+    return sendSingleAction({ type: 'chat', message: '/where' })
+  }
+
+  if (type === 'nearby_players') {
+    const radius = Math.min(Math.max(parseInt(action.radius) || 100, 1), 200)
+    return sendSingleAction({ type: 'chat', message: `/nearbyplayers ${radius}` })
+  }
+
+  if (type === 'check_block') {
+    const x = parseInt(action.x)
+    const y = parseInt(action.y)
+    const z = parseInt(action.z)
+    return sendSingleAction({ type: 'chat', message: `/checkblock ${x} ${y} ${z}` })
   }
 
   if (type === 'use_ability') {
