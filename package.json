@@ -10,6 +10,8 @@
     "dev": "node --watch agent/index.js"
   },
   "dependencies": {
+    "mineflayer-pathfinder": "^2.4.5",
+    "mineflayer-tool": "^1.2.0",
     "openai": "^4.0.0",
     "ws": "^8.16.0"
   }
