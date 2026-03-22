@@ -10,8 +10,8 @@ Requirements for Tool Quality & Building Intelligence milestone. Each maps to ro
 ### Tool Fixes
 
 - [ ] **TOOL-01**: Agent can place blocks reliably using support block + face direction (auto-equip from full inventory)
-- [ ] **TOOL-02**: All LLM-generated item names are normalized to valid MC 1.21.1 registry names before dispatch
-- [ ] **TOOL-03**: Mine action is removed — all block breaking uses look_at_block + break_block only
+- [x] **TOOL-02**: All LLM-generated item names are normalized to valid MC 1.21.1 registry names before dispatch
+- [x] **TOOL-03**: Mine action is removed — all block breaking uses look_at_block + break_block only
 - [ ] **TOOL-04**: Sustained action lock timeout clears properly so subsequent actions are never permanently blocked
 
 ### Chest Interaction
@@ -102,8 +102,8 @@ Deferred to next milestone. Tracked but not in current roadmap.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | TOOL-01 | Phase 5 | Pending |
-| TOOL-02 | Phase 5 | Pending |
-| TOOL-03 | Phase 5 | Pending |
+| TOOL-02 | Phase 5 | Complete |
+| TOOL-03 | Phase 5 | Complete |
 | TOOL-04 | Phase 5 | Pending |
 | CHEST-01 | Phase 5 | Pending |
 | CHEST-02 | Phase 5 | Pending |

@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Tool Quality & Building Intelligence
-status: planning
-last_updated: "2026-03-21T00:00:00.000Z"
+status: unknown
+last_updated: "2026-03-22T04:04:41.519Z"
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 10
-  completed_plans: 0
+  total_plans: 3
+  completed_plans: 1
 ---
 
 # Project State
@@ -18,20 +18,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-21)
 
 **Core value:** Agents feel and play like real people — creative, emotional, with desires, aesthetic sense, and the ability to interact with what they see
-**Current focus:** Phase 5 — Tool Primitives
+**Current focus:** Phase 05 — tool-primitives
 
 ## Current Position
 
-Phase: 5 of 8 (Tool Primitives)
-Plan: 0 of 3 in current phase
-Status: Planning complete, ready to execute
-Last activity: 2026-03-21 — Phase 5 plans created
-
-Progress: [░░░░░░░░░░] 0%
+Phase: 05 (tool-primitives) — EXECUTING
+Plan: 2 of 3
 
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed: 0 (v1.1)
 - Average duration: —
 - Total execution time: —
@@ -46,6 +43,7 @@ Progress: [░░░░░░░░░░] 0%
 | 8. Spatial Memory + Server Scripts | 0/2 | — | — |
 
 *Updated after each plan completion*
+| Phase 05 P01 | 98s | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -64,6 +62,9 @@ Progress: [░░░░░░░░░░] 0%
 - response-driven state updates: embed state changes in action response JSON, not via polling
 - planner expands abstract actions into concrete dependency-ordered steps at queue-write time
 - each new agent-side module owns exactly one JSON file in data/{name}/
+- [Phase 05]: Strip _N numeric suffix only when base name is a valid registry item — prevents raw_iron → raw_iro
+- [Phase 05]: Return input unchanged on failed normalization — downstream error is more visible than silent wrong name
+- [Phase 05]: Mine handler left intact in mod — unreachable but harmless, avoids mod rebuild
 
 ### Pending Todos
 
