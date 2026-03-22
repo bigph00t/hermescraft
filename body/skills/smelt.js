@@ -72,6 +72,7 @@ export async function smelt(bot, inputName, fuelName, count = 1, options = {}) {
   // Coal/charcoal smelts 8 items; add +1 for partial fuel safety
   const fuelCount = Math.ceil(count / 8) + 1
 
+  console.log(`[smelt] opening furnace at ${furnaceBlock.position}, smelting ${count}x ${normalizedInput} with ${fuelCount}x ${normalizedFuel}`)
   const furnace = await bot.openFurnace(furnaceBlock)
   try {
     // Put fuel BEFORE input — no fuel means nothing smelts (Pitfall 6)

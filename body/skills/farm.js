@@ -68,10 +68,16 @@ export async function farm(bot, seedName, count = 1) {
     if (isInterrupted(bot)) break
     if (!nav.success) continue
 
-    // Equip hoe
+    // Equip hoe — re-find each iteration to handle slot changes / item reference staleness
+    const freshHoe = bot.inventory.items().find(i => i.name.includes('hoe'))
+    if (!freshHoe) {
+      console.log('[farm] hoe depleted mid-farm')
+      break
+    }
     try {
-      await bot.equip(hoe, 'hand')
+      await bot.equip(freshHoe, 'hand')
     } catch (err) {
+      console.log(`[farm] equip hoe failed: ${err.message}`)
       // If equip fails, skip this block rather than abort
       continue
     }

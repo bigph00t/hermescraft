@@ -104,11 +104,15 @@ export function solveCraft(targetItem, inventory, targetCount = 1) {
   const steps = []
   const missing = []
 
-  // Track what we've added to steps to avoid duplicates
-  const visited = new Set()
+  // Cycle detection: tracks items currently being resolved in the call stack.
+  // Unlike the old 'visited' set, this is cleared when a resolve() completes,
+  // so the SAME item CAN be resolved again by a different consumer.
+  // This is critical for multi-consumer dependencies like wooden_pickaxe
+  // (needs planks directly + planks via sticks).
+  const inProgress = new Set()
 
-  // Working copy of a simulated inventory (includes what we'll produce by crafting)
-  // Keys are normalized names, values are counts available (real + will-produce)
+  // Working copy of a simulated inventory — tracks available counts.
+  // Consumption is deducted immediately on entry; production is credited on exit.
   const simInventory = Object.assign({}, inventory)
 
   /**
@@ -120,17 +124,23 @@ export function solveCraft(targetItem, inventory, targetCount = 1) {
 
     const normalized = normalizeItemName(itemName)
 
-    // If already have enough, skip
+    // Consume what we can from simulated inventory immediately.
+    // This ensures sibling ingredients see reduced availability.
     const available = simInventory[normalized] || 0
-    if (available >= neededCount) return true
+    const fromInventory = Math.min(available, neededCount)
+    simInventory[normalized] = available - fromInventory
+    const deficit = neededCount - fromInventory
 
-    // Avoid re-processing the same item twice in the same chain
-    if (visited.has(normalized)) return true
+    // If we have enough after reservation, no crafting needed
+    if (deficit <= 0) return true
+
+    // Cycle guard: if this item is already being resolved up the call stack,
+    // we have a circular dependency. Return true to avoid infinite recursion.
+    if (inProgress.has(normalized)) return true
 
     // Look up item in minecraft-data
     const itemEntry = mcData.itemsByName[normalized]
     if (!itemEntry) {
-      // Unknown item — add to missing if not already tracked
       if (!missing.includes(itemName)) {
         missing.push(itemName)
       }
@@ -140,22 +150,20 @@ export function solveCraft(targetItem, inventory, targetCount = 1) {
     // Look up recipes for this item
     const recipes = mcData.recipes[itemEntry.id]
     if (!recipes || recipes.length === 0) {
-      // Raw material — check if we have it
-      if (available < neededCount) {
-        if (!missing.includes(normalized)) {
-          missing.push(normalized)
-        }
+      // Raw material — not craftable; report missing
+      if (!missing.includes(normalized)) {
+        missing.push(normalized)
       }
-      return available >= neededCount
+      return false
     }
 
     // Select best recipe variant based on current simulated inventory
     const recipe = selectBestVariant(recipes, simInventory)
     const outputCount = (recipe.result && recipe.result.count) ? recipe.result.count : 1
-    const craftTimesNeeded = Math.ceil(Math.max(0, neededCount - available) / outputCount)
+    const craftTimesNeeded = Math.ceil(deficit / outputCount)
 
-    // Mark as visited BEFORE recursing to prevent circular dependencies
-    visited.add(normalized)
+    // Mark in-progress BEFORE recursing to detect cycles
+    inProgress.add(normalized)
 
     // Recursively resolve each ingredient
     const ingredients = getIngredients(recipe)
@@ -164,18 +172,29 @@ export function solveCraft(targetItem, inventory, targetCount = 1) {
       resolve(ing.item, totalIngNeeded, depth + 1)
     }
 
-    // Add this craft step (leaves-first order due to recursion)
-    const needsTable = needsCraftingTable(recipe)
-    steps.push({
-      action: 'craft',
-      item: normalized,
-      count: craftTimesNeeded,
-      ingredients,
-      needsTable,
-    })
+    // Clear in-progress — this item is resolved, other consumers can re-enter
+    inProgress.delete(normalized)
 
-    // Update simulated inventory to reflect production
-    simInventory[normalized] = (simInventory[normalized] || 0) + (craftTimesNeeded * outputCount)
+    // Check if this exact item+count step already exists — merge to avoid duplicates
+    const existingStep = steps.find(s => s.item === normalized)
+    if (existingStep) {
+      existingStep.count += craftTimesNeeded
+    } else {
+      const needsTable = needsCraftingTable(recipe)
+      steps.push({
+        action: 'craft',
+        item: normalized,
+        count: craftTimesNeeded,
+        ingredients,
+        needsTable,
+      })
+    }
+
+    // Credit surplus production to simulated inventory
+    const surplus = (craftTimesNeeded * outputCount) - deficit
+    if (surplus > 0) {
+      simInventory[normalized] = (simInventory[normalized] || 0) + surplus
+    }
 
     return true
   }

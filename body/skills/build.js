@@ -288,8 +288,11 @@ export async function build(bot, blueprintName, originX, originY, originZ) {
     }
 
     // ── Equip Block in Hand ──
+    // Re-fetch Item object from inventory — equipping by Item is more reliable than by ID
+    // because mineflayer matches the exact slot, avoiding stale-reference issues.
+    const blockItem = bot.inventory.findInventoryItem(itemMeta.id, null)
     try {
-      await bot.equip(itemMeta.id, 'hand')
+      await bot.equip(blockItem || itemMeta.id, 'hand')
     } catch (err) {
       console.log(`[build] equip failed for ${entry.block}: ${err.message}`)
     }

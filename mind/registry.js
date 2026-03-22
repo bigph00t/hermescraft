@@ -7,7 +7,7 @@ import { craft } from '../body/skills/craft.js'
 import { smelt } from '../body/skills/smelt.js'
 import { navigateTo } from '../body/navigate.js'
 import { requestInterrupt, clearInterrupt } from '../body/interrupt.js'
-import { combatLoop } from '../body/skills/combat.js'
+import { combatLoop, HOSTILE_MOBS } from '../body/skills/combat.js'
 import { build, updatePalette } from '../body/skills/build.js'
 import { scanArea } from '../body/skills/scan.js'
 import { depositToChest, withdrawFromChest } from '../body/skills/chest.js'
@@ -33,17 +33,24 @@ const REGISTRY = new Map([
     if (!name) return { success: false, reason: 'specify item name. Usage: !drop item:oak_log count:1' }
     const item = bot.inventory.items().find(i => i.name === name || i.name.includes(name))
     if (!item) return { success: false, reason: `no ${name} in inventory` }
+    const toDrop = Math.min(count, item.count)
     try {
-      await bot.tossStack(item)
-      return { success: true, reason: `dropped ${item.name}` }
+      await bot.toss(item.type, null, toDrop)
+      console.log(`[drop] dropped ${toDrop}x ${item.name}`)
+      return { success: true, reason: `dropped ${toDrop}x ${item.name}` }
     } catch (err) {
       return { success: false, reason: err.message }
     }
   }],
   ['idle',     (_bot, _args) => Promise.resolve({ success: true, reason: 'idle' })],
   ['combat',   (bot, _args) => {
-    const target = bot.nearestEntity(e => e.type === 'mob' && e.position.distanceTo(bot.entity.position) < 16)
+    const target = bot.nearestEntity(e =>
+      e.type === 'mob' &&
+      HOSTILE_MOBS.has(e.name) &&
+      e.position.distanceTo(bot.entity.position) < 16
+    )
     if (!target) return Promise.resolve({ success: false, reason: 'no_hostile_nearby' })
+    console.log(`[combat] engaging ${target.name} at distance ${target.position.distanceTo(bot.entity.position).toFixed(1)}`)
     return combatLoop(bot, target)
   }],
   ['deposit',  (bot, args) => {

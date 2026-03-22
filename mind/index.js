@@ -301,11 +301,24 @@ export async function initMind(bot, config) {
   //   - Messages with no sender (system/server messages) are ignored
   //   - The bot's own messages echoed back are filtered by username match
   bot.on('messagestr', (msgStr, position, jsonMsg, sender) => {
-    if (!sender || sender === bot.username) return
+    if (!sender) return
 
-    // Resolve sender UUID to username — players map contains UUID → Player objects
-    const username = bot.players?.[sender]?.username || sender.toString().slice(0, 8)
-    // Filter bot's own messages that come back with a sender UUID
+    // Resolve sender UUID to username — bot.players is keyed by USERNAME, not UUID.
+    // The 'sender' parameter in messagestr is a UUID string (MC 1.16+),
+    // so we must search bot.players for the entry whose .uuid matches.
+    let username = null
+    for (const [pName, pData] of Object.entries(bot.players || {})) {
+      if (pData.uuid === sender) {
+        username = pName
+        break
+      }
+    }
+    if (!username) {
+      // Fallback: sender might be a username on some server implementations
+      username = bot.players?.[sender]?.username || sender.toString().slice(0, 16)
+    }
+
+    // Filter bot's own messages echoed back
     if (username === bot.username) return
 
     console.log('[mind] chat from', username, ':', msgStr)

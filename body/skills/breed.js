@@ -11,7 +11,7 @@ const BREED_FOOD = {
   chicken: 'wheat_seeds',
   rabbit: 'carrot',
   horse: 'golden_apple',
-  wolf: 'bone',
+  wolf: 'cooked_beef',   // bones tame wolves; any meat breeds them — cooked_beef is most common
   cat: 'raw_cod',
 }
 

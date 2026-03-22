@@ -60,6 +60,7 @@ export function saveLocation(name, x, y, z, type = 'custom') {
     type,
     saved: new Date().toISOString(),
   }
+  saveLocations()  // persist immediately so locations survive crashes
 }
 
 export function getLocationsForPrompt(botPosition) {

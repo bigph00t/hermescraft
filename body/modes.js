@@ -4,6 +4,7 @@ import { attackTarget, HOSTILE_MOBS } from './skills/combat.js'
 import { eatIfHungry, equipBestArmor } from './skills/inventory.js'
 import { navigateTo } from './navigate.js'
 import { requestInterrupt } from './interrupt.js'
+import { Vec3 } from 'vec3'
 import minecraftData from 'minecraft-data'
 
 const mcData = minecraftData('1.21.1')
@@ -310,7 +311,7 @@ async function checkTorchPlacement(bot) {
 
   try {
     await bot.equip(torch, 'hand')
-    await bot.placeBlock(belowBlock, { x: 0, y: 1, z: 0 })
+    await bot.placeBlock(belowBlock, new Vec3(0, 1, 0))
     console.log('[modes] torch placed — light was', block.light)
     _lastTorchTime = Date.now()
     return true

@@ -66,7 +66,9 @@ async function findOrPlaceCraftingTable(bot) {
   // Equip the crafting table before attempting placement
   try {
     await bot.equip(tableItem, 'hand')
+    console.log('[craft] equipped crafting_table for placement')
   } catch {
+    console.log('[craft] failed to equip crafting_table — bailing')
     return null  // can't equip — bail
   }
 
@@ -124,6 +126,7 @@ export async function craft(bot, itemName, count = 1) {
   const { steps, missing } = solveCraft(normalizedName, inventory, count)
 
   if (missing.length > 0) {
+    console.log(`[craft] missing materials for ${normalizedName}: ${missing.join(', ')}`)
     return { success: false, reason: 'missing_materials', missing, item: normalizedName }
   }
 

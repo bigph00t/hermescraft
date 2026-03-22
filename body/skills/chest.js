@@ -127,7 +127,10 @@ export async function depositToChest(bot, chestBlock, itemName, count) {
     return { success: false, reason: 'no_items_to_deposit', item: normalized }
   }
 
-  const chest = await bot.openChest(chestBlock)
+  // Use openContainer (mineflayer 4.x) with fallback to deprecated openChest
+  const chest = typeof bot.openContainer === 'function'
+    ? await bot.openContainer(chestBlock)
+    : await bot.openChest(chestBlock)
   try {
     await chest.deposit(itemId, null, toDeposit)
 
@@ -178,7 +181,10 @@ export async function withdrawFromChest(bot, chestBlock, itemName, count) {
     return { success: false, reason: 'inventory_full', item: normalized }
   }
 
-  const chest = await bot.openChest(chestBlock)
+  // Use openContainer (mineflayer 4.x) with fallback to deprecated openChest
+  const chest = typeof bot.openContainer === 'function'
+    ? await bot.openContainer(chestBlock)
+    : await bot.openChest(chestBlock)
   try {
     // Check chest actually has the item before attempting withdraw
     const available = chest.count(itemId, null)

@@ -29,12 +29,15 @@ export async function navigateTo(bot, x, y, z, range = 1, timeoutMs = 30000) {
   try {
     await Promise.race([bot.pathfinder.goto(goal), timer])
     clearTimeout(timerId)
+    console.log(`[navigate] arrived at ${x},${y},${z}`)
     return { success: true }
   } catch (err) {
     clearTimeout(timerId)
     // setGoal(null) causes immediate halt — faster than pathfinder.stop()
     bot.pathfinder.setGoal(null)
-    return { success: false, reason: err.message === 'nav_timeout' ? 'nav_timeout' : err.message }
+    const reason = err.message === 'nav_timeout' ? 'nav_timeout' : err.message
+    console.log(`[navigate] failed to reach ${x},${y},${z}: ${reason}`)
+    return { success: false, reason }
   }
 }
 
