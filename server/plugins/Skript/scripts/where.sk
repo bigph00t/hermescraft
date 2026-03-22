@@ -1,0 +1,8 @@
+command /where:
+    description: Report current coordinates and biome
+    trigger:
+        set {_x} to round(x-coordinate of player's location)
+        set {_y} to round(y-coordinate of player's location)
+        set {_z} to round(z-coordinate of player's location)
+        set {_biome} to biome of player's location
+        send "Location: %{_x}% %{_y}% %{_z}% in %{_biome}%" to player

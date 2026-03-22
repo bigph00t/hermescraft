@@ -1,0 +1,9 @@
+command /checkblock <integer> <integer> <integer>:
+    description: Check block type at coordinates
+    trigger:
+        set {_x} to arg-1
+        set {_y} to arg-2
+        set {_z} to arg-3
+        set {_loc} to location({_x}, {_y}, {_z}, player's world)
+        set {_block} to type of block at {_loc}
+        send "Block: %{_block}% at %{_x}% %{_y}% %{_z}%" to player

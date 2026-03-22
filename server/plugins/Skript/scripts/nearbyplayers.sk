@@ -1,0 +1,27 @@
+command /nearbyplayers [<integer=100>]:
+    description: List nearby players with distance and direction
+    trigger:
+        set {_radius} to arg-1
+        if {_radius} > 200:
+            set {_radius} to 200
+        set {_count} to 0
+        loop all players in radius {_radius} of player:
+            if loop-player is not player:
+                set {_dist} to round(distance between player's location and loop-player's location)
+                set {_dx} to (x-coordinate of loop-player's location) - (x-coordinate of player's location)
+                set {_dz} to (z-coordinate of loop-player's location) - (z-coordinate of player's location)
+                set {_dir} to "nearby"
+                if abs({_dx}) >= abs({_dz}):
+                    if {_dx} >= 0:
+                        set {_dir} to "east"
+                    else:
+                        set {_dir} to "west"
+                else:
+                    if {_dz} >= 0:
+                        set {_dir} to "south"
+                    else:
+                        set {_dir} to "north"
+                send "Player: %loop-player's name% %{_dist}% blocks %{_dir}%" to player
+                add 1 to {_count}
+        if {_count} is 0:
+            send "No players within %{_radius}% blocks" to player

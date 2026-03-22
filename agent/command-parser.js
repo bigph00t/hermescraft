@@ -11,6 +11,10 @@ export const COMMAND_PATTERNS = {
   location_shared: /^(\S+) marked (\S+) at (-?\d+\.?\d*),?\s*(-?\d+\.?\d*),?\s*(-?\d+\.?\d*)$/,
   ability_activated: /^(Treecapitator|Speed Mine|Terraform) activated/i,
   ability_ready: /^(Treecapitator|Speed Mine|Terraform) is ready/i,
+  where_result: /^Location: (-?\d+) (-?\d+) (-?\d+) in (.+)$/,
+  nearby_player: /^Player: (\S+) (\d+) blocks (\w+)$/,
+  nearby_miss: /^No players within (\d+) blocks$/,
+  check_block: /^Block: (\S+) at (-?\d+) (-?\d+) (-?\d+)$/,
 }
 
 // ── Core Parser ──
@@ -67,6 +71,41 @@ export function extractSkillLevels(parsedResults) {
     skills[r.match[1].toLowerCase()] = parseInt(r.match[2], 10)
   }
   return skills
+}
+
+// Returns { x, y, z, biome } from where_result.
+export function extractWhereResult(parsedResults) {
+  const r = parsedResults.find(r => r.type === 'where_result')
+  if (!r) return null
+  return {
+    x: parseInt(r.match[1], 10),
+    y: parseInt(r.match[2], 10),
+    z: parseInt(r.match[3], 10),
+    biome: r.match[4],
+  }
+}
+
+// Returns array of { name, distance, direction } from nearby_player results.
+export function extractNearbyPlayers(parsedResults) {
+  return parsedResults
+    .filter(r => r.type === 'nearby_player')
+    .map(r => ({
+      name: r.match[1],
+      distance: parseInt(r.match[2], 10),
+      direction: r.match[3],
+    }))
+}
+
+// Returns { block, x, y, z } from check_block result.
+export function extractCheckBlockResult(parsedResults) {
+  const r = parsedResults.find(r => r.type === 'check_block')
+  if (!r) return null
+  return {
+    block: r.match[1],
+    x: parseInt(r.match[2], 10),
+    y: parseInt(r.match[3], 10),
+    z: parseInt(r.match[4], 10),
+  }
 }
 
 // ── Planner Context Formatter ──
