@@ -305,6 +305,63 @@ section('Place Module Constants')
 assert('FACE is a non-null object', place.FACE !== null && typeof place.FACE === 'object')
 assert('FACE has at least 1 key', Object.keys(place.FACE).length >= 1)
 
+// ── Section 11: scan.js — 3D area block scanner ──
+
+section('scan.js — scanArea')
+
+const scan = await import('../body/skills/scan.js')
+assert('body/skills/scan: scanArea exported', typeof scan.scanArea === 'function')
+
+// Build a mock bot whose blockAt returns predictable blocks
+const scanBot = {
+  blockAt(vec3) {
+    // 2x2x2 cube at (0,0,0)-(1,1,1): all stone except (0,0,0) = air
+    if (vec3.x === 0 && vec3.y === 0 && vec3.z === 0) return { name: 'air' }
+    return { name: 'stone' }
+  },
+}
+
+const r1 = scan.scanArea(scanBot, 0, 0, 0, 1, 1, 1)
+assert('scanArea success: true', r1.success === true)
+assert('scanArea volume: 8', r1.volume === 8)
+assert('scanArea blocks is object', r1.blocks && typeof r1.blocks === 'object')
+assert('scanArea air count = 1', r1.blocks['air'] === 1)
+assert('scanArea stone count = 7', r1.blocks['stone'] === 7)
+assert('scanArea total excludes air/unloaded', r1.total === 7)
+
+// Coordinate normalization (x1 > x2 still works)
+const r2 = scan.scanArea(scanBot, 1, 1, 1, 0, 0, 0)
+assert('scanArea coord normalization: volume 8', r2.volume === 8)
+assert('scanArea coord normalization: stone = 7', r2.blocks['stone'] === 7)
+
+// NaN coordinate returns invalid_coordinates
+const r3 = scan.scanArea(scanBot, NaN, 0, 0, 1, 1, 1)
+assert('scanArea NaN coord: success false', r3.success === false)
+assert('scanArea NaN coord: reason invalid_coordinates', r3.reason === 'invalid_coordinates')
+
+// Volume > 32768 returns scan_too_large
+const r4 = scan.scanArea(scanBot, 0, 0, 0, 33, 33, 33)
+assert('scanArea oversized: success false', r4.success === false)
+assert('scanArea oversized: reason scan_too_large', r4.reason === 'scan_too_large')
+
+// Unloaded chunk (blockAt returns null) counted as "unloaded"
+const unloadedBot = { blockAt(_v) { return null } }
+const r5 = scan.scanArea(unloadedBot, 0, 0, 0, 0, 0, 0)
+assert('scanArea unloaded: success true', r5.success === true)
+assert('scanArea unloaded: has unloaded key', r5.blocks['unloaded'] === 1)
+assert('scanArea unloaded: total is 0 (air/unloaded excluded)', r5.total === 0)
+
+// ── Section 12: build.js — updatePalette ──
+
+section('build.js — updatePalette')
+
+assert('body/skills/build: updatePalette exported', typeof build.updatePalette === 'function')
+
+// No active build → failure
+const upNoActive = build.updatePalette('stone', 'cobblestone')
+assert('updatePalette no active build: success false', upNoActive.success === false)
+assert('updatePalette no active build: reason no_active_build', upNoActive.reason === 'no_active_build')
+
 // ── Final Summary ──
 
 console.log(`\n${'='.repeat(40)}`)
