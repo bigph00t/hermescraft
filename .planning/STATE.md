@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Mineflayer Rewrite
-status: Ready to plan
-last_updated: "2026-03-22T18:03:18.347Z"
+status: Executing Phase 03
+last_updated: "2026-03-22T18:25:10Z"
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 7
+  completed_plans: 6
 ---
 
 # Project State
@@ -18,12 +18,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-22)
 
 **Core value:** Agents feel and play like real people — creative, emotional, able to interact with the world
-**Current focus:** Phase 02 — crafting-inventory
+**Current focus:** Phase 03 — mind-loop-llm
 
 ## Current Position
 
-Phase: 3
-Plan: Not started
+Phase: 03 (mind-loop-llm) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -45,6 +45,7 @@ Plan: Not started
 | Phase 01-bot-foundation-core-skills P03 | 8min | 2 tasks | 2 files |
 | Phase 02-crafting-inventory P01 | 4min | 2 tasks | 2 files |
 | Phase 02-crafting-inventory P02 | 3min | 3 tasks | 3 files |
+| Phase 03-mind-loop-llm P03-01 | 2m 23s | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,10 @@ Plan: Not started
 - [02-02] Fuel count Math.ceil(count/8)+1 — coal smelts 8 items; +1 handles partial fuel safety for edge counts
 - [02-02] FOOD_NAMES Set from mcData.foodsArray at module load — O(1) food lookup for eatIfHungry, avoids per-call array search
 - [02-02] initChestMemory is explicit call pattern — matches init<Subsystem> convention; chest memory at agent/data/{agentName}/chests.json
+- [03-01] Text mode only in queryLLM — no tool_choice; MiniMax M2.7 thinking model ignores brevity constraints and may not produce tool calls reliably; !command text is the resilient path
+- [03-01] Mind boundary: only mind/registry.js imports from body/; mind/llm.js and mind/prompt.js are boundary-clean; enforced by code structure
+- [03-01] parseCommand uses matchAll with capture groups for named/quoted args + positional fallback for bare !gather oak_log 10 style
+- [03-01] registry.js parseInt() wraps all numeric args — parseCommand produces strings, body/ skills expect numbers
 
 ### Critical Pitfalls (from research)
 
@@ -103,3 +108,4 @@ None currently.
 - 2026-03-22: Completed 01-03 — body/skills/gather.js and body/skills/mine.js created; Phase 1 complete (3/3 plans done)
 - 2026-03-22: Completed 02-01 — body/crafter.js (BFS solver) and body/skills/craft.js (craft skill) created; SKILL-03 complete
 - 2026-03-22: Completed 02-02 — body/skills/smelt.js, body/skills/chest.js, body/skills/inventory.js created; SKILL-04, SKILL-07, SKILL-08 complete; Phase 2 complete
+- 2026-03-22: Completed 03-01 — mind/llm.js, mind/prompt.js, mind/registry.js created; LLM client + history + !command parser + prompt builder + command dispatch bridge; MIND-02, MIND-03 complete

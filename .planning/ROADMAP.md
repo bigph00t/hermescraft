@@ -86,9 +86,9 @@ Plans:
   2. LLM fires after a skill completes and picks the next action without human intervention
   3. Bot re-evaluates and selects a new goal when idle for 2+ seconds with no active task
   4. Conversation history stays at or below 40 turns; oldest turns are compressed, not dropped, when the cap is reached
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
-- [ ] 03-01-PLAN.md — LLM client, prompt builder, command registry (MIND-02, MIND-03)
+- [x] 03-01-PLAN.md — LLM client, prompt builder, command registry (MIND-02, MIND-03)
 - [ ] 03-02-PLAN.md — Event-driven Mind loop + v2 entry point (MIND-01, MIND-04)
 
 ### Phase 4: Survival Modes
@@ -134,7 +134,7 @@ v2.0 phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 |-------|-----------|----------------|--------|-----------|
 | 1. Bot Foundation + Core Skills | v2.0 | 3/3 | Complete   | 2026-03-22 |
 | 2. Crafting + Inventory | v2.0 | 2/2 | Complete   | 2026-03-22 |
-| 3. Mind Loop + LLM | v2.0 | 0/2 | In progress | - |
+| 3. Mind Loop + LLM | v2.0 | 1/2 | In Progress|  |
 | 4. Survival Modes | v2.0 | 0/? | Not started | - |
 | 5. Personality + Social | v2.0 | 0/? | Not started | - |
 | 6. Creative Building | v2.0 | 0/? | Not started | - |

@@ -29,8 +29,8 @@ Requirements for Mineflayer Rewrite milestone.
 ### Mind Loop
 
 - [ ] **MIND-01**: Event-driven LLM — fires on idle (2s no action), chat received, or skill completion
-- [ ] **MIND-02**: Command registry — LLM calls skills by name (!command pattern)
-- [ ] **MIND-03**: Conversation history — 40-turn rolling window with graduated trimming
+- [x] **MIND-02**: Command registry — LLM calls skills by name (!command pattern)
+- [x] **MIND-03**: Conversation history — 40-turn rolling window with graduated trimming
 - [ ] **MIND-04**: Self-prompter — when idle with no goal, LLM re-evaluates and picks next action
 
 ### Autonomous Modes
@@ -95,8 +95,8 @@ Requirements for Mineflayer Rewrite milestone.
 | SKILL-07 | Phase 2 | Complete |
 | SKILL-08 | Phase 2 | Complete |
 | MIND-01 | Phase 3 | Pending |
-| MIND-02 | Phase 3 | Pending |
-| MIND-03 | Phase 3 | Pending |
+| MIND-02 | Phase 3 | Complete |
+| MIND-03 | Phase 3 | Complete |
 | MIND-04 | Phase 3 | Pending |
 | MODE-01 | Phase 4 | Pending |
 | MODE-02 | Phase 4 | Pending |
