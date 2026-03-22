@@ -49,20 +49,20 @@ Requirements for Creative Building + Bug Fixes milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FIX-01 | TBD | Pending |
-| FIX-02 | TBD | Pending |
-| CBUILD-01 | TBD | Pending |
-| CBUILD-02 | TBD | Pending |
-| CBUILD-03 | TBD | Pending |
-| CBUILD-04 | TBD | Pending |
-| CBUILD-05 | TBD | Pending |
-| BMEM-01 | TBD | Pending |
-| BMEM-02 | TBD | Pending |
+| FIX-01 | Phase 7 | Pending |
+| FIX-02 | Phase 7 | Pending |
+| CBUILD-03 | Phase 8 | Pending |
+| CBUILD-04 | Phase 8 | Pending |
+| CBUILD-01 | Phase 9 | Pending |
+| CBUILD-02 | Phase 9 | Pending |
+| CBUILD-05 | Phase 9 | Pending |
+| BMEM-01 | Phase 10 | Pending |
+| BMEM-02 | Phase 10 | Pending |
 
 **Coverage:**
 - v2.1 requirements: 9 total
-- Mapped to phases: 0
-- Unmapped: 9
+- Mapped to phases: 9
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-22*

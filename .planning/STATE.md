@@ -5,7 +5,7 @@ milestone_name: Creative Building + Bug Fixes
 status: ready_to_plan
 last_updated: "2026-03-22T21:30:00.000Z"
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -18,14 +18,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-22)
 
 **Core value:** Agents feel and play like real people — creative, emotional, able to interact with the world
-**Current focus:** Defining requirements for v2.1
+**Current focus:** Phase 7 — Live Testing + Bug Fixes
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-22 — Milestone v2.1 started
+Phase: 7 of 10 (Live Testing + Bug Fixes)
+Plan: — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-03-22 — v2.1 roadmap created (4 phases, 9 requirements mapped)
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -42,17 +42,13 @@ Progress: [░░░░░░░░░░] 0%
 
 ### Key Architecture Decisions
 
-- Mind + Body split: LLM layer (mind/) never imports skill functions; body/ never calls LLM — boundary is enforced
+- Mind + Body split: LLM layer (mind/) never imports skill functions; body/ never calls LLM
 - Event-driven LLM: fires on chat received, skill complete, or idle — not on a fixed tick
 - NO ARTIFICIAL DELAYS: the Mind should think as fast and often as possible
-- NO ARTIFICIAL CAPS: don't hardcode turn limits, message limits, or action limits
 - Cooperative interrupt: every skill checks `bot.interrupt_code` after every `await`
 - Text mode only for LLM — !command parsing, not tool_choice (MiniMax M2.7 reliability)
-- Two-export combat: attackTarget (body tick) + combatLoop (LLM dispatch)
-- isSkillRunning as getter callback from mind/ to body/ — preserves boundary
-- bot.homeLocation as mind/body boundary for shelter behavior
-- getBuildContextForPrompt is pure formatter — no body/ imports in prompt.js
 - Build skill saves state every 5 blocks for cross-session resume
+- Blueprint JSON: LLM generates it as !command text, not structured output — needs validation layer
 
 ### Critical Pitfalls (from v2.0)
 
@@ -60,11 +56,12 @@ Progress: [░░░░░░░░░░] 0%
 - Silent dig/place: verify block state with bot.blockAt() after every action
 - CJS import for mineflayer-pathfinder: `import mpf from 'mineflayer-pathfinder'; const { goals } = mpf`
 - v1 memory contamination: do NOT load v1 MEMORY.md
+- MiniMax M2.7 !command compliance: needs live smoke test in Phase 7
 
 ### Research Flags
 
-- MiniMax M2.7 !command compliance still needs live smoke test
-- LLM-generated JSON blueprint reliability needs testing — may need structured output validation
+- LLM-generated JSON blueprint reliability: validate output before passing to build skill
+- Reference blueprint format: must match existing body/blueprints/ JSON schema exactly
 
 ### Pending Todos
 
@@ -77,3 +74,4 @@ None currently.
 ## Session Log
 
 - 2026-03-22: Milestone v2.1 started — Creative Building + Bug Fixes
+- 2026-03-22: Roadmap created — 4 phases (7-10), 9/9 requirements mapped
