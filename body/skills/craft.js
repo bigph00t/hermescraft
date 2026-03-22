@@ -63,6 +63,13 @@ async function findOrPlaceCraftingTable(bot) {
     [0, -1, -1],
   ]
 
+  // Equip the crafting table before attempting placement
+  try {
+    await bot.equip(tableItem, 'hand')
+  } catch {
+    return null  // can't equip — bail
+  }
+
   for (const [dx, dy, dz] of offsets) {
     if (isInterrupted(bot)) return null
 
