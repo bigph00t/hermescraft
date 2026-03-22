@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A Minecraft AI agent system where AI characters (Jeffrey Enderstein, John Kwon) play like real humans in a vast open world. They gather resources, craft tools, build structures, explore, trade, and have genuine conversations — all driven by LLM reasoning through a Mind + Body architecture. The Mind (LLM) makes decisions every 15-30s. The Body (Mineflayer skill functions) executes autonomously — walking, mining, placing, crafting — smoothly, like a real player.
+A Minecraft AI agent system where AI characters (Jeffrey Enderstein, John Kwon) play like real humans in a vast open world. They gather resources, craft tools, build structures, explore, fight mobs, and have genuine conversations — all driven by LLM reasoning through a Mind + Body architecture. The Mind (MiniMax M2.7) makes decisions on events. The Body (Mineflayer skill functions) executes autonomously — walking, mining, placing, crafting, fighting — smoothly, like a real player. A 300ms survival tick handles combat, hazard avoidance, and item pickup without LLM involvement.
 
 ## Core Value
 
@@ -19,69 +19,71 @@ Agents must feel and play like real people — creative, emotional, with desires
 - ✓ Anti-meta-game enforcement — v1.0
 - ✓ Item name normalization — v1.1
 - ✓ Crafting chain solver (BFS with minecraft-data) — v1.1
+- ✓ Mineflayer replaces Fabric client + HermesBridge + Baritone — v2.0
+- ✓ Mind + Body two-layer architecture (LLM decisions + skill execution) — v2.0
+- ✓ Skill functions for core gameplay (gather, mine, build, craft, smelt, combat, navigate) — v2.0
+- ✓ Natural chat with grounding (only reference real game state) — v2.0
+- ✓ Multi-agent coordination on same server — v2.0
+- ✓ Agents play the game — mine, craft, build structures, survive, cooperate — v2.0
+- ✓ Cooperative interrupt system for all skills — v2.0
+- ✓ 300ms autonomous survival tick (eat, flee, fight, unstuck, pickup) — v2.0
+- ✓ Persistent memory across sessions (MEMORY.md, locations, build state) — v2.0
+- ✓ Day/night routine (shelter at nightfall) — v2.0
+- ✓ Structured building from blueprints with post-place verification — v2.0
 
 ### Active
 
-- [ ] Mineflayer replaces Fabric client + HermesBridge + Baritone
-- [ ] Mind + Body two-layer architecture (LLM decisions + skill execution)
-- [ ] Skill functions for core gameplay (gather, mine, build, craft, navigate)
-- [ ] Natural chat with grounding (only reference real game state)
-- [ ] Multi-agent coordination on same server
-- [ ] Agents actually play the game — mine, craft, build real structures, progress through tiers
+- [ ] LLM-generated blueprints — agents design their own structures creatively
+- [ ] Build area scanning — bot inspects what it built via bot.blockAt() region scan
+- [ ] Reference blueprint library — large catalog of designs for LLM inspiration
+- [ ] Gameplay progression — tier advancement, exploration, base improvement
 
 ### Out of Scope
 
-- Fabric client mod (HermesBridge) — replaced by Mineflayer
-- Baritone — Mineflayer has its own pathfinder
-- Vision/screenshots — dropped. Mineflayer provides world state directly
-- 3-loop architecture — replaced by Mind + Body
-- HTTP bridge — Mineflayer is direct API
+| Feature | Reason |
+|---------|--------|
+| Fabric client mod (HermesBridge) | Replaced by Mineflayer in v2.0 |
+| Baritone | Replaced by mineflayer-pathfinder in v2.0 |
+| Vision/screenshots (Claude Haiku) | Mineflayer provides world state directly |
+| 3-loop architecture | Replaced by Mind + Body in v2.0 |
+| HTTP bridge | Mineflayer is direct API |
 
-## Current Milestone: v2.0 Mineflayer Rewrite
+## Current State
 
-**Goal:** Scrap the Fabric mod + HTTP bridge architecture entirely. Replace with Mineflayer headless bots using a Mind (LLM) + Body (skill functions) architecture. Agents that actually play the game smoothly.
+**Shipped:** v2.0 Mineflayer Rewrite (2026-03-22)
 
-**Target:**
-- Mineflayer bots replacing Fabric clients
-- Skill function library (gather, mine, build, craft, navigate, chat)
-- Mind loop (LLM every 15-30s for decisions)
-- Body loop (skill execution, autonomous between LLM calls)
-- Personality system (SOUL files, memory, social)
-- Multi-agent on single server
+The v2.0 rewrite is complete. 24 JavaScript modules across `body/` (skills, primitives, modes) and `mind/` (LLM client, prompt builder, command registry, config, memory, social, locations). 3,389 lines of code. 4 blueprint JSONs. Entry point: `npm run start:v2`.
+
+Architecture: `start.js` → `createBot()` → init subsystems → `initMind(bot, config)` → `initModes(bot, isSkillRunning)`. Event-driven Mind loop (chat/skill_complete/idle triggers). 9 registry commands (!gather, !mine, !craft, !smelt, !navigate, !chat, !idle, !combat, !build, !deposit, !withdraw). 300ms body tick with 6-priority survival cascade.
+
+**Next milestone:** v2.1 — Creative gameplay, LLM-generated building, and gameplay features.
 
 ## Context
 
-### Why the rewrite
-v1.0-v1.1 built an agent on top of a Fabric client mod + HTTP bridge. Every game action went: LLM → HTTP POST → mod → Minecraft API → HTTP response → parse. This caused:
-- Crosshair drift (look_at_block succeeds, break_block hits air)
-- Coordinate translation bugs (relative vs absolute)
-- "Another action pending" race conditions
-- 1GB+ RAM per agent (full MC client + Xvfb)
-- Agents narrating fantasy builds while every placement silently failed
+### v2.0 architecture (current)
+- `body/` — Mineflayer skill functions, primitives, blueprints, modes tick
+- `mind/` — LLM client, prompt builder, registry, config, memory, social, locations
+- `start.js` — Entry point wiring Mind + Body
+- Mind/Body boundary enforced: only `mind/registry.js` imports from `body/`; body never imports from mind
+- Cooperative interrupt via `bot.interrupt_code` checked after every `await` in skills
 
-Mineflayer eliminates all of this: `bot.dig(block)` just works, `bot.placeBlock(ref, face)` just works, `bot.pathfinder.goto(goal)` just works. No HTTP, no crosshair, no races.
-
-### What carries over
+### What carries over to v2.1
+- Everything from v2.0 — it's additive
 - SOUL personality files (Jeffrey, John)
-- Memory system pattern (MEMORY.md, skills, notepad)
-- Crafting chain solver (crafter.js — BFS with minecraft-data)
-- Item name normalizer
-- Creative behavior system concepts
-- Paper server with plugins (Timber, VeinMiner, AutoPickup, etc.)
+- Memory, social, locations systems
+- All body/ skills and mind/ modules
 
 ### Reference projects
-- Mindcraft (kolbytn/mindcraft) — LLM + Mineflayer skill library, closest to our target
+- Mindcraft (kolbytn/mindcraft) — LLM + Mineflayer skill library
 - Voyager — GPT-4 code generation with Mineflayer
-- mineflayer-pathfinder — A* pathfinding plugin
 
 ## Constraints
 
-- **Server hardware**: Glass has 15GB RAM — Mineflayer bots use ~100MB each vs 1GB+
+- **Server hardware**: Glass has 15GB RAM — Mineflayer bots use ~100MB each
 - **LLM cost**: MiniMax M2.7 is cheap, keep it
 - **MC version**: 1.21.1 (Paper server)
 - **Agents**: 2 for now (Jeffrey, John), designed to scale to 5-10
-- **No peaceful mode restriction** — agents should handle survival properly
-- **No artificial throttling** — no arbitrary cooldowns, turn caps, token limits, or forced delays. Let the Mind think as fast and as often as it can. If the LLM responds in 0.5s, use it immediately. The agent should be as responsive and active as the hardware allows.
+- **No artificial throttling** — let the Mind think as fast and often as possible
 
 ## Key Decisions
 
@@ -90,29 +92,17 @@ Mineflayer eliminates all of this: `bot.dig(block)` just works, `bot.placeBlock(
 | Paper server | Plugin ecosystem | ✓ Good — keep |
 | MiniMax M2.7 | Cheap, fast, adequate | ✓ Good — keep |
 | SOUL personality files | Rich character identity | ✓ Good — keep |
-| Fabric mod + HTTP bridge | v1 architecture | ⚠️ Failed — replace with Mineflayer |
-| Baritone for pathfinding | Human-like movement | ⚠️ Overkill — mineflayer-pathfinder sufficient |
-| 3-loop architecture | Separate action/vision/planner | ⚠️ Overcomplicated — replace with Mind + Body |
-| Claude Haiku vision | Screenshot analysis | ⚠️ Unnecessary — Mineflayer provides world state directly |
-| Mineflayer rewrite | Direct bot API, headless, lightweight | — Pending (v2.0) |
-| Mind + Body architecture | LLM decides, skills execute | — Pending (v2.0) |
+| Mineflayer rewrite | Direct bot API, headless, lightweight | ✓ Good — shipped v2.0 |
+| Mind + Body architecture | LLM decides, skills execute | ✓ Good — clean boundary, shipped v2.0 |
+| Event-driven Mind (not fixed tick) | Fire on chat/skill_complete/idle | ✓ Good — responsive, no wasted LLM calls |
+| !command text mode (not tool calling) | MiniMax M2.7 unreliable with tool_choice:required | ✓ Good — reliable parsing |
+| 300ms body tick | Autonomous survival independent of LLM | ✓ Good — bot feels alive |
+| Cooperative interrupt | isInterrupted(bot) after every await | ✓ Good — clean skill cancellation |
+| Pre-made blueprints for v2.0 | Ship building quickly | ⚠️ Revisit — agents should design their own (v2.1) |
 
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
 
-**After each phase transition:**
-1. Requirements invalidated? → Move to Out of Scope with reason
-2. Requirements validated? → Move to Validated with phase reference
-3. New requirements emerged? → Add to Active
-4. Decisions to log? → Add to Key Decisions
-5. "What This Is" still accurate? → Update if drifted
-
-**After each milestone:**
-1. Full review of all sections
-2. Core Value check — still the right priority?
-3. Audit Out of Scope — reasons still valid?
-4. Update Context with current state
-
 ---
-*Last updated: 2026-03-22 after v2.0 milestone start*
+*Last updated: 2026-03-22 after v2.0 milestone completion*

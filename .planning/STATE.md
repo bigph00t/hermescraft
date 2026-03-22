@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Mineflayer Rewrite
-status: Milestone complete
-last_updated: "2026-03-22T19:57:42.891Z"
+status: v2.0 milestone complete
+last_updated: "2026-03-22T20:08:09.738Z"
 progress:
   total_phases: 6
   completed_phases: 6

@@ -1,5 +1,26 @@
 # Milestones
 
+## v2.0 Mineflayer Rewrite (Shipped: 2026-03-22)
+
+**Phases completed:** 6 phases, 13 plans, 20 tasks
+
+**Key accomplishments:**
+
+- Headless mineflayer bot with pathfinder and tool plugins on Paper 1.21.1, cooperative interrupt harness, and item/block name normalizer — foundation for all body/ skills
+- navigate.js/dig.js/place.js — three atomic wrappers enforcing nav timeout, dig verification, and place verification as project-wide safety invariants
+- gather() and mine() body-layer skills: interrupt-safe resource collection and ore mining with auto-tool tier enforcement
+- BFS crafting chain solver (minecraft-data 1.21.1) ported to body/crafter.js; craft skill in body/skills/craft.js executes full dependency chains via bot.recipesFor() + bot.craft() with crafting table management
+- One-liner:
+- Event-driven Mind loop wiring chat/skill_complete/idle into think() -> queryLLM() -> dispatch(), plus v2 entry point `start.js` connecting Mind + Body
+- combat.js with attackTarget (body tick single-hit) + combatLoop (LLM-dispatchable sustained loop), HOSTILE_MOBS Set (42 entries), and !combat wired into registry
+- One-liner:
+- Four mind/ data subsystems ported from v1 with v2 isolation: config (SOUL loading), memory (MEMORY.md + session JSONL), social (sentiment tracking + partner pre-seeding), locations (named waypoints with cardinal directions)
+- start.js
+- One-liner:
+- !build command wired to registry dispatch, blueprint catalog + active build progress injected into system prompt every tick, build completions persisted to world knowledge + named locations for cross-session expansion
+
+---
+
 ## v1.1 Tool Quality & Building Intelligence (Shipped: 2026-03-22)
 
 **Phases completed:** 4 phases, 10 plans, 13 tasks
