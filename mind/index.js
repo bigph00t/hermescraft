@@ -69,14 +69,12 @@ async function respondToChat(bot, sender, message) {
         console.log('[mind] chat reply sent:', msg.slice(0, 80))
       }
     }
-    // If LLM produced an action command, interrupt current skill and queue it
+    // If LLM produced an action command, DON'T interrupt — just log it.
+    // Action commands from chat responses were causing "goal was changed" errors
+    // by stomping on active navigation. Let the normal think cycle handle actions
+    // after the current skill finishes. Chat response should ONLY chat back.
     else if (result.command && result.command !== 'idle') {
-      console.log('[mind] chat triggered command:', result.command, result.args)
-      if (skillRunning) {
-        requestInterrupt(bot)
-        console.log('[mind] interrupted running skill for chat command')
-      }
-      _pendingChat = { trigger: 'chat', sender, message, forceCommand: result }
+      console.log('[mind] chat response wanted command:', result.command, '— deferred to next think cycle')
     }
     // No command — LLM just reasoned without acting. If there's reasoning that
     // looks like a response, send it as chat (the LLM often "says" things in
