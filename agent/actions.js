@@ -1,5 +1,7 @@
 // actions.js — Translate LLM decisions to Fabric mod API calls
 
+import { normalizeItemName } from './normalizer.js'
+
 const MOD_URL = process.env.MOD_URL || 'http://localhost:3001';
 
 const VALID_ACTIONS = new Set([
@@ -113,6 +115,10 @@ export function validateAction(action) {
  */
 export function validatePreExecution(action, state) {
   if (!action || !state) return { valid: true }; // Defensive — don't block if state unavailable
+
+  // Normalize item names before game state checks
+  if (action.item) action.item = normalizeItemName(action.item)
+  if (action.blockName) action.blockName = normalizeItemName(action.blockName)
 
   const type = action.type || action.action;
   const inventory = state.inventory || [];
@@ -288,6 +294,10 @@ async function sendSingleAction(payload) {
 
 export async function executeAction(action) {
   const type = action.type || action.action;
+
+  // Normalize item names before any dispatch
+  if (action.item) action.item = normalizeItemName(action.item)
+  if (action.blockName) action.blockName = normalizeItemName(action.blockName)
 
   // Normalize: always send "type" field
   const payload = { ...action, type };
