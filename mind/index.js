@@ -26,6 +26,7 @@ let skillRunning = false
 let thinkingInFlight = false
 let idleCheckTimer = null
 let _config = null
+let _pendingChat = null  // queued chat that arrived during think()
 
 // ── Core Think Function ──
 
@@ -42,7 +43,13 @@ let _config = null
 // no rate limits, no turn caps. If the LLM responds in 0.5s, the next think() fires
 // on the next triggering event — immediately.
 async function think(bot, context) {
-  if (thinkingInFlight) return
+  // If we're busy and a chat arrives, queue it so we respond after current cycle
+  if (thinkingInFlight) {
+    if (context.trigger === 'chat') {
+      _pendingChat = context
+    }
+    return
+  }
   thinkingInFlight = true
 
   try {
@@ -168,6 +175,12 @@ async function think(bot, context) {
     thinkingInFlight = false
     // Ensure skillRunning is cleared if dispatch threw before explicit reset
     if (skillRunning) skillRunning = false
+    // Replay queued chat that arrived while we were busy
+    if (_pendingChat) {
+      const queued = _pendingChat
+      _pendingChat = null
+      setTimeout(() => think(bot, queued), 0)
+    }
   }
 }
 
