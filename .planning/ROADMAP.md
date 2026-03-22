@@ -69,12 +69,12 @@ Plans:
   2. Building plan is rejected before queuing if it requires more than 10% non-inventory materials, preventing mid-build stalls
   3. Every block placed via smart place is appended to a persistent placed-blocks log (block type, position, timestamp) that survives agent restarts
   4. After completing a build, the agent uses vision output + placement log to confirm the structure matches the plan and logs a pass/fail result
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 07-01: Define parseFreestylePlan() markdown format contract; freestyle.js parser + context file integration
-- [ ] 07-02: placement-tracker.js — persistent placed-blocks log updated from smart_place response
-- [ ] 07-03: Task verification — wire pendingReview in index.js; prompt injection for post-build self-check
+- [ ] 07-01-PLAN.md — freestyle.js parser + placement-tracker.js module (new standalone modules)
+- [ ] 07-02-PLAN.md — Wire freestyle execution into planner + placement tracking into actions + startup init
+- [ ] 07-03-PLAN.md — Post-build verification: placed_count keyword in reviewSubtaskOutcome + prompt injection
 
 ### Phase 8: Spatial Memory + Server Scripts
 **Goal**: Agent maintains a typed, proximity-filtered world map of resource patches and build sites, and new server commands give it richer environmental awareness
