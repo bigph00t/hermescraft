@@ -3,6 +3,9 @@
 import { queryLLM, clearConversation } from './llm.js'
 import { buildSystemPrompt, buildUserMessage } from './prompt.js'
 import { dispatch } from './registry.js'
+import { getMemoryForPrompt, recordDeath, writeSessionEntry } from './memory.js'
+import { trackPlayer, getPlayersForPrompt, getPartnerLastChat, savePlayers } from './social.js'
+import { getLocationsForPrompt, setHome, getHome } from './locations.js'
 
 // ── Module-level Guard State ──
 
@@ -10,6 +13,7 @@ let lastActionTime = Date.now()
 let skillRunning = false
 let thinkingInFlight = false
 let idleCheckTimer = null
+let _config = null
 
 // ── Core Think Function ──
 
@@ -30,8 +34,16 @@ async function think(bot, context) {
   thinkingInFlight = true
 
   try {
-    const systemPrompt = buildSystemPrompt(bot)
-    const userMessage = buildUserMessage(bot, context.trigger, context)
+    const systemPrompt = buildSystemPrompt(bot, {
+      soul: _config?.soulContent,
+      memory: getMemoryForPrompt(),
+      players: getPlayersForPrompt(bot),
+      locations: getLocationsForPrompt(bot.entity?.position),
+    })
+
+    // Inject partner's last chat into user message if available
+    const partnerChat = _config?.partnerName ? getPartnerLastChat(_config.partnerName) : null
+    const userMessage = buildUserMessage(bot, context.trigger, { ...context, partnerChat })
 
     console.log('[mind] thinking...', context.trigger)
 
@@ -51,6 +63,16 @@ async function think(bot, context) {
     // Explicit idle command — the LLM decided to wait.
     if (result.command === 'idle') {
       console.log('[mind] idle command received')
+      lastActionTime = Date.now()
+      return
+    }
+
+    // !sethome — mark current position as home base
+    if (result.command === 'sethome') {
+      const pos = bot.entity.position
+      setHome(Math.round(pos.x), Math.round(pos.y), Math.round(pos.z))
+      bot.homeLocation = { x: Math.round(pos.x), y: Math.round(pos.y), z: Math.round(pos.z) }
+      console.log('[mind] home set at', Math.round(pos.x), Math.round(pos.y), Math.round(pos.z))
       lastActionTime = Date.now()
       return
     }
@@ -87,9 +109,11 @@ export function isSkillRunning() {
   return skillRunning
 }
 
-// initMind(bot) — registers event listeners on the bot and starts the idle timer.
-// Call once after createBot() resolves.
-export async function initMind(bot) {
+// initMind(bot, config) — registers event listeners on the bot and starts the idle timer.
+// Call once after createBot() resolves. config carries SOUL content, partner name, data dir.
+export async function initMind(bot, config) {
+  _config = config || null
+
   // ── Trigger 1: Chat received ──
   // Fire think() when a player sends a chat message.
   // Filters:
@@ -104,6 +128,10 @@ export async function initMind(bot) {
     if (username === bot.username) return
 
     console.log('[mind] chat from', username, ':', msgStr)
+
+    // Track player interaction for social module
+    trackPlayer(username, { type: 'chat', detail: msgStr })
+
     think(bot, { trigger: 'chat', sender: username, message: msgStr })
   })
 
@@ -129,6 +157,7 @@ export async function initMind(bot) {
   bot.on('death', () => {
     console.log('[mind] bot died — clearing conversation')
     clearConversation()
+    recordDeath('Died in the world')
     lastActionTime = Date.now()
   })
 
