@@ -8,7 +8,8 @@ import { smelt } from '../body/skills/smelt.js'
 import { navigateTo } from '../body/navigate.js'
 import { requestInterrupt, clearInterrupt } from '../body/interrupt.js'
 import { combatLoop } from '../body/skills/combat.js'
-import { build } from '../body/skills/build.js'
+import { build, updatePalette } from '../body/skills/build.js'
+import { scanArea } from '../body/skills/scan.js'
 import { depositToChest, withdrawFromChest } from '../body/skills/chest.js'
 
 // REGISTRY maps !command names to async handler functions.
@@ -50,6 +51,25 @@ const REGISTRY = new Map([
   // This entry ensures listCommands() includes 'design' for help text and acts as a safety net.
   ['design',   (_bot, _args) => {
     return Promise.resolve({ success: false, reason: 'design must be handled by the Mind loop — description:"your idea here"' })
+  }],
+  ['scan', (bot, args) => {
+    const pos = bot.entity.position
+    // Default: 16x8x16 box centered on bot if no coords given
+    const x1 = parseInt(args.x1) || Math.round(pos.x) - 8
+    const y1 = parseInt(args.y1) || Math.round(pos.y) - 4
+    const z1 = parseInt(args.z1) || Math.round(pos.z) - 8
+    const x2 = parseInt(args.x2) || Math.round(pos.x) + 8
+    const y2 = parseInt(args.y2) || Math.round(pos.y) + 4
+    const z2 = parseInt(args.z2) || Math.round(pos.z) + 8
+    return Promise.resolve(scanArea(bot, x1, y1, z1, x2, y2, z2))
+  }],
+  ['material', (_bot, args) => {
+    const oldBlock = args.old || args.from
+    const newBlock = args.new || args.to
+    if (!oldBlock || !newBlock) {
+      return Promise.resolve({ success: false, reason: 'Usage: !material old:oak_planks new:stone' })
+    }
+    return Promise.resolve(updatePalette(oldBlock, newBlock))
   }],
 ])
 

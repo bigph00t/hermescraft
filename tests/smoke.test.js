@@ -28,6 +28,7 @@ section('Module Import Validation — mind/')
 const mindIndex = await import('../mind/index.js')
 assert('mind/index: isSkillRunning exported', typeof mindIndex.isSkillRunning === 'function')
 assert('mind/index: initMind exported', typeof mindIndex.initMind === 'function')
+assert('mind/index: designAndBuild exported', typeof mindIndex.designAndBuild === 'function')
 
 const registry = await import('../mind/registry.js')
 assert('mind/registry: dispatch exported', typeof registry.dispatch === 'function')
@@ -38,6 +39,7 @@ assert('mind/prompt: buildSystemPrompt exported', typeof prompt.buildSystemPromp
 assert('mind/prompt: buildUserMessage exported', typeof prompt.buildUserMessage === 'function')
 assert('mind/prompt: buildStateText exported', typeof prompt.buildStateText === 'function')
 assert('mind/prompt: getBuildContextForPrompt exported', typeof prompt.getBuildContextForPrompt === 'function')
+assert('mind/prompt: buildDesignPrompt exported', typeof prompt.buildDesignPrompt === 'function')
 
 const llm = await import('../mind/llm.js')
 assert('mind/llm: clearConversation exported', typeof llm.clearConversation === 'function')
@@ -146,9 +148,9 @@ assert('body/skills/chest: withdrawFromChest exported', typeof chest.withdrawFro
 section('Registry Completeness')
 
 const commands = registry.listCommands()
-assert('registry has 12 commands', commands.length === 12)
+assert('registry has 14 commands', commands.length === 14)
 
-const expectedCmds = ['gather', 'mine', 'craft', 'smelt', 'navigate', 'chat', 'idle', 'combat', 'deposit', 'withdraw', 'build', 'design']
+const expectedCmds = ['gather', 'mine', 'craft', 'smelt', 'navigate', 'chat', 'idle', 'combat', 'deposit', 'withdraw', 'build', 'design', 'scan', 'material']
 for (const cmd of expectedCmds) {
   assert(`registry has !${cmd}`, commands.includes(cmd))
 }
@@ -171,10 +173,13 @@ const sysPrompt = prompt.buildSystemPrompt(mockBot)
 assert('buildSystemPrompt returns a string', typeof sysPrompt === 'string')
 assert('system prompt is non-empty', sysPrompt.length > 100)
 
-const promptCmds = ['gather', 'mine', 'craft', 'smelt', 'navigate', 'chat', 'build', 'design', 'sethome', 'combat', 'idle', 'deposit', 'withdraw']
+const promptCmds = ['gather', 'mine', 'craft', 'smelt', 'navigate', 'chat', 'build', 'design', 'sethome', 'combat', 'idle', 'deposit', 'withdraw', 'scan', 'material']
 for (const cmd of promptCmds) {
   assert(`system prompt mentions !${cmd}`, sysPrompt.includes(`!${cmd}`))
 }
+
+// Directed building guidance — CBUILD-01 enabler
+assert('system prompt mentions directed building guidance', sysPrompt.includes('build something') || sysPrompt.includes('build a') || sysPrompt.includes('"here"') || sysPrompt.includes('"at this spot"'))
 
 // ── Section 4: Normalizer Correctness ──
 
