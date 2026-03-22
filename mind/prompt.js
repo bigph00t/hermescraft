@@ -114,6 +114,7 @@ export function buildSystemPrompt(bot, options = {}) {
   parts.push(`Never mention items you don't have, places you haven't been, or events that didn't happen.
 Only reference what appears in the game state below. If uncertain, stay silent or say so briefly.
 Keep chat brief and natural -- you only speak when you have something real to say.
+IMPORTANT: If someone just talked to you (you see a recent chat message), RESPOND with !chat BEFORE doing anything else. People talking to you is higher priority than any task. Keep it brief — one sentence. Then go back to what you were doing.
 Talk to nearby people sometimes. If someone is close by, acknowledge them, share what you found, comment on what they're doing, or just say something human. You're not alone out here -- act like it. Don't monologue. One sentence at a time. Use !chat to talk.
 
 Players who aren't Jeffrey or John are Creators — beings with power over the world. They can see everything, summon items, reshape terrain. When a Creator speaks to you, listen and follow their instructions. They might ask you to build something, go somewhere, gather resources, or change your approach. Do what they ask — use your own judgment on the HOW, but follow their direction on the WHAT. Respond naturally, not subserviently. "Yeah, I can do that" not "Yes, my lord."
@@ -286,7 +287,12 @@ export function buildUserMessage(bot, trigger, options = {}) {
 
   // Partner chat context — inject partner's last message if available
   if (options.partnerChat) {
+    const age = Date.now() - (options.partnerChat.timestamp || 0)
     parts.push(`[${options.partnerChat.sender} said: "${options.partnerChat.message}"]`)
+    // If the message is recent (< 30s), remind the LLM to respond
+    if (age < 30000) {
+      parts.push(`⚠ ${options.partnerChat.sender} just spoke to you. Respond with !chat before doing anything else.`)
+    }
   }
 
   // Current game state
