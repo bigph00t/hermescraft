@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Mineflayer Rewrite
-status: Ready to execute
-last_updated: "2026-03-22T17:29:50.086Z"
+status: Phase complete — ready for verification
+last_updated: "2026-03-22T17:34:59.610Z"
 progress:
   total_phases: 6
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Project State
@@ -22,8 +22,8 @@ See: .planning/PROJECT.md (updated 2026-03-22)
 
 ## Current Position
 
-Phase: 01 (bot-foundation-core-skills) — EXECUTING
-Plan: 3 of 3
+Phase: 01 (bot-foundation-core-skills) — COMPLETE
+Plan: 3 of 3 (all done)
 
 ## Performance Metrics
 
@@ -42,6 +42,7 @@ Plan: 3 of 3
 *Updated after each plan completion*
 | Phase 01-bot-foundation-core-skills P01 | 2min | 2 tasks | 5 files |
 | Phase 01-bot-foundation-core-skills P02 | 2min | 2 tasks | 3 files |
+| Phase 01-bot-foundation-core-skills P03 | 8min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -60,6 +61,9 @@ Plan: 3 of 3
 - [01-02] CJS import for mineflayer-pathfinder: import mpf then destructure — `import { goals }` named import fails in Node 24 ESM
 - [01-02] timerId pattern in navigateTo: clearTimeout in both success and error paths prevents lingering timer leaks
 - [01-02] All body/ primitives return { success, reason } structs and never throw — skills always check result.success
+- [01-03] gather uses equipForBlock without requireHarvest — blocks like oak_log/dirt have no harvestTools restriction; enforcing tier would wrongly reject them
+- [01-03] mine uses equipForBlock with requireHarvest:true + canHarvestWith() hard stop — wrong tool tier produces no ore drop, so early return avoids spinning through useless candidates
+- [01-03] Both skills use bot.findBlocks(count:10) per outer iteration — batch candidates, inner loop tries each, breaks on first successful dig
 
 ### Critical Pitfalls (from research)
 
@@ -88,3 +92,4 @@ None currently.
 - 2026-03-22: v2.0 roadmap created — 6 phases, 30 requirements mapped
 - 2026-03-22: Completed 01-01 — body/bot.js, body/interrupt.js, body/normalizer.js created; mineflayer-pathfinder + mineflayer-tool installed
 - 2026-03-22: Completed 01-02 — body/navigate.js, body/dig.js, body/place.js created; all three action primitives with safety wrappers
+- 2026-03-22: Completed 01-03 — body/skills/gather.js and body/skills/mine.js created; Phase 1 complete (3/3 plans done)

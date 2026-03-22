@@ -17,8 +17,8 @@ Requirements for Mineflayer Rewrite milestone.
 
 ### Gameplay Skills
 
-- [ ] **SKILL-01**: Gather skill — collect N of a resource (find nearest, pathfind, dig, repeat)
-- [ ] **SKILL-02**: Mine skill — mine ore with auto-best-tool selection
+- [x] **SKILL-01**: Gather skill — collect N of a resource (find nearest, pathfind, dig, repeat)
+- [x] **SKILL-02**: Mine skill — mine ore with auto-best-tool selection
 - [ ] **SKILL-03**: Craft skill — resolve full dependency chain and craft (BFS solver)
 - [ ] **SKILL-04**: Smelt skill — place/find furnace, load fuel + input, wait for output
 - [ ] **SKILL-05**: Build skill — place blocks from a structured plan, verify each placement
@@ -86,8 +86,8 @@ Requirements for Mineflayer Rewrite milestone.
 | BOT-03 | Phase 1 | Complete |
 | BOT-04 | Phase 1 | Complete |
 | BOT-05 | Phase 1 | Complete |
-| SKILL-01 | Phase 1 | Pending |
-| SKILL-02 | Phase 1 | Pending |
+| SKILL-01 | Phase 1 | Complete |
+| SKILL-02 | Phase 1 | Complete |
 | SKILL-03 | Phase 2 | Pending |
 | SKILL-04 | Phase 2 | Pending |
 | SKILL-05 | Phase 6 | Pending |

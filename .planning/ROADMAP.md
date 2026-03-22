@@ -38,7 +38,7 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
 
 ## Phase Checklist
 
-- [ ] **Phase 1: Bot Foundation + Core Skills** — Headless bot connects, navigates, digs, places; interrupt harness; gather and mine skills
+- [x] **Phase 1: Bot Foundation + Core Skills** — Headless bot connects, navigates, digs, places; interrupt harness; gather and mine skills (completed 2026-03-22)
 - [ ] **Phase 2: Crafting + Inventory** — Craft chain solver, smelt, chest interaction, auto-eat and armor
 - [ ] **Phase 3: Mind Loop + LLM** — Event-driven self-prompter, command registry, rolling conversation history
 - [ ] **Phase 4: Survival Modes** — Autonomous reactive behaviors that run without the LLM: self-preservation, self-defense, unstuck, idle, item collection
@@ -57,11 +57,11 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
   3. Bot digs a block and post-dig check confirms the block state changed; false success from server-side protection is detected
   4. Bot collects N of a named resource by finding, navigating to, and digging nearest sources until inventory count is met
   5. Bot mines ore with the best tool auto-selected from inventory
-**Plans:** 1/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [x] 01-01-PLAN.md — Bot lifecycle, interrupt harness, normalizer (BOT-01, BOT-05)
 - [x] 01-02-PLAN.md — Navigate, dig, place primitives with safety wrappers (BOT-02, BOT-03, BOT-04)
-- [ ] 01-03-PLAN.md — Gather and mine skills (SKILL-01, SKILL-02)
+- [x] 01-03-PLAN.md — Gather and mine skills (SKILL-01, SKILL-02)
 
 ### Phase 2: Crafting + Inventory
 **Goal**: Bot resolves full crafting dependency chains, smelts items in furnaces, deposits and withdraws from chests, auto-equips best tools and armor, and eats autonomously — the complete resource management loop
@@ -126,7 +126,7 @@ v2.0 phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 1. Bot Foundation + Core Skills | v2.0 | 1/3 | In Progress|  |
+| 1. Bot Foundation + Core Skills | v2.0 | 3/3 | Complete   | 2026-03-22 |
 | 2. Crafting + Inventory | v2.0 | 0/? | Not started | - |
 | 3. Mind Loop + LLM | v2.0 | 0/? | Not started | - |
 | 4. Survival Modes | v2.0 | 0/? | Not started | - |
