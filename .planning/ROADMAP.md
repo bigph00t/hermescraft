@@ -84,11 +84,11 @@ Plans:
   1. Agent records typed resource patches (ore vein, tree cluster, build site) to persistent spatial memory and navigates back to them by name in a later session
   2. Spatial memory prompt injection only includes entries within a configurable proximity radius — a session with 100+ recorded locations does not produce a prompt larger than the cap
   3. `/where`, `/nearbyplayers`, and `/checkblock` server commands are available in-game and return correctly formatted output that command-parser.js can consume
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 08-01: locations.js extension — typed resource patches, proximity-filtered getResourcesForPrompt() with hard cap
-- [ ] 08-02: Skript wrappers — where.sk, nearbyplayers.sk, checkblock.sk; command-parser.js extensions
+- [ ] 08-01-PLAN.md — Typed resource patches in locations.js, proximity-filtered prompt injection for locations/resources/chests
+- [ ] 08-02-PLAN.md — Skript wrappers (where.sk, nearbyplayers.sk, checkblock.sk) + command-parser.js + tool wiring
 
 ## Progress
 
