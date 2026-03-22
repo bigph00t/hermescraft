@@ -6,6 +6,7 @@
   "main": "agent/index.js",
   "scripts": {
     "start": "./start.sh",
+    "start:v2": "node start.js",
     "agent": "node agent/index.js",
     "dev": "node --watch agent/index.js"
   },
