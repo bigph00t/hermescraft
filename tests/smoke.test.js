@@ -148,9 +148,9 @@ assert('body/skills/chest: withdrawFromChest exported', typeof chest.withdrawFro
 section('Registry Completeness')
 
 const commands = registry.listCommands()
-assert('registry has 14 commands', commands.length === 14)
+assert('registry has 21 commands', commands.length === 21)
 
-const expectedCmds = ['gather', 'mine', 'craft', 'smelt', 'navigate', 'chat', 'idle', 'combat', 'deposit', 'withdraw', 'build', 'design', 'scan', 'material']
+const expectedCmds = ['gather', 'mine', 'craft', 'smelt', 'navigate', 'chat', 'drop', 'idle', 'combat', 'deposit', 'withdraw', 'build', 'design', 'scan', 'farm', 'breed', 'mount', 'dismount', 'look', 'give', 'material']
 for (const cmd of expectedCmds) {
   assert(`registry has !${cmd}`, commands.includes(cmd))
 }
