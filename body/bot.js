@@ -28,6 +28,7 @@ export async function createBot(options = {}) {
     username,
     auth: 'offline',
     version: '1.21.1',
+    checkTimeoutInterval: 120000,  // 2min keepalive timeout (default 30s too aggressive)
   })
 
   // Load plugins immediately after createBot — before spawn
