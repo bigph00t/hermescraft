@@ -31,12 +31,12 @@ Agents must feel and play like real people — creative, emotional, with desires
 - ✓ Mine action removed: all block breaking via look_at_block + break_block only — v1.1 Phase 5
 - ✓ Item name normalization: 18-alias normalizer.js with minecraft-data validation — v1.1 Phase 5
 - ✓ Sustained action timeout self-clear: prevents permanent action lock — v1.1 Phase 5
+- ✓ Crafting chain solver: BFS dependency resolver with minecraft-data, variant selection, 3x3 table detection — v1.1 Phase 6
+- ✓ Planner auto-expands craft X into dependency-ordered steps at queue-write time — v1.1 Phase 6
 
 ### Active
 - [ ] Freestyle building (LLM designs in markdown, executes block-by-block with placement tracking)
 - [ ] Block placement tracking (persistent record of where agent placed blocks)
-- [ ] Item name normalization layer (fix sticks→stick, oak_planks_4→oak_planks)
-- [ ] Crafting chain solver with recipe database (full dependency resolution)
 - [ ] Spatial memory (persistent world map of discovered locations, chests, resources)
 - [ ] Task completion verification (agent checks own work against intent)
 - [ ] Base tether (auto-return when wandering too far from home)
@@ -116,4 +116,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-21 after Phase 5 completion*
+*Last updated: 2026-03-21 after Phase 6 completion*
