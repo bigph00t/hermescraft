@@ -74,8 +74,8 @@ Plans:
   4. Bot equips best available tool before digging and eats food when hunger drops below threshold without being told to
 **Plans:** 2 plans
 Plans:
-- [ ] 02-01-PLAN.md — BFS crafting chain solver + craft skill (SKILL-03)
-- [ ] 02-02-PLAN.md — Smelt, chest, and inventory management skills (SKILL-04, SKILL-07, SKILL-08)
+- [x] 02-01-PLAN.md — BFS crafting chain solver + craft skill (SKILL-03)
+- [x] 02-02-PLAN.md — Smelt, chest, and inventory management skills (SKILL-04, SKILL-07, SKILL-08)
 
 ### Phase 3: Mind Loop + LLM
 **Goal**: The LLM layer fires on events (chat received, skill complete, idle timeout), outputs !commands the Body executes, and maintains a 40-turn rolling history — the end-to-end Mind + Body pipeline is alive

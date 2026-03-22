@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Mineflayer Rewrite
-status: Ready to plan
-last_updated: "2026-03-22T17:41:36.453Z"
+status: Phase complete — ready for verification
+last_updated: "2026-03-22T17:59:15.236Z"
 progress:
   total_phases: 6
-  completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  completed_phases: 2
+  total_plans: 5
+  completed_plans: 5
 ---
 
 # Project State
@@ -18,12 +18,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-22)
 
 **Core value:** Agents feel and play like real people — creative, emotional, able to interact with the world
-**Current focus:** Phase 01 — bot-foundation-core-skills
+**Current focus:** Phase 02 — crafting-inventory
 
 ## Current Position
 
-Phase: 2
-Plan: Not started
+Phase: 02 (crafting-inventory) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -43,6 +43,8 @@ Plan: Not started
 | Phase 01-bot-foundation-core-skills P01 | 2min | 2 tasks | 5 files |
 | Phase 01-bot-foundation-core-skills P02 | 2min | 2 tasks | 3 files |
 | Phase 01-bot-foundation-core-skills P03 | 8min | 2 tasks | 2 files |
+| Phase 02-crafting-inventory P01 | 4min | 2 tasks | 2 files |
+| Phase 02-crafting-inventory P02 | 3min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -64,6 +66,9 @@ Plan: Not started
 - [01-03] gather uses equipForBlock without requireHarvest — blocks like oak_log/dirt have no harvestTools restriction; enforcing tier would wrongly reject them
 - [01-03] mine uses equipForBlock with requireHarvest:true + canHarvestWith() hard stop — wrong tool tier produces no ore drop, so early return avoids spinning through useless candidates
 - [01-03] Both skills use bot.findBlocks(count:10) per outer iteration — batch candidates, inner loop tries each, breaks on first successful dig
+- [02-01] body/crafter.js is a utility module (not a skill) — solveCraft imported by skills, not dispatched directly; module-level mcData init replaces initCrafter() wrapper
+- [02-01] Two-recipe-system bridge: BFS solver uses mcData.recipes for dependency analysis; bot.recipesFor() provides prismarine-recipe objects; raw mcData recipes must never be passed to bot.craft()
+- [02-01] findOrPlaceCraftingTable tries 4 cardinal ground offsets for placement — more robust than fixed single position in varied terrain
 
 ### Critical Pitfalls (from research)
 
@@ -93,3 +98,4 @@ None currently.
 - 2026-03-22: Completed 01-01 — body/bot.js, body/interrupt.js, body/normalizer.js created; mineflayer-pathfinder + mineflayer-tool installed
 - 2026-03-22: Completed 01-02 — body/navigate.js, body/dig.js, body/place.js created; all three action primitives with safety wrappers
 - 2026-03-22: Completed 01-03 — body/skills/gather.js and body/skills/mine.js created; Phase 1 complete (3/3 plans done)
+- 2026-03-22: Completed 02-01 — body/crafter.js (BFS solver) and body/skills/craft.js (craft skill) created; SKILL-03 complete
