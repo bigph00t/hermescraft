@@ -51,6 +51,31 @@ function isInHazard(bot) {
 // ── Priority Behavior Checks ──
 
 /**
+ * Priority 0: Night shelter — navigate home at dusk/night when far from home.
+ * Only fires when no skill is running (does NOT interrupt active skills).
+ * Reads home coordinates from bot.homeLocation (set by start.js and !sethome).
+ * No mind/ imports — home is passed via bot property, preserving mind/body boundary.
+ *
+ * @param {import('mineflayer').Bot} bot
+ * @param {Function} getSkillRunning
+ * @returns {Promise<boolean>} true if navigation to shelter was initiated
+ */
+async function checkNightShelter(bot, getSkillRunning) {
+  if (getSkillRunning()) return false
+  const timeOfDay = bot.time?.timeOfDay ?? 0
+  // Seek shelter starting at dusk (12500) through night, skip pre-dawn (>23000)
+  if (timeOfDay < 12500 || timeOfDay > 23000) return false
+  const home = bot.homeLocation
+  if (!home) return false
+  const pos = bot.entity.position
+  const dist = Math.sqrt((pos.x - home.x) ** 2 + (pos.z - home.z) ** 2)
+  if (dist < 10) return false  // already near home
+  console.log('[modes] night shelter -- navigating home')
+  await navigateTo(bot, home.x, home.y, home.z, 3, 30000)
+  return true
+}
+
+/**
  * Priority 1: Self-preservation — eat if hungry, flee hazards.
  * Always fires, even during active skills (starvation and fire override).
  * Interrupts active skill if critical hazard detected.
@@ -226,7 +251,7 @@ async function checkIdleLook(bot) {
 
 /**
  * bodyTick(bot, getSkillRunning) — runs every 300ms.
- * Priority cascade: survival > combat > stuck > item pickup > idle look.
+ * Priority cascade: night shelter > survival > combat > stuck > item pickup > idle look.
  * _tickBusy guard prevents overlapping async ticks.
  *
  * @param {import('mineflayer').Bot} bot
@@ -236,6 +261,9 @@ async function bodyTick(bot, getSkillRunning) {
   if (_tickBusy) return  // previous tick still running
   _tickBusy = true
   try {
+    // Priority 0: Night shelter — go home at dusk/night if far from home (gated on no skill)
+    if (await checkNightShelter(bot, getSkillRunning)) return
+
     // Priority 1: Survival — fires even during active skills
     if (await checkSurvival(bot, getSkillRunning)) return
 
