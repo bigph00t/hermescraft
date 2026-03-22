@@ -12,6 +12,7 @@ import { getLocationsForPrompt, saveLocation, setHome, getHome } from './locatio
 // Direct getters and build function from body/ — pragmatic boundary crossing: mind/index.js
 // is the wiring layer (like start.js) that orchestrates LLM calls + body skill execution.
 import { getActiveBuild, listBlueprints, build } from '../body/skills/build.js'
+import { requestInterrupt } from '../body/interrupt.js'
 import { validateBlueprint } from '../body/blueprints/validate.js'
 import { recordBuild, getBuildHistoryForPrompt } from './build-history.js'
 
@@ -27,6 +28,55 @@ let thinkingInFlight = false
 let idleCheckTimer = null
 let _config = null
 let _pendingChat = null  // queued chat that arrived during think()
+
+// ── Async Chat Response (bypasses skill queue) ──
+
+// respondToChat fires immediately when someone talks, even during active skills.
+// It makes its own LLM call with a focused "someone just said X, respond" prompt.
+// If the LLM response contains a !command, it interrupts the running skill and queues it.
+let _chatResponseInFlight = false
+
+async function respondToChat(bot, sender, message) {
+  // Don't stack chat responses — latest message wins
+  if (_chatResponseInFlight) {
+    _pendingChat = { trigger: 'chat', sender, message }
+    return
+  }
+  _chatResponseInFlight = true
+
+  try {
+    const systemPrompt = buildSystemPrompt(bot, {
+      soul: _config?.soulContent,
+      memory: getMemoryForPrompt(),
+      players: getPlayersForPrompt(bot),
+      locations: getLocationsForPrompt(bot.entity?.position),
+    })
+
+    const stateText = buildUserMessage(bot, 'chat', { sender, message })
+    console.log('[mind] responding to chat from', sender)
+
+    const result = await queryLLM(systemPrompt, stateText)
+
+    if (result.reasoning) {
+      console.log('[mind] chat reasoning:', result.reasoning.slice(0, 150))
+    }
+
+    // If LLM produced a command (not just chat), interrupt current skill and dispatch
+    if (result.command && result.command !== 'idle' && result.command !== 'chat') {
+      console.log('[mind] chat triggered command:', result.command, result.args)
+      if (skillRunning) {
+        requestInterrupt(bot)
+        console.log('[mind] interrupted running skill for chat command')
+      }
+      // Queue the command for when think() is free
+      _pendingChat = { trigger: 'chat', sender, message, forceCommand: result }
+    }
+  } catch (err) {
+    console.error('[mind] chat response error:', err.message)
+  } finally {
+    _chatResponseInFlight = false
+  }
+}
 
 // ── Core Think Function ──
 
@@ -326,7 +376,10 @@ export async function initMind(bot, config) {
     // Track player interaction for social module
     trackPlayer(username, { type: 'chat', detail: msgStr })
 
-    think(bot, { trigger: 'chat', sender: username, message: msgStr })
+    // Chat responses are ASYNC from the skill queue — they fire immediately
+    // even if a skill is running. This is a separate LLM call just for responding.
+    // If the response contains a !command, we interrupt the running skill and dispatch it.
+    respondToChat(bot, username, msgStr)
   })
 
   // ── Trigger 2: Skill complete ──
