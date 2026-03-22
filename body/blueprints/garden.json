@@ -1,0 +1,39 @@
+{
+  "name": "garden",
+  "description": "A 7x7 fenced decorative garden with a stone brick path, grass plots, and a gate at the entrance",
+  "size": { "x": 7, "y": 2, "z": 7 },
+  "palette": {
+    "F": { "preferred": ["oak_fence", "spruce_fence", "birch_fence"], "tag": "fence" },
+    "K": { "preferred": ["oak_fence_gate", "spruce_fence_gate", "birch_fence_gate"], "tag": "gate" },
+    "P": { "preferred": ["stone_bricks", "stone", "cobblestone"], "tag": "path" },
+    "G": { "preferred": ["grass_block", "dirt"], "tag": "plot" }
+  },
+  "layers": [
+    {
+      "y": 0,
+      "comment": "Ground level — stone brick cross path with grass planting plots in quadrants",
+      "grid": [
+        "GGGPGGG",
+        "GGGPGGG",
+        "GGGPGGG",
+        "PPPPPPP",
+        "GGGPGGG",
+        "GGGPGGG",
+        "GGGPGGG"
+      ]
+    },
+    {
+      "y": 1,
+      "comment": "Fence perimeter with gate at front center (z=0, x=3)",
+      "grid": [
+        "FFFKFFF",
+        "F.....F",
+        "F.....F",
+        "F.....F",
+        "F.....F",
+        "F.....F",
+        "FFFFFFF"
+      ]
+    }
+  ]
+}

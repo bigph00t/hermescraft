@@ -1,0 +1,67 @@
+{
+  "name": "lookout_platform",
+  "description": "A 5x5 elevated platform on four log corner pillars, four blocks high, with fence railings on top",
+  "size": { "x": 5, "y": 5, "z": 5 },
+  "palette": {
+    "L": { "preferred": ["oak_log", "spruce_log", "birch_log"], "tag": "pillar" },
+    "F": { "preferred": ["oak_planks", "spruce_planks", "birch_planks"], "tag": "floor" },
+    "R": { "preferred": ["oak_fence", "spruce_fence", "birch_fence"], "tag": "railing" }
+  },
+  "layers": [
+    {
+      "y": 0,
+      "comment": "Corner log pillars at ground level — rest is empty",
+      "grid": [
+        "L...L",
+        ".....",
+        ".....",
+        ".....",
+        "L...L"
+      ]
+    },
+    {
+      "y": 1,
+      "comment": "Pillar second level — only corner logs",
+      "grid": [
+        "L...L",
+        ".....",
+        ".....",
+        ".....",
+        "L...L"
+      ]
+    },
+    {
+      "y": 2,
+      "comment": "Pillar third level — only corner logs",
+      "grid": [
+        "L...L",
+        ".....",
+        ".....",
+        ".....",
+        "L...L"
+      ]
+    },
+    {
+      "y": 3,
+      "comment": "Pillar fourth level — only corner logs",
+      "grid": [
+        "L...L",
+        ".....",
+        ".....",
+        ".....",
+        "L...L"
+      ]
+    },
+    {
+      "y": 4,
+      "comment": "Platform top — solid plank floor with fence railings around edge",
+      "grid": [
+        "RRRRR",
+        "RFFFR",
+        "RFLFR",
+        "RFFFR",
+        "RRRRR"
+      ]
+    }
+  ]
+}

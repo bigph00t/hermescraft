@@ -1,0 +1,51 @@
+{
+  "name": "bridge",
+  "description": "A 3x7 stone bridge with cobblestone supports, oak plank deck, and fence railings",
+  "size": { "x": 3, "y": 3, "z": 7 },
+  "palette": {
+    "S": { "preferred": ["cobblestone", "stone", "stone_bricks"], "tag": "support" },
+    "W": { "preferred": ["oak_planks", "spruce_planks", "birch_planks"], "tag": "deck" },
+    "R": { "preferred": ["oak_fence", "spruce_fence", "birch_fence"], "tag": "railing" }
+  },
+  "layers": [
+    {
+      "y": 0,
+      "comment": "Support pillars at bridge ends only — spans a gap",
+      "grid": [
+        "SSS",
+        "...",
+        "...",
+        "...",
+        "...",
+        "...",
+        "SSS"
+      ]
+    },
+    {
+      "y": 1,
+      "comment": "Bridge deck — solid plank walkway spanning the gap",
+      "grid": [
+        "SSS",
+        "SWS",
+        "SWS",
+        "SWS",
+        "SWS",
+        "SWS",
+        "SSS"
+      ]
+    },
+    {
+      "y": 2,
+      "comment": "Fence railings on both sides, open at deck level",
+      "grid": [
+        "...",
+        "R.R",
+        "R.R",
+        "R.R",
+        "R.R",
+        "R.R",
+        "..."
+      ]
+    }
+  ]
+}

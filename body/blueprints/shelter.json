@@ -1,0 +1,39 @@
+{
+  "name": "shelter",
+  "description": "A minimal 3x3 emergency survival shelter — cobblestone walls, door, and slab roof",
+  "size": { "x": 3, "y": 3, "z": 3 },
+  "palette": {
+    "S": { "preferred": ["cobblestone", "stone", "dirt"], "tag": "wall" },
+    "D": { "preferred": ["oak_door"], "tag": "door" },
+    "R": { "preferred": ["cobblestone_slab", "oak_slab", "stone_brick_slab"], "tag": "roof" }
+  },
+  "layers": [
+    {
+      "y": 0,
+      "comment": "Ground floor — just a cobblestone perimeter, no internal floor placed",
+      "grid": [
+        "SSS",
+        "S.S",
+        "SSS"
+      ]
+    },
+    {
+      "y": 1,
+      "comment": "Walls with door opening at front (z=0, x=1)",
+      "grid": [
+        "SDS",
+        "S.S",
+        "SSS"
+      ]
+    },
+    {
+      "y": 2,
+      "comment": "Roof — full slab coverage",
+      "grid": [
+        "RRR",
+        "RRR",
+        "RRR"
+      ]
+    }
+  ]
+}

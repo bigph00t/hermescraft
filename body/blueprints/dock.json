@@ -1,0 +1,40 @@
+{
+  "name": "dock",
+  "description": "A 3x8 wooden dock extending outward with fence railings on sides and log posts at base",
+  "size": { "x": 3, "y": 2, "z": 8 },
+  "palette": {
+    "P": { "preferred": ["oak_log", "spruce_log", "birch_log"], "tag": "post" },
+    "W": { "preferred": ["oak_planks", "spruce_planks", "birch_planks"], "tag": "walkway" },
+    "R": { "preferred": ["oak_fence", "spruce_fence", "birch_fence"], "tag": "railing" }
+  },
+  "layers": [
+    {
+      "y": 0,
+      "comment": "Dock posts at corners and midpoints — rest is air (over water)",
+      "grid": [
+        "P.P",
+        "...",
+        "P.P",
+        "...",
+        "P.P",
+        "...",
+        "P.P",
+        "P.P"
+      ]
+    },
+    {
+      "y": 1,
+      "comment": "Walkway planks with fence railings on both sides",
+      "grid": [
+        "RWR",
+        "RWR",
+        "RWR",
+        "RWR",
+        "RWR",
+        "RWR",
+        "RWR",
+        "WWW"
+      ]
+    }
+  ]
+}

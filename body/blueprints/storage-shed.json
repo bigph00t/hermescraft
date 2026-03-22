@@ -1,0 +1,54 @@
+{
+  "name": "storage_shed",
+  "description": "A compact 4x4 enclosed storage room with log corners, plank walls, a door, and slab roof",
+  "size": { "x": 4, "y": 4, "z": 4 },
+  "palette": {
+    "L": { "preferred": ["oak_log", "spruce_log", "birch_log"], "tag": "corner" },
+    "W": { "preferred": ["oak_planks", "spruce_planks", "birch_planks"], "tag": "wall" },
+    "F": { "preferred": ["oak_planks", "cobblestone", "stone"], "tag": "floor" },
+    "D": { "preferred": ["oak_door"], "tag": "door" },
+    "R": { "preferred": ["oak_slab", "spruce_slab", "cobblestone_slab"], "tag": "roof" }
+  },
+  "layers": [
+    {
+      "y": 0,
+      "comment": "Floor — solid 4x4 plank or stone base",
+      "grid": [
+        "FFFF",
+        "FFFF",
+        "FFFF",
+        "FFFF"
+      ]
+    },
+    {
+      "y": 1,
+      "comment": "Lower walls with door at front center (z=0, between x=1 and x=2)",
+      "grid": [
+        "LDWL",
+        "W..W",
+        "W..W",
+        "LWWL"
+      ]
+    },
+    {
+      "y": 2,
+      "comment": "Upper walls — solid perimeter, no windows",
+      "grid": [
+        "LWWL",
+        "W..W",
+        "W..W",
+        "LWWL"
+      ]
+    },
+    {
+      "y": 3,
+      "comment": "Roof — full slab coverage",
+      "grid": [
+        "RRRR",
+        "RRRR",
+        "RRRR",
+        "RRRR"
+      ]
+    }
+  ]
+}

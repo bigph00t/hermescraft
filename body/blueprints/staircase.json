@@ -1,0 +1,60 @@
+{
+  "name": "staircase",
+  "description": "A 3x6 external stairway rising 4 blocks, with cobblestone retaining walls and stair blocks stepping upward",
+  "size": { "x": 3, "y": 4, "z": 6 },
+  "palette": {
+    "S": { "preferred": ["cobblestone", "stone", "stone_bricks"], "tag": "wall" },
+    "T": { "preferred": ["cobblestone_stairs", "stone_stairs", "stone_brick_stairs"], "tag": "stair" },
+    "L": { "preferred": ["cobblestone_slab", "stone_brick_slab", "oak_slab"], "tag": "landing" }
+  },
+  "layers": [
+    {
+      "y": 0,
+      "comment": "Ground level — solid base for first stair step and side walls",
+      "grid": [
+        "SSS",
+        "...",
+        "...",
+        "...",
+        "...",
+        "..."
+      ]
+    },
+    {
+      "y": 1,
+      "comment": "Second level — stair step at z=0 row, walls on sides",
+      "grid": [
+        "STS",
+        "SSS",
+        "...",
+        "...",
+        "...",
+        "..."
+      ]
+    },
+    {
+      "y": 2,
+      "comment": "Third level — stair step at z=0-1 rows, walls on sides",
+      "grid": [
+        "STS",
+        "STS",
+        "SSS",
+        "...",
+        "...",
+        "..."
+      ]
+    },
+    {
+      "y": 3,
+      "comment": "Top level — stair steps leading to landing platform at top",
+      "grid": [
+        "LLL",
+        "STS",
+        "STS",
+        "SSS",
+        "...",
+        "..."
+      ]
+    }
+  ]
+}

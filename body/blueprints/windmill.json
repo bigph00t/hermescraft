@@ -1,0 +1,90 @@
+{
+  "name": "windmill",
+  "description": "A 5x5 multi-story round-ish stone tower, 7 blocks tall, with glass windows and a peaked spruce slab roof",
+  "size": { "x": 5, "y": 7, "z": 5 },
+  "palette": {
+    "S": { "preferred": ["cobblestone", "stone", "stone_bricks"], "tag": "wall" },
+    "F": { "preferred": ["oak_planks", "spruce_planks"], "tag": "floor" },
+    "G": { "preferred": ["glass_pane", "glass"], "tag": "window" },
+    "R": { "preferred": ["spruce_slab", "oak_slab", "cobblestone_slab"], "tag": "roof" }
+  },
+  "layers": [
+    {
+      "y": 0,
+      "comment": "Ground floor — thick walls with interior floor",
+      "grid": [
+        ".SSS.",
+        "SFFFS",
+        "SFFFS",
+        "SFFFS",
+        ".SSS."
+      ]
+    },
+    {
+      "y": 1,
+      "comment": "Lower walls — open doorway at front (z=0, x=2 between stones)",
+      "grid": [
+        ".SSS.",
+        "SS.SS",
+        "S...S",
+        "SSSSS",
+        ".SSS."
+      ]
+    },
+    {
+      "y": 2,
+      "comment": "Mid-lower walls — glass windows on all four sides",
+      "grid": [
+        ".SGS.",
+        "GS.SG",
+        "S...S",
+        "GS.SG",
+        ".SGS."
+      ]
+    },
+    {
+      "y": 3,
+      "comment": "Mid-upper walls — solid stone ring",
+      "grid": [
+        ".SSS.",
+        "SS.SS",
+        "S...S",
+        "SS.SS",
+        ".SSS."
+      ]
+    },
+    {
+      "y": 4,
+      "comment": "Upper walls — glass windows, interior floor planks at this level",
+      "grid": [
+        ".SGS.",
+        "GFFFS",
+        "SFFFS",
+        "GFFFS",
+        ".SGS."
+      ]
+    },
+    {
+      "y": 5,
+      "comment": "Top wall ring — solid perimeter before roof",
+      "grid": [
+        ".SSS.",
+        "SS.SS",
+        "S...S",
+        "SS.SS",
+        ".SSS."
+      ]
+    },
+    {
+      "y": 6,
+      "comment": "Peaked roof — slab ring with center slab raised",
+      "grid": [
+        ".RRR.",
+        "RRRRR",
+        "RRRRR",
+        "RRRRR",
+        ".RRR."
+      ]
+    }
+  ]
+}
