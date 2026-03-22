@@ -36,6 +36,8 @@ Agents must feel and play like real people — creative, emotional, with desires
 - ✓ Freestyle building: LLM designs ## BUILD: plans, agent executes block-by-block with 200-block cap — v1.1 Phase 7
 - ✓ Block placement tracking: persistent placed_blocks.json with 1000-entry truncation — v1.1 Phase 7
 - ✓ Post-build verification: placed_count:N deterministic check with 10% tolerance — v1.1 Phase 7
+- ✓ Typed spatial memory: resource patches (ore_vein, tree_cluster, build_site, poi) with proximity-filtered prompt injection — v1.1 Phase 8
+- ✓ 3 Skript server commands: /where, /nearbyplayers, /checkblock with command-parser.js extractors — v1.1 Phase 8
 
 ### Active
 - [ ] Spatial memory (persistent world map of discovered locations, chests, resources)
@@ -117,4 +119,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-21 after Phase 7 completion*
+*Last updated: 2026-03-21 after Phase 8 completion (v1.1 all phases complete)*
