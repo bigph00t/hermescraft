@@ -97,6 +97,8 @@ Available commands:
   !navigate x:N y:N z:N               — walk to coordinates
   !chat message:"text"                 — say something in chat
   !build blueprint:name x:N y:N z:N   — build a structure from a blueprint at coordinates
+  !deposit item:name count:N           — put items from inventory into nearest chest/barrel
+  !withdraw item:name count:N          — take items from nearest chest/barrel into inventory
   !sethome                             -- mark current position as home base
   !combat                              -- attack nearest hostile mob
   !idle                                — wait and observe; do nothing this turn`)
@@ -112,6 +114,8 @@ Examples:
   !navigate x:100 y:64 z:200
   !chat message:"I'm going to get some wood"
   !build blueprint:small_cabin x:120 y:64 z:200
+  !deposit item:cobblestone count:32
+  !withdraw item:iron_ingot count:5
   !sethome
   !idle`)
 
