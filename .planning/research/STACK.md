@@ -1,213 +1,156 @@
 # Stack Research
 
-**Domain:** Minecraft AI Agent — Tool Quality & Building Intelligence (v1.1)
-**Researched:** 2026-03-21
-**Confidence:** HIGH — all key packages verified by live execution against the running codebase
+**Domain:** Minecraft AI Agent — Mineflayer Rewrite (v2.0)
+**Researched:** 2026-03-22
+**Confidence:** HIGH — all packages verified via npm registry, local node_modules, and official GitHub
 
 ---
 
 ## Context: What This Research Covers
 
-The v1.0 STACK.md concluded "no new dependencies required." That was true for v1.0.
+v2.0 scraps the Fabric client mod + HTTP bridge architecture entirely. Every game interaction
+now goes through Mineflayer's Node.js API directly — no Java, no HTTP, no crosshair drift.
 
-v1.1 requires:
-- A recipe database with dependency chain solving
-- Item name normalization (LLM outputs wrong names constantly)
-- Block placement tracking (persistent spatial record)
-- Spatial memory / world map
-- Smart place action (mod-side: auto-equip, look-at-surface, place-on-face)
-- Chest interaction (new mod action: open chest, deposit/withdraw)
-
-This document covers ONLY the additions and changes needed for these features.
+This document covers only what's needed for the Mineflayer-based architecture. Carry-overs
+(minecraft-data, SOUL files, memory system) are noted but not re-researched.
 
 ---
 
-## Recommended Stack — New Additions
+## Recommended Stack
 
-### Recipe Database
+### Core Technologies
 
 | Technology | Version | Purpose | Why Recommended |
 |------------|---------|---------|-----------------|
-| `minecraft-data` | 3.105.0 (already installed) | Complete 1.21.1 recipe, item, and block database | Already in `node_modules`. Verified: 1333 items, 782 recipe output types, full 1.21.1 data. ESM `import` works directly. Used by Mindcraft and every serious MC bot project. |
+| `mineflayer` | 4.35.0 | Headless MC bot — connect, observe world, execute actions | Already installed. Latest stable (2026-02-13). Official support declared for 1.8–1.21.11. Replaces Fabric mod + HTTP bridge + Baritone entirely. `bot.dig(block)`, `bot.placeBlock()`, `bot.craft()` just work without HTTP round-trips. Industry standard — used by Mindcraft, all serious LLM+MC projects. |
+| `mineflayer-pathfinder` | 2.4.5 | A* pathfinding — `bot.pathfinder.goto(goal)` | The standard pathfinding plugin. Direct replacement for Baritone. Promise-based API: `await bot.pathfinder.goto(new GoalBlock(x,y,z))`. No crosshair drift, no "another action pending" race conditions. Active maintenance: 2.4.5 is current, matches Mindcraft. |
+| `minecraft-data` | 3.105.0 | Item/block/recipe database for 1.21.1 | Already installed (carried from v1.1). 1.21.1 confirmed in version index. Used by the crafting chain solver and item normalizer — carry those modules forward. Mineflayer also uses this internally so it's a shared dep. |
 
-**Verified behavior (live test 2026-03-21):**
-```javascript
-import minecraftData from 'minecraft-data'
-const mcData = minecraftData('1.21.1')
+### Supporting Libraries
 
-// Item lookup by name (canonical names, not LLM variants)
-mcData.itemsByName['stick']      // { id: 848, name: 'stick', displayName: 'Stick', ... }
-mcData.itemsByName['oak_planks'] // { id: 36, name: 'oak_planks', ... }
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| `mineflayer-pvp` | 1.3.2 | Combat plugin — attack entities, dodge | Load for survival mode. Handles hostile mob attacks without manual hit timing. Mindcraft includes it as default. |
+| `mineflayer-collectblock` | 1.6.0 | High-level gather skill — pathfind to block, mine it, collect drop | Use for the `gather` skill function. Handles equip best tool + mine + walk to item drop as one call. Requires mineflayer-pathfinder loaded first. |
+| `mineflayer-tool` | 1.2.0 | Auto-selects best tool for a block | Load alongside mineflayer-collectblock. Prevents digging stone with hands. |
+| `mineflayer-auto-eat` | 5.0.3 | Auto-eat food when hungry | Load at bot init. Keeps agents alive without a dedicated hunger management loop in the Mind. One less thing the LLM needs to babysit. |
+| `mineflayer-armor-manager` | 2.0.1 | Auto-equip best available armor | Optional but recommended for survival. Agents pick up dropped armor and auto-equip the best set. |
+| `vec3` | 0.1.10 | 3D vector math — `new Vec3(x, y, z)` | Already in node_modules (mineflayer dep). Use for position arithmetic in skill functions, no need to install. |
 
-// Recipe lookup by item ID (returns array — multiple variants per item)
-mcData.recipes[848]  // all stick recipes
-// Each recipe: { inShape: [[id, id], ...], result: { id, count } }  (shaped)
-//           or: { ingredients: [id, ...], result: { id, count } }   (shapeless)
+### Development Tools
 
-// Resolve ingredient IDs back to names
-mcData.items[132].name  // 'oak_log'
-```
-
-**Recipe chain solver approach — no library needed, write it in `agent/crafting.js`:**
-
-The chain solver is ~60 lines of recursive JS. No external package is warranted. The pattern:
-
-1. Look up target item via `itemsByName[name]`
-2. Get recipes via `recipes[item.id]`
-3. For each ingredient, prefer the variant the agent actually has (inventory-aware recipe selection)
-4. Recurse into missing ingredients until hitting raw materials (no recipes)
-5. Return ordered `[{ craft: name, need: [{item, count}], output_count }]` list
-
-Key implementation note: wooden_pickaxe has 11 recipe variants (one per plank type). The solver must prefer recipes whose ingredients the agent already has — not blindly pick recipe index 0. Confirmed: filtering `recipes[id]` by `inShape.flat().some(id => inventory.has(mcData.items[id]?.name))` works correctly.
-
-**ESM import (no workaround needed):** `minecraft-data` is CJS but Node.js permits `import` of CJS packages from ESM files. The package is already in the project and confirmed working with `import minecraftData from 'minecraft-data'`.
+| Tool | Purpose | Notes |
+|------|---------|-------|
+| `prismarine-viewer` | Browser-based 3D visualization of bot's world view | Optional. Only useful during development to debug pathfinding or build placement. Not for production — costs memory and opens a port. |
+| `node --watch` | Hot-reload during development | Already in package.json `dev` script. No changes needed. |
 
 ---
 
-### Item Name Normalization
-
-**Approach: hardcoded alias map in `agent/item-names.js` — no library needed.**
-
-The problem is specific and bounded: LLMs output ~20 common wrong names. A lookup table is the right tool.
-
-Confirmed wrong names from live testing:
-- `sticks` → `stick`
-- `oak_planks_4` → `oak_planks` (LLM appends count to name)
-- `log` → `oak_log`
-- `wood_pickaxe` → `wooden_pickaxe`
-- `oak_door_3` → `oak_door`
-
-Normalization strategy (in priority order):
-1. Strip `minecraft:` prefix
-2. Strip trailing `_N` (count suffix) — regex `/^(.+?)_\d+$/`
-3. Map known plural → singular: `sticks→stick`, `logs→log`, etc.
-4. Map deprecated aliases: `log→oak_log`, `wood_pickaxe→wooden_pickaxe`, `planks→oak_planks`, `stone→cobblestone` (for crafting context)
-5. Validate against `mcData.itemsByName` — if not found after normalization, fuzzy match (prefix search)
-
-The normalized name feeds into: `validatePreExecution`, `craft` action, `place` action, `equip` action, recipe chain solver.
-
-`minecraft-data` serves as the ground truth for valid item names: `mcData.itemsByName[normalized]` returns `null` for invalid names, enabling rejection with a clear error message.
-
----
-
-### Block Placement Tracking
-
-**Approach: JSON file, same pattern as `chests.js` — no library needed.**
-
-New module: `agent/placed-blocks.js`
-
-```javascript
-// Schema per entry:
-{
-  "x,y,z": {
-    block: "oak_planks",    // block name placed
-    by: "jeffrey",          // agent name
-    ts: 1234567890,         // unix timestamp
-    purpose: "wall"         // optional context tag
-  }
-}
-```
-
-Why JSON (not SQLite, not rbush-3d):
-- Max scale is ~2000 placed blocks per agent before a session, not millions
-- Queries needed: "what did I place here?" (key lookup) and "what have I placed nearby?" (iterate + distance filter)
-- A plain JS `Map` keyed by `"x,y,z"` strings handles both in microseconds at this scale
-- No 3D spatial index library is warranted — rbush-3d adds 50KB for a problem that doesn't exist yet
-- Saved to `agent/data/{name}/placed-blocks.json` on write, loaded on init
-
-The block tracker feeds:
-- Build verification (compare intended blueprint vs what was actually placed)
-- The spatial world map (placed blocks are tagged as agent-built)
-- Future: selective cleanup/teardown if a build needs revision
-
----
-
-### Spatial Memory (World Map)
-
-**Approach: extend `locations.js` with typed categories — no library needed.**
-
-The existing `locations.js` stores named points as `{x, y, z, type, saved}`. Extend it with:
-
-```javascript
-// New categories for spatial memory:
-// type: 'resource'  — known resource deposits (oak forest at X,Y,Z)
-// type: 'chest'     — storage (deduplicate with chests.js later)
-// type: 'build'     — agent construction sites
-// type: 'hazard'    — cliffs, water, danger zones
-// type: 'poi'       — points of interest (village, structure)
-```
-
-The world map summary in the prompt becomes:
-```
-Known locations: home(12,64,-8) | oak_forest(45,70,20) | shared_chest(-3,65,2) | build_site(20,65,-15)
-```
-
-Radius-based lookup (for "what's near me?"): iterate all locations, filter `Math.sqrt((px-lx)**2 + (pz-lz)**2) < radius`. Sufficient for <200 named locations.
-
-No geospatial library (GeoJSON, rbush, etc.) is warranted at this scale. The vec3 package (already used by mineflayer, which is in node_modules) could provide cleaner distance math but the native approach is simpler and has zero overhead.
-
----
-
-### Smart Place Action — Mod Side
-
-**No new libraries. Java mod changes only.**
-
-The current `place` action requires:
-- Exact target coordinates (LLM guesses wrong)
-- Item already in hotbar (not just inventory)
-
-The smart place action replaces it with a workflow the mod handles internally:
-1. Auto-equip: scan inventory for the requested item, move to hotbar if needed
-2. Raycast from player: find which surface the player is looking at
-3. Place on that surface face (uses existing BlockHitResult logic, already correct)
-
-This is Java code in `ActionExecutor.java`. No new dependencies. The existing `selectHotbarItem`, `lookAtPos`, and `BlockHitResult` infrastructure already exists — smart place is a coordination wrapper around them.
-
-**New action schema:**
-```json
-{ "type": "smart_place", "item": "oak_planks" }
-```
-
-Agent looks at target surface first (via `look_at_block`), then calls `smart_place`. The mod handles equip + place-on-face as a single atomic operation.
-
----
-
-### Chest Interaction — Mod Side
-
-**No new libraries. Java mod changes + new Node.js module.**
-
-The mod needs a new `open_chest` action that:
-1. Navigates to chest (if needed — delegate to Baritone or just check range)
-2. Right-clicks chest (opens screen handler)
-3. Returns chest contents as JSON
-4. Executes deposit/withdraw slot operations
-5. Closes screen
-
-Fabric API provides `ContainerLockableOpenableMixin` / `GenericContainerScreenHandler` for this. The existing `interact_block` action already opens the chest GUI — the missing piece is reading the chest inventory and moving items.
-
-New mod endpoints:
-- `POST /action` with `{"type": "chest_open", "x": N, "y": N, "z": N}` — opens and returns contents
-- `POST /action` with `{"type": "chest_deposit", "item": "oak_planks", "count": 32}` — deposits from inventory
-- `POST /action` with `{"type": "chest_withdraw", "item": "stick", "count": 8}` — withdraws to inventory
-
-On the Node.js side, `agent/chests.js` already tracks chest contents — it will be updated to populate from `chest_open` responses rather than manual inference.
-
----
-
-## No New npm Dependencies Required
-
-All v1.1 features are implementable with:
-- `minecraft-data` 3.105.0 (already installed — not in package.json yet, add it)
-- Native Node.js file I/O (already used throughout)
-- Java mod changes (no new Fabric dependencies — existing API is sufficient)
-
-### Add to package.json
+## Installation
 
 ```bash
-npm install minecraft-data
+# Core — mineflayer already in package.json, add pathfinder
+npm install mineflayer-pathfinder
+
+# Survival support — all recommended for agents in survival world
+npm install mineflayer-pvp mineflayer-collectblock mineflayer-tool mineflayer-auto-eat mineflayer-armor-manager
+
+# Dev only — visualization (optional, skip for production)
+npm install -D prismarine-viewer
 ```
 
-It's already in `node_modules` (pulled in by `mineflayer`), but should be declared as a direct dependency so it's not accidentally pruned.
+Note: `mineflayer`, `minecraft-data`, and `vec3` are already in `package.json` / `node_modules`.
+
+---
+
+## Bot Initialization Pattern
+
+```javascript
+import mineflayer from 'mineflayer'
+import { pathfinder, Movements, goals } from 'mineflayer-pathfinder'
+import { plugin as pvp } from 'mineflayer-pvp'
+import { plugin as autoEat } from 'mineflayer-auto-eat'
+import armorManager from 'mineflayer-armor-manager'
+
+const bot = mineflayer.createBot({
+  host: 'localhost',
+  port: 25565,
+  username: 'jeffrey',    // bot display name on offline server
+  auth: 'offline',        // Paper server with online-mode=false
+  version: '1.21.1',      // pin version, don't let mineflayer guess
+})
+
+bot.loadPlugin(pathfinder)
+bot.loadPlugin(pvp)
+bot.loadPlugin(autoEat)
+bot.loadPlugin(armorManager)
+
+bot.once('spawn', () => {
+  const movements = new Movements(bot)
+  bot.pathfinder.setMovements(movements)
+})
+```
+
+---
+
+## Authentication: Offline Mode
+
+Paper server must have `online-mode=false` in `server.properties` (already the case for the
+existing Paper setup). The bot sets `auth: 'offline'` — no Microsoft account, no token, no
+browser prompt. The `username` field is the literal display name the bot joins with.
+
+This is the simplest possible auth path. No `prismarine-auth`, no OAuth tokens, no caching.
+
+**Confirmed working:** mineflayer's README shows `auth: 'offline'` as the first example for
+offline servers. Multiple mineflayer issues confirm offline mode bypasses all the 1.21.x
+online-auth problems entirely.
+
+---
+
+## MC 1.21.1 Compatibility
+
+**Status: SUPPORTED with caveats.**
+
+Official claim: mineflayer 4.35.0 (latest, released 2026-02-13) declares support for
+"Minecraft 1.8 to 1.21.11."
+
+**Known past issues (now resolved or irrelevant):**
+- Issue #3488 (Oct 2024): `Invalid tag: 117 > 20` in SlotComponent on Paper 1.21.1. Root cause
+  was a minecraft-data protocol definition. Fix required merging minecraft-data PR #948.
+  mineflayer 4.35.0 ships with minecraft-data 3.105.0 which includes the fix — confirmed by
+  checking that 1.21.1 data directory exists in the installed package.
+- Issue #3492 (Oct 2024): `RangeError: ERR_OUT_OF_RANGE` in advancements packet. Upstream
+  node-minecraft-protocol issue. These older reports reference mineflayer 4.26.x and earlier.
+  4.35.0 is 4 major minor releases newer with active maintenance.
+
+**Risk mitigation:**
+- Pin `version: '1.21.1'` in createBot — don't let mineflayer autodetect (autodetect caused
+  issues in issue #551)
+- Connect to a locally-run Paper server (no proxy, no Velocity) — transfer/redirect packet
+  issues only affect proxy setups
+- Offline mode eliminates all Microsoft auth surface area
+
+**Confidence:** MEDIUM. The issues were real but referenced older versions. The v2.0 milestone
+should include a "bot connects and spawns on Paper 1.21.1" smoke test as the very first step.
+
+---
+
+## Memory Footprint
+
+**Per-bot RAM: ~100MB** (vs 1GB+ for Fabric client + Xvfb).
+
+Source: mineflayer discussion #2251 — 50 bots consumed ~5GB total (~100MB each). Maintainer
+confirmed this is inherent: each bot stores its own world state representation.
+
+At 15GB RAM on Glass hardware with 2 agents:
+- 2 bots × 100MB = 200MB for bots
+- LLM inference overhead (MiniMax M2.7 remote): ~0MB local
+- Comfortable headroom for scaling to 10 bots
+
+**Memory growth warning:** mineflayer has a known chunk caching issue (issue #1123) where chunks
+don't unload when a bot travels far. Set `bot.settings.viewDistance = 'tiny'` on spawn and
+avoid long-distance exploration without periodic bot restarts to prevent heap growth over
+multi-hour sessions.
 
 ---
 
@@ -215,11 +158,10 @@ It's already in `node_modules` (pulled in by `mineflayer`), but should be declar
 
 | Recommended | Alternative | When to Use Alternative |
 |-------------|-------------|-------------------------|
-| `minecraft-data` recipe lookup | `/recipes` mod endpoint (existing) | The mod endpoint works for single lookups but can't do dependency chain resolution — it requires being in-game and makes an HTTP round-trip per lookup. Use the mod endpoint as fallback/verification, use minecraft-data for chain solving. |
-| Hardcoded alias map for normalization | LLM prompt engineering only | Prompt engineering alone is insufficient — live testing showed the LLM continues to output wrong names even with correction in the system prompt. A normalization layer is mandatory. |
-| Extend `locations.js` for spatial memory | New dedicated spatial module | Dedicated module is only warranted when locations exceed ~500 entries or when spatial queries need radius indexing. Not needed yet. |
-| `"x,y,z"` string keys for placement tracking | rbush-3d, QuadTree, or spatial DB | rbush-3d and similar are for 100K+ point queries with bounding box search. HermesCraft's placement tracking peaks at ~2000 blocks per session with simple key lookup queries. Overhead is not justified. |
-| Java mod chest action | mineflayer chest API | mineflayer is declared in package.json but explicitly not used. The entire agent uses the Fabric mod HTTP bridge. Adding mineflayer chest interaction would create a split architecture. Stay with the mod. |
+| `mineflayer-pathfinder` | `@nxg-org/mineflayer-pathfinder` (0.0.26) | The @nxg-org fork has more advanced movement (parkour, swimming) but is unstable/pre-release. Use the official plugin unless complex terrain traversal is a priority. |
+| `mineflayer-collectblock` | Manual pathfind + dig + collect loop | Manual control is needed when gather logic requires custom conditions (e.g. mine only oak, avoid caves). collectblock is the right default for simple gathering. |
+| `mineflayer-auto-eat` 5.0.3 | Custom hunger watcher | Custom is fine but it's boilerplate that adds nothing. The plugin handles edge cases (food priority, eating during combat). |
+| `auth: 'offline'` | `prismarine-auth` Microsoft auth | Only needed if the server requires authenticated accounts. Our Paper server is offline-mode, so `prismarine-auth` would add complexity with no benefit. |
 
 ---
 
@@ -227,49 +169,58 @@ It's already in `node_modules` (pulled in by `mineflayer`), but should be declar
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `prismarine-recipe` | Last updated 2022, requires `prismarine-registry` peer dep, superseded by `minecraft-data` | `minecraft-data` which already includes all recipe data |
-| `rbush-3d` / spatial index libraries | Gross overkill for <2000 block coordinate lookups | Plain JS object/Map with `"x,y,z"` string keys |
-| SQLite / better-sqlite3 | Block tracking and spatial memory don't need relational queries; adds native addon compilation | JSON files with in-memory Maps (existing pattern in `chests.js`, `locations.js`) |
-| `mineflayer` chest/crafting APIs | Architecture is Fabric mod + HTTP bridge, not mineflayer. Using both creates two inconsistent game interaction paths | Java mod actions via `/action` endpoint |
-| External crafting chain solver packages | None are maintained for 1.21.1, all are underpowered or mineflayer-coupled | Custom `agent/crafting.js` using `minecraft-data` (~60 lines) |
+| `prismarine-viewer` in production | Opens a TCP port (3007), loads Three.js, increases memory. Useful in dev, waste in prod. | Remove before deploying to Glass |
+| `mineflayer-statemachine` | Adds a finite state machine layer between the LLM and the bot. Redundant with the Mind+Body architecture — the LLM IS the state machine. | Direct skill function calls from the Body loop |
+| `ws` (current dep) | Listed in package.json, not used in v1.x and not needed in v2.x — Mineflayer handles its own networking | Remove from package.json |
+| `sharp` (current dep) | Vision/screenshot dep from v1.x. Vision is explicitly out of scope for v2.0. | Remove from package.json |
+| `mineflayer-navigate` (0.0.10) | Abandoned in 2020, predates mineflayer-pathfinder | `mineflayer-pathfinder` |
+| Auto-version detection | `version` omitted in createBot causes mineflayer to guess from server handshake — known source of bugs | Always pin `version: '1.21.1'` explicitly |
 
 ---
 
-## Integration Points with Existing Code
+## Version Compatibility Matrix
 
-| New Feature | Integrates With | How |
-|-------------|-----------------|-----|
-| `minecraft-data` recipe lookup | `agent/actions.js` `validatePreExecution` | Replace hardcoded craft checks with recipe DB lookup |
-| Recipe chain solver | New `agent/crafting.js` | Called by `plan_task` action and planner when crafting is needed |
-| Item name normalization | `agent/actions.js` `executeAction` | Normalize `action.item` before sending to mod API |
-| Block placement tracker | `agent/builder.js` `tickBuilder` | Record each successful `place` result |
-| Spatial memory | `agent/locations.js` | Add typed categories, update auto-detection |
-| Smart place | `mod/.../ActionExecutor.java` | New `case "smart_place"` + auto-equip wrapper |
-| Chest interaction | `mod/.../ActionExecutor.java` + `agent/chests.js` | New mod actions + update chests.js to use mod data |
+| Package | Version | Mineflayer | MC 1.21.1 | Notes |
+|---------|---------|------------|-----------|-------|
+| `mineflayer` | 4.35.0 | — | SUPPORTED | Declared 1.8–1.21.11. Latest stable 2026-02-13. |
+| `mineflayer-pathfinder` | 2.4.5 | 4.33+ | SUPPORTED | Mindcraft uses this exact version with mineflayer 4.33+. |
+| `mineflayer-pvp` | 1.3.2 | 4.x | SUPPORTED | No known version restrictions |
+| `mineflayer-collectblock` | 1.6.0 | 4.x | SUPPORTED | Requires mineflayer-pathfinder loaded first |
+| `mineflayer-tool` | 1.2.0 | 4.x | SUPPORTED | Pure tool-selection logic, no MC-version coupling |
+| `mineflayer-auto-eat` | 5.0.3 | 4.x | SUPPORTED | 5.x is a rewrite with improved API |
+| `mineflayer-armor-manager` | 2.0.1 | 4.x | SUPPORTED | Mindcraft uses 2.0.1 |
+| `minecraft-data` | 3.105.0 | (shared dep) | CONFIRMED | 1.21.1 data directory verified present |
 
 ---
 
-## Version Compatibility
+## Package Cleanup (v2.0)
 
-| Package | Version | Notes |
-|---------|---------|-------|
-| `minecraft-data` | 3.105.0 | Supports 1.21.1 specifically. Confirmed: all items, blocks, recipes correct. |
-| Node.js | 20+ | ESM import of CJS `minecraft-data` works without `createRequire` workaround |
-| Fabric Mod | 1.21.1 | Chest `GenericContainerScreenHandler` API stable in 1.21.1. No API changes expected for new actions. |
+Remove from `package.json` — no longer needed in the new architecture:
+
+```bash
+npm uninstall sharp ws
+```
+
+- `sharp` — vision/screenshot processing (v1.x only, out of scope for v2.0)
+- `ws` — raw WebSocket library (never used; mineflayer has its own networking)
+- `@anthropic-ai/sdk` — keep if Claude is used as fallback LLM; remove if MiniMax only
 
 ---
 
 ## Sources
 
-- `minecraft-data` npm — live tested against 1.21.1 dataset: 1333 items, 782 recipe types, ESM import confirmed working
-- `node-minecraft-data` GitHub — API docs confirmed: `itemsByName`, `recipes[id]`, `items[id]`, `blocksByName`
-- `minecraft-data` GitHub — version list confirmed: 1.21.1 is a first-class supported version (not aliased)
-- Mindcraft `package.json` (verified via WebFetch) — uses `minecraft-data: ^3.97.0`, confirming it as the ecosystem standard
-- Live codebase inspection — `minecraft-data` already in `node_modules` (dependency of `mineflayer`), version 3.105.0
-- `ActionExecutor.java` live read — existing `place`, `interact_block`, `selectHotbarItem` infrastructure confirmed; smart_place is a coordination wrapper
-- `chests.js`, `locations.js` live read — existing JSON file pattern confirmed as correct approach for block tracking and spatial memory
+- `node_modules/mineflayer/package.json` — version 4.35.0 confirmed installed
+- `node_modules/minecraft-data/minecraft-data/data/pc/common/versions.json` — 1.21.1 entry confirmed
+- `npm view mineflayer` — latest 4.35.0, released 2026-02-13
+- `npm view mineflayer-pathfinder` — latest 2.4.5
+- `npm view mineflayer-pvp mineflayer-collectblock mineflayer-tool mineflayer-auto-eat mineflayer-armor-manager` — all versions confirmed
+- [Mindcraft package.json](https://raw.githubusercontent.com/kolbytn/mindcraft/main/package.json) — reference project using mineflayer 4.33, pathfinder 2.4.5, pvp 1.3.2, armor-manager 2.0.1 (HIGH confidence)
+- [mineflayer GitHub README](https://github.com/PrismarineJS/mineflayer) — auth offline docs, version support list (HIGH confidence)
+- [Issue #3488](https://github.com/PrismarineJS/mineflayer/issues/3488) — SlotComponent bug on 1.21.1 Paper, root cause in minecraft-data, fix confirmed merged (MEDIUM confidence — newer mineflayer versions post-fix)
+- [Issue #3492](https://github.com/PrismarineJS/mineflayer/issues/3492) — advancements packet RangeError on 1.21.1, referenced older mineflayer (MEDIUM confidence — unresolved thread but likely stale)
+- [Discussion #2251](https://github.com/PrismarineJS/mineflayer/discussions/2251) — memory usage: 50 bots = ~5GB, maintainer-confirmed (HIGH confidence)
 
 ---
 
-*Stack research for: HermesCraft v1.1 Tool Quality & Building Intelligence*
-*Researched: 2026-03-21*
+*Stack research for: HermesCraft v2.0 Mineflayer Rewrite*
+*Researched: 2026-03-22*

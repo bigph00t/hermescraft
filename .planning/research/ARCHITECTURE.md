@@ -1,546 +1,547 @@
 # Architecture Research
 
-**Domain:** Minecraft AI agent — tool quality and building intelligence milestone
-**Researched:** 2026-03-21
-**Confidence:** HIGH (based on direct codebase inspection)
+**Domain:** Mineflayer-based Minecraft AI agent — Mind + Body architecture
+**Researched:** 2026-03-22
+**Confidence:** HIGH (Mindcraft source read directly from GitHub; mineflayer-pathfinder official repo verified; AIRI agent DeepWiki cross-checked)
 
 ---
 
-## Existing System Overview
+## Standard Architecture
+
+### System Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                         PAPER SERVER (Docker)                        │
-│   EssentialsX (/home, /sethome)   Skript (/scan, /share-location)   │
-│   AuraSkills (/myskills)          QuickShop (/qs)                    │
-└───────────────────────────┬─────────────────────────────────────────┘
-                            │ TCP (Minecraft protocol)
-┌───────────────────────────┴─────────────────────────────────────────┐
-│                  FABRIC CLIENT (Xvfb per agent)                      │
-│  ┌──────────────────────────┐   ┌────────────────────────────────┐  │
-│  │    HermesBridge Mod      │   │       Baritone Mod              │  │
-│  │  StateReader.java        │   │  navigate / mine actions        │  │
-│  │  ActionExecutor.java     │   └────────────────────────────────┘  │
-│  │  RecipeLookup.java       │                                        │
-│  │  HTTP :3001              │                                        │
-│  └────────────┬─────────────┘                                        │
-└───────────────┼─────────────────────────────────────────────────────┘
-                │ HTTP (fetchState, POST /action)
-┌───────────────┴─────────────────────────────────────────────────────┐
-│                      NODE.JS AGENT (ESM)                             │
-│  ┌─────────────┐  ┌──────────────┐  ┌──────────────────────────┐   │
-│  │ ACTION LOOP │  │ PLANNER LOOP │  │      VISION LOOP          │   │
-│  │   (2s tick) │  │   (5s tick)  │  │       (10s tick)          │   │
-│  │  index.js   │  │  planner.js  │  │      vision.js            │   │
-│  └──────┬──────┘  └──────┬───────┘  └──────────────────────────┘   │
-│         │                │                                           │
-│         ▼                ▼                                           │
-│  ┌──────────────────────────────────────────────────────────────┐   │
-│  │                    action-queue.js (file-backed)              │   │
-│  │           planner writes → action loop pops + executes        │   │
-│  └──────────────────────────────────────────────────────────────┘   │
-│                                                                       │
-│  Per-agent files: data/{name}/                                        │
-│    notepad.txt  locations.json  chests.json  action-queue.json       │
-│    context/     MEMORY.md       stats.json   skills/                 │
-│  Shared files: agent/shared/coordination.json                        │
-└─────────────────────────────────────────────────────────────────────┘
+│                            MIND LAYER                                │
+│                                                                      │
+│  ┌──────────────┐  ┌────────────────┐  ┌──────────────────────────┐ │
+│  │ SelfPrompter │  │    Prompter    │  │        History           │ │
+│  │ (goal loop)  │  │  (LLM client)  │  │  (conversation window)   │ │
+│  │ idle > 2s    │  │  build prompts │  │  compress / summarize    │ │
+│  └──────┬───────┘  └───────┬────────┘  └──────────────────────────┘ │
+│         └──────────────────┘                                         │
+│                      │ dispatch(!command)                            │
+├──────────────────────┼──────────────────────────────────────────────┤
+│                   BODY LAYER                                         │
+│                      │                                               │
+│  ┌───────────────────▼────────────────────────────────────────────┐ │
+│  │                      ActionManager                              │ │
+│  │  stop() → interrupt_code=false → runAction() → return result   │ │
+│  └───────────────────┬────────────────────────────────────────────┘ │
+│                      │                                               │
+│  ┌───────────────────▼────────────┐  ┌──────────────────────────┐  │
+│  │         Skills Library         │  │     ModeController        │  │
+│  │  navigate / gather / build     │  │  self_defense, unstuck    │  │
+│  │  craft / equip / interact      │  │  item_pickup, preserve    │  │
+│  │  each checks bot.interrupt_code│  │  runs every 300ms         │  │
+│  └───────────────────┬────────────┘  └──────────────────────────┘  │
+│                      │                                               │
+├──────────────────────┼──────────────────────────────────────────────┤
+│               MINEFLAYER BOT                                         │
+│  ┌───────────────────▼────────────────────────────────────────────┐ │
+│  │  bot.dig()  bot.placeBlock()  bot.craft()  bot.equip()          │ │
+│  │  bot.pathfinder.goto(goal)    bot.entity.position               │ │
+│  │  bot.on('chat')  bot.on('health')  bot.on('death')              │ │
+│  └────────────────────────────────────────────────────────────────┘ │
+└──────────────────────────────────────────────────────────────────────┘
+                              │ TCP (Minecraft protocol, no HTTP)
+                    Minecraft Server (Paper 1.21.1)
+```
+
+### Component Responsibilities
+
+| Component | Responsibility | Implementation |
+|-----------|----------------|----------------|
+| SelfPrompter | Drives the goal loop — when agent is idle > 2s, re-prompts LLM with current goal | `update()` on 300ms tick; re-runs loop when idle accumulates |
+| Prompter | Sends conversation history to LLM, returns text containing `!command` syntax | `openai` client pointed at MiniMax M2.7, no streaming |
+| History | Rolling conversation window; compresses old turns to a memory summary | In-memory array; archives full session to JSONL |
+| ActionManager | Serializes execution — one action at a time; handles interrupt; timeout watchdog; returns structured result | Promise chain; `bot.interrupt_code` flag |
+| Skills Library | Async primitives: `goToPosition`, `collectBlock`, `placeBlock`, `craftRecipe`, etc. | Each checks `bot.interrupt_code` in loops; returns boolean |
+| ModeController | Priority-ordered reactive behaviors; fires every 300ms independent of LLM | `interrupts: ['all']` for survival; lower for ambient |
+| ConversationManager | Routes incoming chat — player messages pause goal loop and trigger LLM call | `bot.on('chat')` listener |
+| Memory | MEMORY.md (lessons), notepad.txt (scratchpad), context/ (pinned plans) | File-backed, read at init, written async |
+| Agent | Top-level orchestrator — wires bot, all subsystems, event handlers, lifecycle | Single `Agent` class |
+
+---
+
+## Recommended Project Structure
+
+```
+agent/
+├── index.js                 # entry point — createBot(), init Agent, start
+├── agent.js                 # Agent class — orchestrates all modules
+├── config.js                # loadAgentConfig() — env, SOUL file, profiles
+├── logger.js                # all log functions, rich output, box-drawing
+│
+├── mind/                    # LLM reasoning layer — everything that calls the LLM
+│   ├── prompter.js          # LLM client — send history, receive response
+│   ├── self-prompter.js     # goal loop — re-prompt when idle >= 2000ms
+│   ├── history.js           # conversation window, compression, summarize
+│   └── prompt-builder.js    # buildSystemPrompt(), buildUserMessage()
+│
+├── body/                    # skill execution layer — everything that calls Mineflayer
+│   ├── action-manager.js    # one-at-a-time, interrupt, timeout, result
+│   ├── modes.js             # ModeController — reactive autonomous behaviors
+│   ├── commands/            # LLM-visible interface (parsed from !command syntax)
+│   │   ├── index.js         # registry, executeCommand(), parseCommand()
+│   │   ├── navigate.js      # !goTo, !explore, !followPlayer, !stopMoving
+│   │   ├── gather.js        # !collectBlocks, !pickupItem
+│   │   ├── build.js         # !placeBlock, !build, !clearArea
+│   │   ├── craft.js         # !craft, !smelt, !equip
+│   │   ├── combat.js        # !attack, !flee, !defend
+│   │   └── social.js        # !chat, !give, !trade, !respond
+│   └── skills/              # low-level async primitives (not LLM-visible directly)
+│       ├── navigate.js      # goToPosition(), goToPlayer(), explore()
+│       ├── gather.js        # collectBlock(), mineVein()
+│       ├── build.js         # placeBlock(), clearArea()
+│       ├── craft.js         # craftRecipe(), smelt()
+│       ├── combat.js        # attackEntity(), flee()
+│       └── world.js         # getStateSnapshot(), getNearbyBlocks(), getInventory()
+│
+├── memory/                  # persistent state — survives crashes and restarts
+│   ├── memory.js            # MEMORY.md, notepad, lessons, skill files
+│   ├── locations.js         # named locations (name → Vec3) + resource patches
+│   └── session-log.js       # JSONL session archive
+│
+├── social/                  # player and multi-agent interaction
+│   ├── conversation.js      # ConversationManager — message routing, priority
+│   └── shared-state.js      # (v2.1+) cross-agent task registry
+│
+├── data/
+│   ├── jeffrey/             # per-agent data directory
+│   │   ├── MEMORY.md        # lessons, strategies
+│   │   ├── notepad.txt      # LLM scratchpad (read/write across ticks)
+│   │   ├── stats.json       # deaths, completions, counters
+│   │   └── context/         # pinned context files (plans, long tasks, ≤5 files)
+│   └── john/
+│       └── ...
+│
+├── SOUL-jeffrey.md          # Jeffrey's personality, backstory, voice
+├── SOUL-john.md             # John's personality, backstory, voice
+└── skills/                  # agentskills.io SKILL.md files (carry over from v1)
+    ├── minecraft-first-night/SKILL.md
+    └── ...
+```
+
+### Structure Rationale
+
+- **mind/ vs body/:** Explicit separation makes LLM call paths visible. No file in `mind/` imports from `body/skills/`. No file in `body/` calls the LLM. The boundary is strict and testable.
+- **commands/ vs skills/:** Commands are the LLM-visible API — their names appear in the system prompt. Skills are internal implementations. Refactoring a skill never changes the LLM's interface. This is the pattern Mindcraft uses.
+- **modes/ as a separate concern:** Modes run on a 300ms timer, independent of the command loop. They are not commands and the LLM never calls them. They fire when conditions are met — hostile nearby, low health, stuck in place. This independence is what makes the agent feel alive between LLM calls.
+- **memory/ flat files:** No database. MEMORY.md, notepad.txt, and context/ files survive crashes, restarts, and git clones. At 2-10 agent scale, file I/O is not a bottleneck.
+
+---
+
+## Decision Loop
+
+### Normal Tick (No Interrupts)
+
+```
+SelfPrompter.update() called every 300ms
+    │
+    ├── currentAction running? → skip
+    │
+    ├── idle_time < 2000ms → accumulate, skip
+    │
+    └── idle_time >= 2000ms → trigger LLM loop
+            │
+            ▼
+    world.getStateSnapshot(bot)          ← position, health, inventory, nearby
+    promptBuilder.buildSystemPrompt()    ← SOUL + commands + memory lessons
+    promptBuilder.buildUserMessage()     ← snapshot + notepad + progress
+            │
+            ▼
+    prompter.promptConvo(history)        ← LLM call (15-30s cadence effectively)
+            │
+            ▼
+    containsCommand(response)?
+    │
+    ├── NO (3 consecutive misses → abort loop)
+    │       history.add('assistant', response)
+    │       bot.chat(response) if natural language
+    │
+    └── YES
+            executeCommand(agent, '!commandName(args)')
+                    │
+                    ▼
+              ActionManager.runAction(fn)
+              ├── stop() — set interrupt_code=true, drain current action
+              ├── interrupt_code = false — clear flag for new action
+              ├── fn(agent) — skill execution
+              │       checks bot.interrupt_code in every loop body
+              ├── timeout watchdog (10 min)
+              └── returns {success, message, interrupted, timedout}
+                    │
+                    ▼
+            history.add('assistant', response)
+            history.add('system', result.message)
+            idle_time = 0 → loop back
+```
+
+### Interrupt Flow
+
+```
+Player sends chat message
+    │
+    bot.on('chat') fires
+    │
+    ConversationManager.handleMessage(sender, text)
+    ├── pause SelfPrompter (clear idle accumulator)
+    ├── ActionManager.requestInterrupt()
+    │       sets bot.interrupt_code = true
+    │       awaits current skill to cooperative-exit
+    │
+    └── agent.handleMessage(sender, text)
+            │
+            full LLM call with message priority-injected
+            │
+            executeCommand(...) → resume SelfPrompter
+
+ModeController.update() — fires every 300ms, never awaited longer than 100ms
+    │
+    mode.update(agent)
+    │
+    ├── condition NOT met → skip
+    │
+    └── condition met (e.g. health < 6)
+            │
+            ActionManager.stop()
+            │
+            execute mode behavior (flee, eat, etc.)
+            │
+            emit 'idle' → SelfPrompter resumes
+```
+
+### State Persistence Across Ticks
+
+```
+File System                    In-Memory                    LLM Context
+──────────                     ─────────                    ───────────
+SOUL-jeffrey.md  ──(init)──▶  agentConfig.soul       ──▶  system prompt (every call)
+MEMORY.md        ──(init)──▶  memory.lessons          ──▶  system prompt (every call)
+skills/*/SKILL.md──(init)──▶  skills[]                ──▶  system prompt (relevant)
+notepad.txt      ──(every)──▶ notepadContents         ──▶  user message (every call)
+context/*.md     ──(every)──▶ pinnedContext[]          ──▶  user message (every call)
+stats.json       ──(every)──▶ stats object             ──▶  user message (summary)
+                 ◀──(async)── history.turns        → JSONL session archive
 ```
 
 ---
 
-## Component Responsibilities (Existing)
+## Mind-Body Interface Contract
 
-| Component | Responsibility | Side |
-|-----------|---------------|------|
-| `StateReader.java` | Reads MC world state every tick, caches JSON. Surfaces blocks, inventory, position, entities. | Mod |
-| `ActionExecutor.java` | Receives POST /action, queues for client thread, executes instant or sustained actions. | Mod |
-| `RecipeLookup.java` | Queries MC recipe manager for crafting/smelting recipes. Accessed via GET /recipes. | Mod |
-| `HermesBridgeMod.java` | Registers tick events, HTTP server, chat listeners, auto-connect. | Mod |
-| `index.js` | Main 2s action loop. Pops from queue or calls LLM directly. Death detection, stuck recovery. | Agent |
-| `planner.js` | 5s LLM loop. Writes action-queue.json. Has own rolling conversation history (500 msg). | Agent |
-| `vision.js` | 10s loop. Screenshots + Claude Haiku eval. Writes visionContext string injected into prompts. | Agent |
-| `builder.js` | Blueprint execution engine. Places 3 blocks/tick from a blueprint queue. Pauses on missing materials. | Agent |
-| `action-queue.js` | File-backed JSON queue. `setQueue()` from planner, `popAction()` from index. | Agent |
-| `chests.js` | File-backed chest inventory memory. `trackChest()` / `getChestsForPrompt()`. | Agent |
-| `locations.js` | Named location memory. Home, danger zones, POIs. Injected into every prompt. | Agent |
-| `actions.js` | Schema validation, pre-execution checks, `executeAction()` dispatcher. Plugin command handlers. | Agent |
-| `tools.js` | OpenAI-format tool definitions. All tools have injected `reason` field. | Agent |
+This is the hard boundary. The Mind produces command strings. The Body executes them. Neither layer reaches into the other's internals.
 
----
+### Command Definition (Body provides, Mind names)
 
-## v1.1 Integration Architecture
-
-### What Lives Where
-
-The central question for each v1.1 feature is whether the logic belongs in the mod (Java, client-thread, direct MC API access) or the agent (Node.js, async, LLM-facing).
-
-**Rule of thumb:**
-- Anything requiring direct MC API calls (item slots, block placement, screen handling, inventory inspection) must be mod-side.
-- Anything requiring persistence, LLM reasoning, or multi-tick coordination must be agent-side.
-- Item name normalization is a pure string transformation — agent-side, no mod changes needed.
-
----
-
-### Feature: Smart Place
-
-**Problem:** Current `handlePlace` in ActionExecutor requires the item to already be in the hotbar (not just inventory) and requires exact coordinates known in advance. Real players equip from inventory and place against visible surfaces.
-
-**Mod-side changes required (ActionExecutor.java — handlePlace):**
-1. Auto-equip: search full inventory (all 36 slots), move matching item to hotbar slot via `SlotActionType.SWAP` if not in hotbar. The existing `selectHotbarItem` helper only searches the 9 hotbar slots — extend it to search all 36 and move the item.
-2. Look-at-surface mode: when no coordinates are provided, use `client.crosshairTarget` (what the player is currently facing) as the placement surface. The agent calls `look_at_block` first to aim, then `smart_place` without coordinates.
-3. Placement event in response: after successful placement, include `{"success":true,"placed":{"block":"oak_planks","x":10,"y":64,"z":20}}`.
-
-**Agent-side changes (actions.js):**
-- Add `smart_place` to VALID_ACTIONS and ACTION_SCHEMAS.
-- `validatePreExecution` for `smart_place`: check item exists anywhere in inventory (all 36 slots), not just hotbar.
-
-**New tool (tools.js):**
 ```javascript
-{
-  name: 'smart_place',
-  description: 'Place a block. Auto-equips from full inventory, places against surface at crosshair or given coordinates. Use look_at_block first to aim.',
-  parameters: {
-    item: { type: 'string', description: 'Block to place, e.g. "oak_planks"' },
-    x: { type: 'integer', description: 'Optional. Omit to place at crosshair.' },
-    y: { type: 'integer' },
-    z: { type: 'integer' },
+// body/commands/gather.js
+export const collectBlocks = {
+  name: '!collectBlocks',
+  description: 'Mine and collect the specified block type. Use for gathering resources.',
+  params: {
+    blockType: { type: 'BlockName', description: 'Block to collect (e.g. oak_log, stone)' },
+    count:     { type: 'int', domain: [1, 64, '[]'], description: 'How many to collect' },
   },
-  required: ['item'],
-}
-```
-
-**Retire:** `place` stays as an internal action type for backward compat in the queue but is removed from GAME_TOOLS (not shown to LLM). `smart_place` is the only placement tool the LLM sees.
-
----
-
-### Feature: Chest Interaction
-
-**Problem:** No deposit/withdraw actions exist. `interact_block` opens the chest GUI but there is no way to transfer items programmatically.
-
-**Mod-side changes required (ActionExecutor.java — new sustained actions):**
-
-Add two new sustained action types:
-
-1. `chest_deposit` — navigate to chest at (x,y,z), open it, find item in player inventory, shift-click to transfer, close screen.
-2. `chest_withdraw` — navigate to chest at (x,y,z), open it, find item in chest, shift-click to transfer to player inventory, close screen.
-
-Both follow the existing sustained action pattern: HTTP thread queues the action, client tick picks it up, SustainedAction runs across multiple ticks.
-
-The critical implementation detail: after sending `interactBlock`, the mod must wait until `player.currentScreenHandler` is a `GenericContainerScreenHandler` (not `PlayerScreenHandler`) before attempting slot manipulation. This requires a wait-tick in the sustained action loop.
-
-**Response payload includes chest contents after transfer:**
-```json
-{"success":true, "transferred":"oak_log x8", "chest_contents":[...]}
-```
-
-**Agent-side (chests.js):** `trackChest()` is called with updated contents from the response. Auto-refreshes the persistent chest map without a separate scan.
-
-**Agent-side (actions.js):** Add `chest_deposit` and `chest_withdraw` to VALID_ACTIONS and ACTION_SCHEMAS. Pre-execution check for `chest_deposit`: agent must have the item. Pre-execution check for `chest_withdraw`: chest must exist in known chests map.
-
-**New tools (tools.js):**
-```javascript
-{ name: 'chest_deposit', params: { x, y, z, item, count } }
-{ name: 'chest_withdraw', params: { x, y, z, item, count } }
-```
-
-Both require coordinates. The LLM gets chest locations from `getChestsForPrompt()` which is injected into every user message.
-
----
-
-### Feature: Remove Mine Action
-
-**Change is entirely agent-side:**
-- Remove `mine` from GAME_TOOLS in tools.js.
-- Remove `mine` from VALID_ACTIONS in actions.js.
-- Remove `mine` case from planner.js `parseQueueFromPlan()`.
-- The Java `handleMine` in ActionExecutor.java stays — unreachable from agent but harmless. No mod rebuild needed for this feature.
-
-**Update tool descriptions:** `look_at_block` description must explicitly say "this is the primary way to mine — look at a surface block, then break_block".
-
----
-
-### Feature: Item Name Normalization
-
-**Entirely agent-side. No mod changes.**
-
-New module: `agent/normalizer.js`
-
-Two layers:
-
-1. **Static map** for known wrong names:
-   - `sticks` → `stick`
-   - `oak_planks_4` → `oak_planks` (any `_{N}` suffix stripped)
-   - `log` → `oak_log`
-   - `wood` → `oak_log`
-   - `planks` → `oak_planks`
-
-2. **Pattern rules**: strip trailing `_\d+` (quantity suffix), strip `minecraft:` prefix.
-
-Called from `executeAction()` before any other logic runs. Also called inside `validatePreExecution()` on the item field.
-
-Single export: `normalizeItemName(name) → string`. Import in actions.js.
-
----
-
-### Feature: Crafting Chain Solver with Recipe Database
-
-**Entirely agent-side. No mod changes needed** — RecipeLookup.java already exists and serves `GET /recipes?item=X`.
-
-New module: `agent/crafter.js`
-
-**Recipe database:** Agent-side JSON file `agent/knowledge/recipes.json`, pre-populated with the ~50 most common early-game recipes. For unknown items, falls through to `GET /recipes?item=X`.
-
-**Chain solver:**
-```
-solveCraft(item, inventory) → { steps: [...], missing: [...] }
-```
-- Looks up item recipe.
-- For each ingredient, checks inventory count.
-- If insufficient, recursively solves for the ingredient.
-- Returns ordered steps (leaves first, target last) and list of truly missing raw materials.
-
-**Integration with planner.js:** The planner's `parseQueueFromPlan()` calls `solveCraft()` when it encounters a `craft X` line and expands it into multiple queue items if prerequisites are missing:
-
-```
-craft wooden_pickaxe
-→ [craft oak_planks (need oak_log x2), craft stick (need oak_planks x1), craft wooden_pickaxe]
-```
-
-Expansion happens at queue-write time, not execution time. The LLM says "craft wooden_pickaxe" and the planner silently handles the chain. The action loop stays simple.
-
----
-
-### Feature: Freestyle Building
-
-**The fundamental redesign of building.** The existing blueprint builder (builder.js) stays for predefined structures. Freestyle is for LLM-designed structures.
-
-**New module: `agent/freestyle.js`**
-
-Parses the LLM's markdown building plan into a concrete placement queue.
-
-The LLM writes a design in its notepad or a context file:
-```
-BUILD 3x4 PLATFORM at (10, 64, 20):
-oak_planks: fill y=64, rows 0-3, cols 0-2
-oak_planks: wall y=65, north face
-```
-
-`freestyle.js` exports `parseFreestylePlan(text, originX, originY, originZ)` → `[{block, x, y, z}, ...]`.
-
-Planner calls this when it detects a BUILD block in its plan output. Resulting array gets written to action-queue.json as a sequence of `smart_place` actions.
-
-**New module: `agent/placement-tracker.js`**
-
-Persists to `data/{name}/placement-log.json`:
-```json
-{
-  "blocks": [
-    {"block":"oak_planks","x":10,"y":64,"z":20,"ts":"2026-03-21T..."}
-  ]
-}
-```
-
-Truncates to the last 1000 blocks to prevent unbounded growth.
-
-Updated whenever a `smart_place` response includes a `placed` field. In index.js, after `executeAction()` returns, if `result.placed` exists, call `recordPlacement(result.placed)`.
-
-Used by task verification to confirm a build actually happened.
-
----
-
-### Feature: Spatial Memory
-
-**Extends `locations.js` rather than creating a new module.**
-
-Current locations.js stores named points. For v1.1, add a `resources` section to `data/{name}/locations.json`:
-```json
-{
-  "home": {...},
-  "resources": {
-    "oak_cluster_1": {"x":10,"y":64,"z":20,"blockType":"oak_log","count":8,"foundAt":"..."}
+  perform: async (agent, blockType, count) => {
+    // delegates to skills — never imports from mind/
+    const result = await skills.collectBlock(agent.bot, blockType, count)
+    return result ? `Collected ${count} ${blockType}.` : `Failed to collect ${blockType}.`
   }
 }
 ```
 
-New export in locations.js: `saveResourcePatch(blockType, x, y, z, count)`.
+### ActionResult (what Body returns to Mind)
 
-New export: `getResourcesForPrompt()` — formatted string injected into every user message alongside `getLocationsForPrompt()`.
+Every `command.perform()` runs through `ActionManager.runAction()`. The Mind gets back:
 
-**Integration:** command-parser.js already has `extractScanResults()`. Extend it to also call `saveResourcePatch()` when scan results arrive via chat.
-
-No mod changes. Scan results arrive via the existing Skript /scan → chat → command-parser.js pipeline.
-
----
-
-### Feature: Base Tether
-
-**Agent-side only. No mod changes.**
-
-New function in locations.js: `isWandering(currentPos, radiusBlocks)` — returns true if agent is more than N blocks from home.
-
-In the index.js tick function, after fetching state:
-- If `isWandering(state.position, 150)` AND no active build AND agent is not already navigating home:
-  - Clear action queue.
-  - Inject a navigate action to home coordinates as the next action.
-  - Set a `_tethering` flag to prevent repeated triggers on the same wander event.
-
-Tether clears when agent returns within radius.
-
----
-
-### Feature: Task Completion Verification
-
-**Agent-side only. No mod changes.**
-
-The existing `pendingReview` variable in index.js already tracks a subtask just marked "done." Complete the wiring:
-
-1. When `update_task` is called with `status: "done"` and an `expected_outcome`, set `pendingReview = { expected_outcome, reviewTick: tickCount + 1 }`.
-2. On the next tick, before calling the LLM, inject: "You just completed a task. Expected outcome: [outcome]. Look at your current state. Did you actually succeed? If not, re-queue the task."
-3. LLM either proceeds (success) or calls `update_task` with `status: "failed"` (failure).
-
-This closes the existing gap where `pendingReview` is set but never acted on.
-
----
-
-### Feature: Human Message Guaranteed Response
-
-**Agent-side only. No mod changes.**
-
-**Fix:** Single source of truth for unresponded human messages shared between planner and action loop.
-
-New lightweight module `agent/chat-queue.js`:
-- In-memory array of `{sender, message, receivedAt}`.
-- Export: `enqueueHumanMessage(sender, message)`, `getPendingHumanMessages()`, `markResponded(sender)`.
-
-Both planner.js and index.js import from chat-queue.js.
-
-The action loop gets priority: if `getPendingHumanMessages().length > 0` and the action queue is otherwise idle, the next LLM call receives a mandatory injection: "IMPORTANT: [sender] said: [message]. You MUST respond to them in chat this turn."
-
-A message is removed only after the agent issues a `chat` action in the same tick where the injection was active.
-
----
-
-### Feature: New Skript Wrappers
-
-**Server-side (Skript). No mod or agent changes except extending command-parser.js.**
-
-Candidates:
-
-1. `/where [player]` — broadcasts agent coordinates. Output format: `[Hermes] Jeffrey is at (10, 64, 20)`. Parsed by command-parser.js for spatial awareness.
-2. `/nearbyplayers [radius]` — lists online players within radius. Helps agents find teammates.
-3. `/checkblock <x> <y> <z>` — returns block type at coordinates. Agents verify specific block existence without a full scan. Supports task verification.
-
-Each command follows the established pattern: chat output, extracted by command-parser.js.
-
----
-
-## Mod-Side vs Agent-Side Summary
-
-| Feature | Mod Changes | Agent Changes |
-|---------|-------------|---------------|
-| Smart place | ActionExecutor: full inventory search, crosshair mode, placement event in response | New `smart_place` action + tool, normalizer call |
-| Chest deposit/withdraw | ActionExecutor: two new sustained action types | New action types, pre-execution checks, chests.js auto-update |
-| Remove mine | None (keep Java, just unreachable) | Remove from VALID_ACTIONS, GAME_TOOLS, planner parser |
-| Item name normalization | None | New `normalizer.js`, called from `executeAction()` |
-| Recipe database | None (RecipeLookup.java already works) | New `crafter.js` + `knowledge/recipes.json` |
-| Freestyle building | None (uses existing place endpoint via smart_place) | New `freestyle.js`, `placement-tracker.js` |
-| Block placement tracking | Add placement data to handlePlace response | `placement-tracker.js` reads from response |
-| Spatial memory | None | Extend `locations.js` + `command-parser.js` |
-| Base tether | None | Extend `index.js` tick with tether check |
-| Task verification | None | Complete `pendingReview` wiring in `index.js` |
-| Human msg response | None | New `chat-queue.js`, shared between planner + action loop |
-| Skript wrappers | New .sk commands on server | Extend `command-parser.js` for new output formats |
-
-**Mod rebuild required:** Only for smart place and chest interaction. All other features are agent-side and deploy by restarting the Node.js process.
-
----
-
-## Data Flow: Freestyle Building
-
-```
-Planner LLM generates plan text with BUILD block
-                    |
-         planner.js detects BUILD block
-                    |
-   freestyle.js parseFreestylePlan() -> [{block,x,y,z}]
-                    |
-        action-queue.js setQueue() with smart_place actions
-                    |
-     index.js 2s tick: popAction() -> smart_place {item, x, y, z}
-                    |
-   actions.js executeAction() -> normalizeItemName() -> POST /action
-                    |
-    ActionExecutor.java handlePlace() -> auto-equip -> look -> place
-         response: {success:true, placed:{block, x, y, z}}
-                    |
-     index.js receives result -> placement-tracker.js recordPlacement()
-                    |
-  (after all blocks placed) planner verifies via vision.js BUILD: eval
+```javascript
+{
+  success: Boolean,       // did the skill complete its stated goal?
+  message: String,        // appended to history as role:'system' turn
+  interrupted: Boolean,   // halted by interrupt_code (mode or player message)
+  timedout: Boolean,      // halted by timeout watchdog
+}
 ```
 
----
+The `message` string is what the LLM reads on the next turn and reasons from.
 
-## Data Flow: Crafting Chain Resolution
+### Interrupt Contract
 
-```
-Planner writes: "craft wooden_pickaxe"
-                    |
-  planner.js parseQueueFromPlan() hits craft case
-                    |
-  crafter.js solveCraft("wooden_pickaxe", currentInventory)
-  returns: [
-    {craft:"oak_planks", need:{oak_log:2}},
-    {craft:"stick", need:{oak_planks:1}},
-    {craft:"wooden_pickaxe", need:{oak_planks:3, stick:2}}
-  ]
-                    |
-  Queue expanded: [craft oak_planks, craft stick, craft wooden_pickaxe]
-                    |
-         action-queue.js setQueue() with expanded sequence
-                    |
-          index.js executes crafts in order
-```
+Any component may interrupt the Body:
+1. Set `agent.bot.interrupt_code = true`
+2. Optionally call `ActionManager.stop()` to await cooperative drain
+
+Every skill function MUST check `if (bot.interrupt_code) return false` inside every loop body. A skill that omits this check is a defect — it blocks modes and makes the agent unresponsive to chat.
 
 ---
 
-## New File Map
+## Cooperative Interrupt Pattern (Critical)
 
-```
-agent/
-  normalizer.js             NEW — item name canonicalization
-  crafter.js                NEW — recipe chain solver
-  freestyle.js              NEW — LLM plan text → placement queue
-  placement-tracker.js      NEW — persistent block placement log
-  chat-queue.js             NEW — shared human message pending queue
-  knowledge/
-    recipes.json            NEW — pre-populated early-game recipe database (~50 items)
-  data/{name}/
-    placement-log.json      NEW — written by placement-tracker.js
-    action-queue.json       existing
-    locations.json          extended with resources section
-    chests.json             existing, auto-updated by chest actions
+```javascript
+// body/skills/gather.js
+export async function collectBlock(bot, blockType, count) {
+  let collected = 0
+  while (collected < count) {
+    if (bot.interrupt_code) return false          // cooperative exit point
 
-mod/src/main/java/hermescraft/
-  ActionExecutor.java       MODIFIED — smart place full-inv search + chest_deposit + chest_withdraw
-  (all others unchanged)
+    const block = bot.findBlock({
+      matching: mc.getBlockId(blockType),
+      maxDistance: 64,
+    })
+    if (!block) break
 
-server/plugins/skript/scripts/
-  hermescraft.sk            MODIFIED — add /where, /nearbyplayers, /checkblock
+    await goToPosition(bot, block.position.x, block.position.y, block.position.z, 2)
+    if (bot.interrupt_code) return false          // check after every await
+
+    await bot.dig(block)
+    if (bot.interrupt_code) return false
+    collected++
+  }
+  return collected > 0
+}
 ```
 
----
-
-## Build Order (Dependency-Aware)
-
-1. **Item name normalization** (`normalizer.js`)
-   - No dependencies. Unblocks everything that handles item names.
-   - Agent-only, no rebuild.
-
-2. **Remove mine action**
-   - No dependencies. Safe cleanup.
-   - Agent-only, no rebuild.
-
-3. **Recipe database + crafter.js**
-   - Depends on normalizer.js (uses normalized names as keys).
-   - Agent-only, no rebuild. Unlocks reliable crafting chains.
-
-4. **Smart place mod changes + chest interaction** (`ActionExecutor.java`)
-   - Batch these into one mod rebuild.
-   - Depends on: normalizer.js for item name matching on agent side.
-   - Mod rebuild required. Unlock smart_place tool and chest tools.
-
-5. **Freestyle building** (`freestyle.js` + `placement-tracker.js`)
-   - Depends on: smart place (step 4), normalizer (step 1).
-   - Agent-only, no rebuild.
-
-6. **Spatial memory** (extend `locations.js` + `command-parser.js`)
-   - No dependencies. Self-contained extension.
-   - Agent-only, no rebuild.
-
-7. **Base tether** (extend `index.js`)
-   - Depends on: home location in locations.js (already exists).
-   - Agent-only, no rebuild.
-
-8. **Task verification** (complete `pendingReview` in `index.js`)
-   - Benefits from placement-tracker.js (step 5) for build verification.
-   - Agent-only, no rebuild.
-
-9. **Human message guaranteed response** (`chat-queue.js`)
-   - No dependencies.
-   - Agent-only, no rebuild.
-
-10. **New Skript wrappers**
-    - No agent or mod dependencies.
-    - Server-side only, hot-reloads with `/skript reload all`.
-
-**Single mod rebuild required** if steps 4 are batched. Steps 1-3, 5-10 are all agent-side and deploy by restarting the Node.js process.
+Checking after every `await` is mandatory. The interrupt flag is set between ticks, not mid-await. An await-heavy function that checks only at loop start can still hold for 200-500ms per iteration, which is acceptable.
 
 ---
 
-## Architectural Patterns to Follow
+## Reactive Modes (Body Layer, Independent of LLM)
 
-### Pattern: Response-Driven State Updates
+Modes make the agent feel alive between LLM decisions. They handle emergencies the LLM would be too slow to respond to.
 
-Rather than polling the mod for state after every action, embed state changes in action responses. The mod already does this for inventory-affecting actions. Extend this pattern to placement events and chest contents.
+```javascript
+// body/modes.js — ordered by priority (highest first)
+const MODES = [
+  {
+    name: 'self_preservation',
+    interrupts: ['all'],
+    update: async (agent) => {
+      if (agent.bot.health <= 6 && !this.active) {
+        this.active = true
+        await skills.retreat(agent.bot)
+        await skills.eatFood(agent.bot)
+        this.active = false
+      }
+    }
+  },
+  {
+    name: 'self_defense',
+    interrupts: ['all'],
+    update: async (agent) => {
+      const hostile = world.getNearestHostile(agent.bot, 8)
+      if (hostile && !this.active) {
+        this.active = true
+        await skills.equipHighestAttack(agent.bot)
+        await skills.attackEntity(agent.bot, hostile)
+        this.active = false
+      }
+    }
+  },
+  {
+    name: 'unstuck',
+    interrupts: ['all'],
+    // fires if position hasn't changed in 5s during navigation
+    update: async (agent) => { /* ... */ }
+  },
+  {
+    name: 'item_collecting',
+    interrupts: [],            // doesn't interrupt deliberate actions
+    // picks up nearby dropped items when idle
+    update: async (agent) => { /* ... */ }
+  },
+]
+```
 
-**What:** Action response JSON carries the delta state (`placed`, `chest_contents`, `transferred`).
-**When to use:** Any action that durably changes world state the agent needs to track.
-**Trade-off:** Response payloads grow slightly larger. Worth it — avoids extra GET /state round trips per action.
-
-### Pattern: Queue Expansion at Write Time
-
-The planner expands abstract actions (craft wooden_pickaxe) into concrete steps at queue-write time, not at execution time. The action loop remains dumb — it just executes whatever is in the queue.
-
-**What:** `parseQueueFromPlan()` in planner.js preprocesses high-level items into multi-step sequences via crafter.js and freestyle.js.
-**When to use:** Any action with implicit prerequisites (crafting chains, equip-then-place sequences).
-**Trade-off:** Queue can grow larger than 20 items if chain is deep. The existing 20-item cap in `setQueue()` is a safety valve.
-
-### Pattern: Module-Owned Persistence
-
-Each agent-side module owns exactly one JSON file in `data/{name}/`. The module is the only writer. Other modules call exported functions, never write the file directly.
-
-**Existing:** chests.js owns chests.json, locations.js owns locations.json.
-**New:** placement-tracker.js owns placement-log.json.
-**Enforce:** index.js and planner.js never write these files directly.
+Mode updates must complete within ~100ms. Do not `await` a pathfinder.goto inside a mode update — start it async, track `this.active`, check again next tick.
 
 ---
 
-## Anti-Patterns to Avoid
+## Multi-Agent Coordination Pattern
 
-### Anti-Pattern: Keeping Both Place and Smart Place in Tool List
+Two agents (Jeffrey, John) run as separate Node.js processes. Coordination is loose-coupled by design.
 
-**What people do:** Keep both `place` and `smart_place` in GAME_TOOLS to avoid breaking old planner-generated queues.
-**Why wrong:** The LLM will keep using the broken `place` tool — training inertia.
-**Do this instead:** Remove `place` from GAME_TOOLS entirely. `smart_place` replaces it. `place` stays as an internal action type recognized by actions.js and the mod for backward compat in queued items.
+### Primary Channel: In-Game Chat
 
-### Anti-Pattern: Recursive Crafting at Execution Time
+Agents chat to each other via `bot.chat()`. This is the natural Minecraft communication layer.
 
-**What people do:** When a craft action fails (missing ingredient), immediately try to craft the ingredient in the same tick.
-**Why wrong:** The action loop becomes recursive and unpredictable. The LLM loses track of position in task.
-**Do this instead:** Solve the full chain at plan time in crafter.js. Execution is always linear — the queue contains only independent craft steps in dependency order.
+```
+Jeffrey process                         John process
+───────────────                         ────────────
+!chat("John, can you smelt              bot.on('chat') fires
+  these ores while I mine?")  ──▶       ConversationManager sees "Jeffrey:" prefix
+                                        SelfPrompter pauses
+                                        LLM call: "Jeffrey asked me to smelt ores"
+                                        → !goToPosition(furnace) → !smelt("iron_ore", 32)
+```
 
-### Anti-Pattern: Extra State Fetch After Each Placement
+ConversationManager identifies bot messages by cross-referencing agent names. Bot-to-bot messages are tagged `(FROM OTHER BOT)` in history so the LLM knows the sender is an agent.
 
-**What people do:** After smart_place, fetch full state to confirm the block is there.
-**Why wrong:** Adds a second HTTP round-trip per block. Kills build speed (3 blocks/tick becomes 1 block per 2 ticks).
-**Do this instead:** Trust the mod's success response with the `placed` field. If placement actually failed, the state read on the following tick will reveal it.
+### Secondary Channel: Shared File (v2.1+, not v2.0)
 
-### Anti-Pattern: Scanning Inventory on Every Tick for Tether Check
+For structured task handoffs (claim a mine area, register a build zone), `agent/data/shared/coordination.json` with file locking. Not required for v2.0 with 2 agents — chat is sufficient.
 
-**What people do:** Call `hasItem()` on every tick as a general state monitor.
-**Why wrong:** Unnecessary CPU and prompts test that aren't failures.
-**Do this instead:** Tether check only reads `state.position` (already fetched every tick). No extra inventory work.
+### Process Isolation
+
+| Isolation | What it means |
+|-----------|---------------|
+| Separate Node.js process per agent | Crash in Jeffrey does not affect John |
+| Separate `data/{name}/` | Memories, notepad, and context are per-agent |
+| Separate `MC_USERNAME` | Separate Minecraft logins, no shared in-process state |
+| No shared in-memory objects | All coordination via game world or files only |
+
+---
+
+## Scaling Considerations
+
+| Scale | Architecture Adjustments |
+|-------|--------------------------|
+| 2 agents (v2.0) | Separate processes, chat coordination — current design is sufficient |
+| 5-10 agents | Add shared task registry (file or SQLite); deduplicate LLM calls for shared goals; rate-limit concurrent calls |
+| 10+ agents | MindServer coordinator process; agents register task ownership; event-based LLM triggering instead of idle polling |
+
+### Scaling Priorities
+
+1. **First bottleneck (2-5 agents):** LLM call rate. At 15-30s cadence, 5 agents = 10-20 calls/min. MiniMax M2.7 is cheap — not a cost problem. If model changes, add staggered start timers to spread calls.
+2. **Second bottleneck (5+ agents):** File I/O contention on shared coordination files. Move to SQLite at that point.
+3. **RAM is not a bottleneck:** Mineflayer bots are ~100MB each. 10 agents = ~1GB on a 15GB host. Headroom is large.
+
+---
+
+## Anti-Patterns
+
+### Anti-Pattern 1: LLM Called on Every Game Tick
+
+**What people do:** Fire an LLM call every 2s regardless of whether the previous action has completed (the v1 HermesCraft architecture).
+
+**Why it's wrong:** Skills that take 10-30s (navigate 200 blocks, mine 32 ore) get interrupted before completion. The LLM spends most turns saying "still working on it." Token cost balloons. The v1 diagnosis documented exactly this failure.
+
+**Do this instead:** Call LLM only when idle (all skills complete, no active action). SelfPrompter's 2s idle timer is the correct trigger. Skill execution runs uninterrupted to completion.
+
+### Anti-Pattern 2: HTTP Bridge Between Agent and Game
+
+**What people do:** Separate the agent from the bot with an HTTP server (v1 HermesBridge).
+
+**Why it's wrong:** HTTP round-trips add latency, create race conditions ("another action pending"), require coordinate translation, and need a separate process. The v1 post-mortem listed crosshair drift, coordinate bugs, and 1GB RAM per agent.
+
+**Do this instead:** Mineflayer bot in the same process as the agent. `bot.dig(block)` is a direct async call. Zero HTTP, zero translation layer.
+
+### Anti-Pattern 3: Skill Functions Without interrupt_code Checks
+
+**What people do:** Write skill functions as linear async chains without the cooperative cancel check.
+
+**Why it's wrong:** A navigate call that takes 30s cannot be preempted. Modes can't fire. Player chat is ignored for 30s. Agent gets stuck in action loops with no escape.
+
+**Do this instead:** Every loop body, every await, is followed by `if (bot.interrupt_code) return false`. The interrupt flag is the only safe cancellation mechanism. Treat it as a required invariant for every exported skill function.
+
+### Anti-Pattern 4: Giving the LLM Raw Mineflayer API Access
+
+**What people do:** Let the LLM generate Mineflayer code directly (Voyager-style) — `bot.pathfinder.goto(new GoalNear(...))`.
+
+**Why it's wrong:** API details change. Generated code is brittle. Sandboxing is a security risk. The LLM spends tokens on boilerplate instead of reasoning about what to do next.
+
+**Do this instead:** Command abstraction — `!collectBlocks("oak_log", 5)`. The LLM names intent. Skills handle Mineflayer details. This is Mindcraft's core design choice and it works.
+
+### Anti-Pattern 5: One Monolithic Skills File
+
+**What people do:** Pile all skill functions into one `skills.js` (Mindcraft itself does this — 1,340 lines).
+
+**Why it's wrong:** Impossible to test in isolation. Merge conflicts on every addition. Navigation changes break craft logic by proximity in the file. Onboarding is painful.
+
+**Do this instead:** Split by domain — `navigate.js`, `gather.js`, `build.js`, `craft.js`, `world.js`. Each is independently testable. Commands import only what they need.
+
+---
+
+## Integration Points
+
+### External Services
+
+| Service | Integration Pattern | Notes |
+|---------|---------------------|-------|
+| Minecraft Server (Paper 1.21.1) | `mineflayer.createBot()` — direct TCP | No mod, no HTTP, no Xvfb |
+| LLM (MiniMax M2.7) | `openai` client — `chat.completions.create` | Change `baseURL` and `model` only |
+| mineflayer-pathfinder | `bot.loadPlugin(pathfinder)` | `bot.pathfinder.goto(goal)` returns Promise |
+| minecraft-data | `mcData(version)` — block/item IDs, recipes | Used inside skills, not exposed to commands |
+| @mineflayer-navigate or built-in pathfinder | Same as pathfinder | GoalNear, GoalBlock, GoalFollow |
+
+### Internal Boundaries
+
+| Boundary | Communication | Rule |
+|----------|---------------|------|
+| Mind → Body | Command string → `executeCommand()` in commands registry | Mind never calls `skills.*` directly |
+| Body → Mind | `ActionResult.message` appended to `history` | Skills never call Prompter |
+| Modes → ActionManager | `ActionManager.stop()` + `interrupt_code` flag | Modes request stop, do not own execution |
+| Agent → Memory | `memory.load()` at init; `memory.save()` async after changes | Only memory.js writes its files |
+| Multi-agent | `bot.chat()` / in-game chat channel | No IPC sockets, no shared in-memory objects |
+
+---
+
+## Build Order
+
+Dependencies are strict — each phase requires the prior phase to be working.
+
+```
+Phase 1 — Bot Foundation
+  mineflayer.createBot() + pathfinder plugin loading
+  ActionManager (interrupt, timeout, result shape)
+  Skills: navigate.js (goToPosition, goToPlayer)
+         world.js (getStateSnapshot)
+         gather.js (collectBlock)
+  Commands: !goTo, !collectBlocks, !stop
+  Verify: bot navigates, mines, and returns result message
+
+Phase 2 — Mind Loop
+  Prompter (openai client, history management)
+  SelfPrompter (idle timer, goal injection, miss counter)
+  prompt-builder (system prompt: SOUL + commands + memory)
+  End-to-end smoke test: agent decides !collectBlocks from LLM
+  Verify: LLM output drives a real block collection
+
+Phase 3 — Survival Modes
+  ModeController (300ms loop)
+  Modes: self_preservation, self_defense, unstuck, item_collecting
+  Verify: spawn hostile → agent fights without LLM call
+          fall into lava → agent retreats without LLM call
+          get stuck → agent recovers without LLM call
+
+Phase 4 — Full Skill Set
+  Skills: build.js (placeBlock, clearArea)
+          craft.js (craftRecipe, smelt)
+          combat.js (attackEntity, flee)
+  Commands: !placeBlock, !craft, !smelt, !attack
+  Crafting chain solver (carry over crafter.js from v1)
+  Memory: MEMORY.md, notepad read/write, context/ pinned files
+
+Phase 5 — Personality + Multi-Agent
+  SOUL file loading per agent (jeffrey, john)
+  ConversationManager (chat routing, bot-to-bot tagging)
+  Per-agent data directories (data/jeffrey/, data/john/)
+  Two agents on server simultaneously
+  Verify: Jeffrey and John coordinate on a task via chat
+```
+
+---
+
+## Key Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| SelfPrompter idle timer (2s) rather than fixed interval | Prevents LLM calls while skills are running; cadence is determined by skill duration, not a clock |
+| `interrupt_code` flag (cooperative) rather than Promise.race | Skills need to clean up (close GUIs, stop pathfinder) before returning; forced abort leaves bot in bad state |
+| Commands as parsed text, not tool calls | Simpler to debug; LLM text is human-readable; `tool_choice: required` is model-specific and fragile |
+| Modes at 300ms, not event-driven | Polling at 300ms is cheap; event handlers for every mob-spawn/damage event create handler proliferation; polling is predictable |
+| Separate process per agent, no MindServer for v2.0 | 2 agents don't need coordination infrastructure; add MindServer when scaling to 5+ |
 
 ---
 
 ## Sources
 
-- Direct inspection: ActionExecutor.java, StateReader.java, RecipeLookup.java, actions.js, tools.js, builder.js, planner.js, action-queue.js, chests.js, locations.js, index.js
-- Project diagnosis: memory file `project_v11_diagnosis.md`
-- Project requirements: `.planning/PROJECT.md`
+- Mindcraft source (`kolbytn/mindcraft`) — `agent.js`, `action_manager.js`, `modes.js`, `self_prompter.js`, `library/skills.js`, `library/full_state.js`, `library/world.js`, `history.js`, `memory_bank.js`, `process/agent_process.js` — read directly from GitHub raw — HIGH confidence
+- Mindcraft architecture overview — DeepWiki `kolbytn/mindcraft/7-configuration` — module breakdown confirmation — MEDIUM confidence (secondary source, consistent with primary)
+- AIRI Minecraft agent (`moeru-ai/airi`) — DeepWiki `4.1-minecraft-agent` — decision loop, interrupt guards, action queue — MEDIUM confidence (independent implementation, confirms same patterns)
+- mineflayer-pathfinder (`PrismarineJS/mineflayer-pathfinder`) — `GoalNear`, `pathfinder.goto()` Promise API, known issues — HIGH confidence (official repo)
 
 ---
 
-*Architecture research for: HermesCraft v1.1 Tool Quality & Building Intelligence*
-*Researched: 2026-03-21*
+*Architecture research for: HermesCraft v2.0 Mineflayer Mind + Body rewrite*
+*Researched: 2026-03-22*

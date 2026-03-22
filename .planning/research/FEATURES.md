@@ -1,170 +1,269 @@
-# Feature Research: Tool Quality & Building Intelligence
+# Feature Research: Mineflayer Mind + Body Architecture
 
-**Domain:** Minecraft AI agent tool execution layer — block placement, building, crafting, chest interaction, spatial memory, task verification
-**Researched:** 2026-03-21
-**Confidence:** HIGH for table stakes (validated against Mindcraft, Voyager, GITM source code and papers); MEDIUM for differentiators (patterns observed but not universally implemented)
+**Domain:** LLM-driven Minecraft agent — Mineflayer skill library, Mind loop design, LLM-to-skill interface
+**Researched:** 2026-03-22
+**Confidence:** HIGH for skill inventory (verified against Mindcraft skills.js, world.js, modes.js, actions.js, queries.js source); HIGH for Mind loop design (Mindcraft agent.js, self_prompter.js, action_manager.js); MEDIUM for "feels human" patterns (observed in code but not benchmarked)
 
 ---
 
-## Context: What Other Projects Actually Do
+## Context: What We Learned From Real Source Code
 
-Research covered Voyager (GPT-4 + mineflayer code generation), Mindcraft (parameterized skill library), GITM (hierarchical LLM decomposer), MrSteve (Place Event Memory), Odyssey (40 primitive + 183 compositional skills), and T2BM (LLM-to-building via JSON interlayer).
+Research covered the actual source files of Mindcraft (kolbytn/mindcraft), its community fork (mindcraft-ce), and Voyager (MineDojo/Voyager). All function names and patterns below are from real code, not inferred.
 
-Key insight: every serious MC bot project implements block placement and crafting as **atomic, correct primitives** — the LLM never gets to guess coordinates or assume inventory state. Tools are designed to be hard to misuse. HermesCraft's existing `place` action requires the LLM to supply exact coordinates and assumes item is already in hotbar — this is the root cause of 90% failure rate.
+**Key insight:** Mindcraft uses a two-tier interface — parameterized `!commands` the LLM calls by name (e.g., `!collectBlocks("oak_log", 4)`) for routine actions, plus a `!newAction` escape hatch that drops the LLM into code generation mode (JavaScript that calls `skills.*` functions directly) for complex tasks the command palette can't express. The Body runs fully autonomous between LLM decisions. The LLM fires only on: message received, self-prompter tick, or idle event.
 
 ---
 
 ## Table Stakes
 
-Features that every functioning MC bot project treats as solved primitives. Missing = the LLM's good reasoning cannot be executed.
+Features that every functional Mineflayer LLM agent must have. Without these, the Mind cannot meaningfully control the Body.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Auto-equip on place | All serious MC bots (Mindcraft, Voyager) do equip-then-place atomically | MEDIUM | Mod-side: find item in full inventory (not just hotbar), move to hotbar slot, then place. Pattern: `handleEquip` already exists; `handlePlace` must call it first |
-| Look-at-surface before place | Player must face the surface to trigger MC placement physics correctly | LOW | Already have `lookAtPos()` in ActionExecutor; `handlePlace` must look at the support block face, not the target air block |
-| Place-on-face (support block) | MC places blocks by clicking a face of an existing block, not by clicking empty air | MEDIUM | `handlePlace` partially does this — finds support block — but face vector calculation is wrong (points wrong direction) causing ~90% failure |
-| Auto-deposit to nearest chest | Agents accumulate inventory overflow; all bot frameworks support chest deposit | MEDIUM | Mindcraft `putInChest`: navigate to nearest chest within 32 blocks, open container, deposit. HermesCraft has `chests.js` tracking but no deposit/withdraw action |
-| Auto-withdraw from chest | Collaborative play requires agents to take items user placed in chest | MEDIUM | Mindcraft `takeFromChest`: finds matching items across slots, withdraws multiple stacks if needed |
-| Correct item names | LLM outputs `sticks` (not `stick`), `oak_planks_4` (not `oak_planks`) | LOW | Normalization table: plurals → singular, count suffixes stripped, `minecraft:` prefix stripped, `wood` → `oak_log`. Run on ALL tool inputs before dispatch |
-| Crafting prerequisite resolution | LLM tries `craft(wooden_pickaxe)` when it has no planks or sticks | HIGH | State machine: check recipe → check ingredients → if missing, check sub-recipes → queue gather/craft chain. Mindcraft does not solve this; GITM does via sub-goal tree. Must be custom |
-| Remove `mine` action | Baritone pathfinder ignores surface intent, sends agents underground | LOW | Delete from VALID_ACTIONS, GAME_TOOLS, and INFO_ACTIONS. Replace with `look_at_block` + `break_block` pattern in tool descriptions |
-| Human message response guarantee | Agent must always respond to direct human messages before doing anything else | LOW | Priority check in tick loop: if unresponded human message exists, inject chat obligation into prompt |
+| Block collection (`collectBlock`) | Primary resource loop — every MC agent needs to gather | MEDIUM | Mindcraft pattern: pathfind to nearest matching block, auto-select tool via `bot.tool.equipForBlock()`, call `bot.collectBlock.collect(block)`. Uses `mineflayer-collectblock` plugin |
+| Block placement (`placeBlock`) | Agents that can't place blocks can't build | MEDIUM | Mindcraft pattern: break target if occupied, find adjacent solid block, equip item, call `bot.placeBlock(refBlock, faceVec)`. Auto-equip is atomic with placement — never split |
+| Navigation (`goToPosition`, `goToNearestBlock`) | Every multi-step task requires movement | LOW | mineflayer-pathfinder with `GoalNear`. Navigate-before-interact is a hard rule — never assume proximity |
+| Crafting with recipe resolution (`craftRecipe`) | Crafting is core progression | MEDIUM | Mindcraft pattern: query `bot.recipesFor()` without table first, search for crafting table if needed, navigate to it, craft. Must handle "no recipe found" gracefully |
+| Smelting (`smeltItem`) | Iron, cooked food, glass — essential tier 2 | MEDIUM | Find furnace, navigate to it, insert ore + fuel, wait for output, collect |
+| Inventory management (`equip`, `discard`, `consume`) | Agent must manage its own hotbar | LOW | `equip` puts armor on or readies tools. `consume` eats food. `discard` drops overflow |
+| Self-defense (`defendSelf`) | Survival without requiring LLM decision every hit | MEDIUM | Mindcraft modes.js `self_defense`: auto-fires when hostile mobs within 8 blocks, interrupts all actions. Uses `mineflayer-pvp` plugin |
+| Self-preservation mode | Agent must not drown, burn, fall to death | MEDIUM | Mindcraft `self_preservation` mode: monitors drowning, fire, critical health (<5 HP). Jumps when submerged, places water bucket when burning, flees at critical health. Interrupts everything |
+| Chest interaction (`putInChest`, `takeFromChest`) | Storage and multi-agent item exchange | MEDIUM | Navigate to chest, open container window, transfer items. Mindcraft has `viewChest` too. Must handle "no chest found" case |
+| World state queries (`nearbyBlocks`, `inventory`, `entities`) | LLM must observe before deciding | LOW | These are the LLM's eyes. Mindcraft exposes: `!stats` (position, health, hunger, time), `!inventory`, `!nearbyBlocks`, `!entities`, `!craftable`, `!savedPlaces` |
+| Chat send/receive | Agents must communicate naturally | LOW | `bot.chat()` for output; message event listener for input. Multi-agent chat needs routing so bots don't respond to each other's spam |
+| Goal persistence (`!goal` command) | LLM sets an ongoing objective, self-prompts toward it | MEDIUM | Mindcraft self_prompter: when `!goal` issued, enters continuous loop. After each skill execution, re-prompts LLM with "your goal is X, what next?" Every 2s cooldown between prompts |
+| `!stop` interrupt | User or system can halt all executing actions | LOW | Mindcraft makes `!stop` unblockable — highest priority, always clears action queue |
+| Unstuck detection | Agent gets stuck behind blocks, in water, on ledges | LOW | Mindcraft `unstuck` mode: monitors position every 20s, triggers `moveAway()` if no position change. Critical for unsupervised operation |
+
+---
 
 ## Differentiators
 
-Features that meaningfully improve "agent feels human" goal beyond what other projects implement.
+Features that separate "agent that runs commands" from "agent that plays like a person."
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Freestyle building (LLM-designed) | LLM generates building plan in markdown with named blocks; agent executes block-by-block | HIGH | Replaces hardcoded blueprint system. Pattern: planner writes building spec to context file, action loop executes one block per tick using place action. T2BM (2024) validated this works with JSON interlayer + repair module |
-| Block placement tracking | Agent can see what it has built; enables "did I actually do that?" self-check | MEDIUM | Persistent `placed_blocks.json` in agentDir: `{x,y,z} → {block, timestamp}`. Write on every successful place. Diff against plan to compute progress |
-| Item name normalization layer | Intercept ALL LLM-generated item names before they hit the mod | LOW | Single `normalizeItemName(name)` function applied in `validateAction` and before dispatch. Handles: plurals, count suffixes, incorrect styles (Red Bed → red_bed), mc: prefix |
-| Crafting chain solver | Given target item, recursively resolve what needs to be gathered/crafted first | HIGH | Build dependency graph from `minecraft-data` recipes for 1.21. BFS from target item. Output ordered list of gather/craft steps. Most impactful feature — GITM unlocked 99.2% of tech tree this way |
-| Spatial memory (world map) | Persistent record of discovered POIs: chests, veins, biomes, agent-built structures | MEDIUM | Extend `locations.js` with type-tagged entries. Add auto-detection: ore veins found during gathering, biome transitions, any placed crafting table. MrSteve (2024) validated Place Event Memory as the single biggest improvement to task completion |
-| Base tether enforcement | Auto-navigate home when >150 blocks away; no prompt needed | LOW | Check in tick loop: `if distanceToHome > 150 and not on task: navigate(home)`. Prevents 300-block wanders observed in live testing |
-| Task completion verification | After completing a build/task, check actual world state vs stated goal | HIGH | Post-task: call vision loop explicitly, inject "verify your work" prompt. For building: count placed_blocks matching plan. Voyager's self-verification was the highest-impact mechanism (73% item discovery drop without it) |
-| Context-file building plan | Building plan lives in persistent context file (survives history wipe); action loop reads it | LOW | Use existing `save_context` / `delete_context` tool. Planner writes `build_plan.md`, action loop reads it each tick until done. Zero new infrastructure |
+| Autonomous background modes | Body handles survival while Mind focuses on goals | MEDIUM | Mindcraft modes system: `self_preservation`, `unstuck`, `self_defense`, `hunting`, `item_collecting`, `torch_placing`, `elbow_room`, `idle_staring`. Each mode runs on 300ms Body tick, fires only when conditions met, can interrupt foreground action |
+| Idle staring (look around naturally) | Bot looks at nearby entities/players when doing nothing — core "feels alive" signal | LOW | Mindcraft `idle_staring` mode: when idle, track nearby entities visually or look in random direction every 2-12 seconds. Costs nothing, has outsized human-feeling impact |
+| Elbow room (personal space behavior) | Bot naturally moves away from clustering players rather than standing frozen | LOW | Mindcraft `elbow_room` mode: detects nearby players while idle, moves away with randomized delay to prevent synchronized movement with other bots |
+| Day/night routine (NPC controller) | Bot goes home at dusk, sleeps, exits in morning — human daily cycle | MEDIUM | Mindcraft npc/controller.js: `do_routine` flag. Before tick 13000 (day): work goals. After tick 13000 (dusk): navigate home, go to bed. Resets current goal on new day |
+| Saved places memory (`!rememberHere`) | Bot can name and navigate back to locations — base, mine, farm | LOW | Mindcraft `rememberHere`/`goToRememberedPlace` commands. Persistent location store. Required for home base, resource depots, multi-agent rendezvous points |
+| `!newAction` code generation escape hatch | For complex tasks not coverable by command palette, LLM generates JavaScript | HIGH | Mindcraft coder.js: `!newAction` drops LLM into code mode with access to `skills.*` and `world.*`. Up to 5 attempts with error feedback loop. Different model can be used for code vs chat. HermesCraft does NOT need to replicate full Voyager-style code gen — parameterized commands cover 90% of cases |
+| Item auto-collect (idle) | Picks up dropped items while idle — no LLM decision needed | LOW | Mindcraft `item_collecting` mode: 2s wait after spotting dropped items, then collect if inventory space available. Interrupts followPlayer only |
+| Torch placement (idle) | Places torches in dark areas while exploring — background ambiance + practical | LOW | Mindcraft `torch_placing` mode: when idle and nearby light level insufficient, places torch. 5s cooldown. Requires torch in inventory |
+| Hunting (idle) | Pursues and kills animals when idle — provides food autonomously | LOW | Mindcraft `hunting` mode: targets huntable animals within 8 blocks when idle. Interrupts followPlayer only |
+| Crafting plan query (`!getCraftingPlan`) | Before attempting craft, agent can query what ingredients are needed recursively | MEDIUM | Mindcraft query command: given target item + quantity, returns full ingredient breakdown. Prevents "try to craft, fail, confused" loop |
+| Natural chat timing (multi-agent) | Bots don't talk over each other; delayed response if busy | LOW | Mindcraft conversation.js: if both idle → 200ms response delay. If other bot busy → 5s delay. If current bot busy → check if action allows interruption. Self-prompter pauses during conversation |
+| Villager trading (`showVillagerTrades`, `tradeWithVillager`) | End-game economy interaction — rare but expected in a full playthrough | MEDIUM | Mindcraft has both commands. Exposes trade index system. Not required for MVP but expected for Ender Dragon completion |
+| Bed sleeping (`goToBed`) | Skip night, avoid phantoms — real player behavior | LOW | Navigate to nearest bed, sleep. Mindcraft NPC controller does this as part of day/night routine |
+| Surface escape (`goToSurface`, `digDown`) | Recovery from underground situations | LOW | `goToSurface`: navigate upward to highest block above. `digDown`: excavate straight down with hazard avoidance (lava check) |
+
+---
 
 ## Anti-Features
 
-Features that seem like improvements but create more problems than they solve.
+These seem useful but create more problems than they solve.
 
 | Anti-Feature | Why Requested | Why Problematic | Alternative |
 |--------------|---------------|-----------------|-------------|
-| Full mineflayer integration | Mineflayer has `placeBlock`, `chestContainer`, `craftRecipe` built-in | Mineflayer is listed in package.json but confirmed NOT used by custom agent. Adding it requires replacing the mod-based architecture or running a parallel mineflayer bot — major scope expansion | Fix the existing mod-side action primitives (handlePlace, add handleChest) |
-| LLM-generated block coordinates | Let LLM decide where to place each block "freely" | LLM coordinate hallucination is the primary failure mode. T2BM found 38% success rate even with GPT-4 + repair modules | LLM generates high-level building plan (dimensions, style, materials); agent executes deterministically |
-| Real-time world map grid | Maintain voxel grid of all blocks agent has ever seen | Memory usage and persistence cost is enormous for marginal gain | Named POI map (locations.js pattern) handles all practical use cases |
-| Automatic recipe discovery | Agent searches for what it can craft dynamically | Makes the crafting system non-deterministic; debugging failures becomes hard | Static recipe database with explicit chain resolution |
-| Chest auto-scan on every tick | Automatically read nearby chest contents each tick to keep memory fresh | Chest open/close causes visual glitch, server may rate-limit; disrupts other actions | Only scan chest on explicit `interact_chest` action or when agent actively deposits/withdraws |
-| Baritone #mine command re-use | Baritone is fast at finding ores | Baritone pathfinder routes underground regardless of surface intent; agents disappear into caves | Commit to look_at_block + break_block as the only block-breaking primitive |
+| LLM generates coordinate arrays for building | "Let the LLM design the build freely" | LLM coordinate hallucination is primary failure mode. T2BM (2024) showed 38% success rate with GPT-4 + repair modules even when coordinates are the only variable. Free coordinate generation → near-0% | LLM describes build in natural language (dimensions, style, materials). Deterministic code translates to block positions. Use Mindcraft's `placeBlock(blockType, x, y, z)` with computed positions |
+| Continuous LLM polling (tick-locked) | "LLM should decide every game tick" | v1.0 architecture showed this is the root cause of: race conditions, context overflow, token cost explosion, agent paralysis during skill execution | Mind fires on events only: message received, idle event, self-prompter tick (with cooldown). Body runs autonomously |
+| Per-tick world snapshot injection | Inject full world state every LLM call for maximum context | Context window bloat — at 2s ticks with 10 query functions each returning 20+ lines, history fills in minutes. Cost scales with model calls | Lazy queries: LLM calls `!nearbyBlocks` / `!entities` explicitly when it needs info. State is pulled, not pushed |
+| Global action lock ("one action at a time" strictly) | Prevents races | In v1.0, "Another action pending" errors paralyzed agents for minutes | Mindcraft action_manager.js pattern: timeout protection (10 min default), fast-action loop detection (<20ms), graceful stop with 10s forced termination. Resume on idle event |
+| Separate vision loop (screenshot-based) | See what the bot sees | 1GB+ RAM per agent, Xvfb required, Claude Haiku cost per tick. v1.0 result: agents narrated fantasy while placements failed | Mineflayer provides world state directly: `bot.blockAt()`, `bot.nearestEntity()`, `bot.inventory`. No camera needed |
+| Fabric mod + HTTP bridge | "More control over MC internals" | v1.0 root cause: crosshair drift, coordinate translation bugs, race conditions, 1GB RAM per agent | Mineflayer: `bot.dig(block)` just works, `bot.placeBlock()` just works, no HTTP, no bridge |
+| Baritone for pathfinding | "Human-like movement patterns" | Baritone routes underground regardless of surface intent, breaks blocks mid-path, causes 300-block cave wanders | mineflayer-pathfinder: A* pathfinding, `GoalNear`, `GoalFollow`, `GoalSurface`. Sufficient for all observed HermesCraft navigation needs |
+| Mineflayer-smooth-look for all movement | Smooth head turning like a real player | Adds dependency and timing complexity. Main value is in PvP scenarios. Paper server likely has anti-cheat that flags inhuman packet timing | Use standard `bot.look()`. For idle behavior, `idle_staring` mode provides the visual "aliveness" without smooth-look overhead |
+
+---
+
+## The Two-Tier LLM-to-Skill Interface (Critical Design)
+
+This is the core architectural insight from Mindcraft source analysis. Not a feature — the interface contract.
+
+### Tier 1: Parameterized Commands (90% of cases)
+
+The LLM outputs `!commandName("arg1", arg2)` syntax. The Body parses, validates, and dispatches to skill functions. LLM never touches mineflayer API directly.
+
+**Query commands** (observation, no action):
+- `!stats` — position, health, hunger, time of day
+- `!inventory` — full item counts
+- `!nearbyBlocks` — blocks within radius
+- `!entities` — nearby mobs and players
+- `!craftable` — what can be crafted right now
+- `!savedPlaces` — named locations
+- `!getCraftingPlan(item, qty)` — ingredient breakdown
+
+**Action commands** (Body executes autonomously):
+- Navigation: `!goToCoordinates(x,y,z)`, `!searchForBlock(type)`, `!goToPlayer(name)`, `!followPlayer(name)`, `!goToRememberedPlace(name)`, `!goToSurface`, `!moveAway(dist)`
+- Collection: `!collectBlocks(type, num)`
+- Crafting: `!craftRecipe(item, num)`, `!smeltItem(item, num)`, `!clearFurnace`
+- Storage: `!putInChest(item, num)`, `!takeFromChest(item, num)`, `!viewChest`
+- Combat: `!attack(mobType)`, `!attackPlayer(name)`
+- Inventory: `!equip(item)`, `!discard(item, num)`, `!consume(item)`, `!givePlayer(item, name, num)`
+- Build: `!placeHere(blockType)` (single block — complex building uses Tier 2)
+- Utility: `!rememberHere(name)`, `!goToBed`, `!digDown(dist)`, `!stay(secs)`, `!stop`
+- Social: `!startConversation(botName)`, `!endConversation`
+
+### Tier 2: Code Generation (10% of cases, complex tasks)
+
+`!newAction` drops LLM into code-gen mode. LLM writes JavaScript with access to `skills.*` and `world.*`. Body executes in sandboxed compartment. Up to 5 retry attempts with error feedback. Requires a dedicated `code_model` (can be different, more capable model than chat model).
+
+**Use for:** Complex building sequences, multi-step automated farms, novel tasks not in command palette.
+
+**Do not use for:** Anything achievable with Tier 1 commands. Code gen is expensive and error-prone with smaller models.
+
+---
+
+## Mind Loop Design
+
+Based on Mindcraft agent.js, self_prompter.js, action_manager.js source analysis.
+
+### Core Loop
+
+```
+Body tick: every 300ms
+  - Run all enabled modes (self_preservation, unstuck, self_defense, etc.)
+  - If mode fires → interrupt current action, execute mode behavior
+  - If idle event → wait 5s, then execute next queued goal
+
+LLM fires on events (not on timer):
+  1. Incoming chat message → handleMessage() → prompter.promptConvo(history)
+  2. !goal set → self_prompter activates → loop: prompt LLM, execute command, 2s cooldown, repeat
+  3. Bot becomes idle (action completed) → if self_prompter active → re-prompt
+  4. No command used 3 consecutive prompts → self_prompter stops automatically
+```
+
+### Key Design Rules (from source analysis)
+
+1. **LLM must use a command every response** — Mindcraft uses `tool_choice: required` equivalent: if 3 consecutive responses contain no `!command`, self-prompting stops. Prevents rambling.
+2. **Action output caps at 500 chars** — action_manager.js truncates execution output before feeding back to LLM. Prevents history bloat.
+3. **Memory summarization on overflow** — history.js: when `max_messages` reached, oldest 5 messages summarized via LLM into 500-char summary, appended to full history file.
+4. **2000ms minimum between self-prompts** — prevents LLM spam when actions complete quickly.
+5. **Conversations pause self-prompter** — bot stops autonomous behavior to respond to players. Self-prompter resumes 5s after conversation ends.
+6. **20-second unstuck threshold** — position sampled every Body tick; if no change for 20s, `unstuck` mode fires.
+
+### What Makes 15-30s Feel Right
+
+HermesCraft's PROJECT.md targets 15-30s Mind decisions. Mindcraft doesn't have a fixed interval — it's event-driven with 2s minimum cooldown. In practice, skill execution takes 5-30 seconds (pathfinding + collecting + crafting). The effective decision rate naturally lands in the 15-30s range when skill execution time is factored in. This is the right model: **don't set a timer, let skill completion drive re-prompting.**
+
+---
+
+## What Makes a Bot Feel Human vs Robotic
+
+Based on Mindcraft modes.js, npc/controller.js, conversation.js, and skills.js source analysis. These are implemented behaviors, not aspirational.
+
+### Highest Impact (do first)
+
+1. **Idle staring** — bot looks at nearby entities and players while doing nothing. Single mode, zero skill cost. Most visible "aliveness" signal. Mindcraft updates look target every 2-12 seconds with randomized timing.
+
+2. **Elbow room** — bot moves away from clusters of players when idle. Randomized delay prevents synchronized movement with other bots. Eliminates "bot standing frozen next to you" uncanny valley.
+
+3. **Day/night routine** — bot goes home at dusk, sleeps, exits at dawn. Directly matches human play patterns. Requires: saved home location + `goToBed` skill + NPC controller.
+
+4. **Chat response timing** — bot doesn't respond instantly (200ms delay when idle). Doesn't respond while busy with important actions. Pauses goals to have conversations. Matches human "finishing what I was doing" behavior.
+
+### Medium Impact (add after core works)
+
+5. **Autonomous survival** — self_preservation fires before LLM knows there's danger. Bot dodges, flees, heals without asking permission. Looks reactive and alive.
+
+6. **Item collection while passing by** — `item_collecting` mode: bot notices dropped items, waits 2 seconds (natural hesitation), picks them up. Not aggressive hoarding — opportunistic collection.
+
+7. **Torch placement** — bot lights up dark areas while exploring without being told. Small ambient behavior with high "they really play this game" signal.
+
+8. **Hunting when idle** — bot pursues nearby animals when it has nothing else to do. Provides food autonomously. Looks purposeful rather than frozen.
+
+### Lower Impact (but noticeable)
+
+9. **Chat grounding** — bot only references things it has actually seen/done. Requires world state queries before chat. SOUL files must forbid invented claims ("I built a castle" when no castle was placed).
+
+10. **Natural language location references** — bot says "back at base" not "at 142, 64, -89". Requires saved places with human names.
+
+11. **Personal space in multi-agent** — when two bots wander toward the same spot, they spread out naturally. Mindcraft uses randomized delay in `elbow_room` to desynchronize.
 
 ---
 
 ## Feature Dependencies
 
 ```
-Smart Place (auto-equip + look-at + place-on-face)
-    └── required by: Freestyle Building
-    └── required by: Block Placement Tracking
-    └── fixes: 90% of current place failure rate
+Mind Loop (event-driven LLM)
+    └── requires: Body tick (300ms autonomous mode execution)
+    └── requires: Parameterized command interface (Tier 1)
+    └── enables: All goal-directed behavior
 
-Item Name Normalization
-    └── required by: Smart Place (correct item lookup)
-    └── required by: Crafting Chain Solver (ingredient names must match recipe DB)
-    └── required by: Chest Interaction (item names must match chest contents)
+Parameterized Commands (Tier 1)
+    └── requires: mineflayer-pathfinder (navigation)
+    └── requires: mineflayer-collectblock (collection)
+    └── requires: mineflayer-pvp (combat)
+    └── requires: mineflayer-auto-eat (autonomous eating)
+    └── enables: All LLM-directed gameplay
 
-Chest Interaction (deposit/withdraw)
-    └── requires: Item Name Normalization (to match items correctly)
-    └── enables: Collaborative play (user provides items via chest)
+Autonomous Modes (Body)
+    └── requires: Body tick loop
+    └── independent of: Mind/LLM
+    └── enables: Survival without LLM decisions
+
+Day/Night Routine
+    └── requires: Saved places (home location)
+    └── requires: goToBed skill
+    └── enhances: Human-feeling behavior
+
+Code Generation (Tier 2)
+    └── requires: Tier 1 skills (code calls them)
+    └── requires: Sandbox execution environment
+    └── enables: Arbitrary complex tasks
 
 Crafting Chain Solver
-    └── requires: Item Name Normalization
-    └── requires: Recipe database (minecraft-data for 1.21)
-    └── enables: Multi-step crafting without LLM guessing prerequisites
+    └── requires: minecraft-data recipe database
+    └── requires: Inventory query
+    └── enhances: craftRecipe command (auto-prerequisites)
 
-Block Placement Tracking
-    └── requires: Smart Place (must succeed reliably to track)
-    └── enables: Task Completion Verification
-    └── enables: Freestyle Building progress display
+Memory / SOUL system
+    └── requires: File-backed storage
+    └── independent of: Mineflayer
+    └── enables: Personality, learned lessons, notepad
 
-Freestyle Building
-    └── requires: Smart Place (place must work)
-    └── requires: Block Placement Tracking (to know when done)
-    └── replaces: hardcoded blueprint system
+Multi-Agent Coordination
+    └── requires: Single-agent working first
+    └── requires: Chat routing between bot instances
+    └── enables: Collaboration, trading, joint builds
 
-Task Completion Verification
-    └── requires: Block Placement Tracking
-    └── requires: Vision loop (already exists — Claude Haiku)
-    └── enables: Agent self-correction on incomplete structures
-
-Spatial Memory
-    └── enhances: Base Tether (know where home is reliably)
-    └── enhances: Chest Interaction (remember where chests are)
-    └── enhances: Crafting Chain Solver (know where to find resources)
-
-Base Tether
-    └── requires: Spatial Memory (need home location)
-    └── independent from all other new features
+idle_staring mode
+    └── requires: Body tick loop
+    └── independent of: LLM
+    └── enables: Baseline "feels alive" behavior (zero cost)
 ```
 
-### Dependency Notes
-
-- **Smart Place is the critical path**: everything building-related depends on place working reliably. Fix this first.
-- **Item name normalization is zero-cost infrastructure**: implement it as a utility function that wraps all tool dispatch. No architectural change.
-- **Crafting chain solver is high-value but independent**: can ship after smart place without blocking anything else.
-- **Freestyle building replaces blueprints**: do not build on top of `blueprints.js` / `builder.js` — replace them with a context-file-driven planner.
-- **Chest interaction is independent**: no dependency on building features.
-
 ---
 
-## What MC Bot Projects Consider Essential vs Optional
+## MVP Definition for v2.0
 
-Based on Mindcraft, Voyager, Odyssey, GITM source analysis:
+### Launch With (v2.0 milestone — Mineflayer Rewrite)
 
-### Universal (every serious project has these)
-- Atomic equip-then-place (never split into two LLM decisions)
-- Item name validation before dispatch
-- Crafting with inventory check before attempting
-- Navigate-to before interact (never assume proximity)
-- Chest open/deposit/close as a single action sequence
+- [ ] **Mineflayer bot connection** — headless bot connects to Paper server, no Fabric mod. ~100MB RAM vs 1GB.
+- [ ] **mineflayer-pathfinder** — `GoalNear`, `GoalFollow`, `GoalSurface`. Replace Baritone entirely.
+- [ ] **Tier 1 skill library** — all navigation, collection, crafting, combat, chest, inventory commands. ~35 functions modeled on Mindcraft skills.js.
+- [ ] **Mind loop** — event-driven: message → LLM. Idle → self_prompter. No tick-locked polling.
+- [ ] **Autonomous modes** — `self_preservation`, `unstuck`, `self_defense`, `item_collecting`, `idle_staring`, `elbow_room`. These are what make the bot feel alive.
+- [ ] **SOUL + Memory system** — carry over from v1. SOUL files (Jeffrey, John), MEMORY.md, notepad, per-agent data directory.
+- [ ] **Crafting chain solver** — carry over from v1.1. BFS dependency resolver with minecraft-data.
+- [ ] **Saved places** — home location, resource spots. Required for day/night routine and base tether.
+- [ ] **Natural chat** — grounded in actual world state. Response timing with delays. Conversation pauses self-prompter.
+- [ ] **Multi-agent on same server** — 2 bots (Jeffrey, John) with separate ports, separate data dirs, chat routing.
 
-### Common but not universal
-- Crafting chain solver (GITM has it, Mindcraft does not — Mindcraft bots fail more at crafting)
-- Spatial memory (MrSteve 2024 showed it as the key improvement; Voyager does not persist world state)
-- Task self-verification (Voyager has it via GPT-4 critic; Mindcraft does not; removing it from Voyager caused 73% performance drop)
+### Add After Validation (v2.0.x)
 
-### Rare (differentiators)
-- Block placement tracking (no surveyed project maintains a per-agent placed-block log)
-- Freestyle LLM-designed building (T2BM 2024 research project; not in any production bot)
-- Base tether behavior (implicit in some projects via "return home if wandering" curriculum; not a named primitive)
+- [ ] **Day/night routine** — NPC controller with home return at dusk. Trigger: bots are stable individually.
+- [ ] **Torch placing + hunting + torch modes** — ambient background behaviors. Add when core gameplay works.
+- [ ] **`!newAction` code generation** — Tier 2 escape hatch. Trigger: agents hitting tasks not expressible in command palette.
+- [ ] **Villager trading** — end-game economy. Trigger: agents are past iron tier.
+- [ ] **mineflayer-smooth-look** — for PvP scenarios if bots do PvP. Defer unless needed.
 
----
+### Future (v2.1+)
 
-## MVP Definition for v1.1
-
-### Launch With (v1.1 milestone)
-
-- [ ] **Item name normalization** — normalizeItemName() applied at dispatch layer. Unblocks all other features. 1 day.
-- [ ] **Smart place** — mod-side fix: auto-equip from full inventory, correct face vector, look-at-surface. Fixes 90% place failure. 2 days.
-- [ ] **Remove mine action** — delete from VALID_ACTIONS and GAME_TOOLS. Update tool descriptions. 0.5 days.
-- [ ] **Chest deposit/withdraw** — new mod-side `chest_deposit` / `chest_withdraw` actions + agent tools. 2 days.
-- [ ] **Crafting chain solver** — recipe DB + BFS dependency resolver. Queue ordered gather/craft steps into planner. 3 days.
-- [ ] **Freestyle building** — replace blueprints.js with context-file-based building plan; LLM writes plan, action loop places blocks. 3 days.
-- [ ] **Block placement tracking** — write to placed_blocks.json on each successful place. 0.5 days.
-- [ ] **Base tether** — distance check in tick loop, auto navigate-home. 0.5 days.
-- [ ] **Human message guarantee** — priority check before tick loop LLM call. 0.5 days.
-
-### Add After Core Is Working (v1.1.x)
-
-- [ ] **Spatial memory expansion** — extend locations.js with resource vein tracking, biome detection. Trigger: agents keep re-discovering same spots.
-- [ ] **Task completion verification** — vision-based post-task check. Trigger: agents report "done" on partial structures.
-- [ ] **New Skript wrappers** — once core tools work, identify what still needs server-side assistance.
-
-### Defer to v1.2+
-
-- [ ] **AuraSkills PlaceholderAPI** — skill levels showing as 0. Not blocking gameplay.
-- [ ] **ServerTap Docker exposure** — monitoring nicety. Not blocking agent behavior.
-- [ ] **Multi-agent cooperation tasks** — agents need to be individually functional first.
+- [ ] **Scale to 5-10 bots** — infrastructure work. Individual bots must be stable first.
+- [ ] **Blueprint-based building** — structured multi-block builds. Requires reliable `placeBlock` first.
+- [ ] **Skill auto-update from phase completion** — carry over SKILL.md pattern. Trigger: agents complete Ender Dragon phases.
 
 ---
 
@@ -172,55 +271,73 @@ Based on Mindcraft, Voyager, Odyssey, GITM source analysis:
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Item name normalization | HIGH | LOW | P1 |
-| Smart place | HIGH | MEDIUM | P1 |
-| Remove mine action | HIGH | LOW | P1 |
-| Chest deposit/withdraw | HIGH | MEDIUM | P1 |
-| Crafting chain solver | HIGH | HIGH | P1 |
-| Freestyle building | HIGH | HIGH | P1 |
-| Block placement tracking | MEDIUM | LOW | P1 |
-| Base tether | MEDIUM | LOW | P1 |
-| Human message guarantee | MEDIUM | LOW | P1 |
-| Spatial memory expansion | MEDIUM | MEDIUM | P2 |
-| Task completion verification | HIGH | HIGH | P2 |
-| New Skript wrappers | LOW | MEDIUM | P2 |
+| Mineflayer bot connection | HIGH | LOW | P1 |
+| mineflayer-pathfinder | HIGH | LOW | P1 |
+| Navigation skills (goTo*) | HIGH | LOW | P1 |
+| Block collection skill | HIGH | LOW | P1 |
+| Crafting skill + chain solver | HIGH | MEDIUM | P1 |
+| Combat + self_defense mode | HIGH | MEDIUM | P1 |
+| self_preservation mode | HIGH | LOW | P1 |
+| SOUL + Memory system | HIGH | LOW (carry-over) | P1 |
+| Natural chat (grounded) | HIGH | MEDIUM | P1 |
+| idle_staring mode | HIGH | LOW | P1 |
+| elbow_room mode | MEDIUM | LOW | P1 |
+| Chest interaction skills | MEDIUM | MEDIUM | P1 |
+| unstuck mode | MEDIUM | LOW | P1 |
+| item_collecting mode | MEDIUM | LOW | P1 |
+| Saved places | MEDIUM | LOW | P1 |
+| Multi-agent routing | MEDIUM | MEDIUM | P1 |
+| Day/night routine | MEDIUM | MEDIUM | P2 |
+| torch_placing mode | LOW | LOW | P2 |
+| hunting mode | LOW | LOW | P2 |
+| Code generation (newAction) | MEDIUM | HIGH | P2 |
+| Villager trading | LOW | MEDIUM | P3 |
+| mineflayer-smooth-look | LOW | LOW | P3 |
 
 **Priority key:**
-- P1: Ship in v1.1 milestone
-- P2: Ship when P1 features are proven
-- P3: Defer to v1.2+
+- P1: v2.0 milestone (Mineflayer rewrite)
+- P2: v2.0.x (after bots are stable)
+- P3: v2.1+ (future)
 
 ---
 
 ## Competitor Feature Analysis
 
-| Feature | Voyager | Mindcraft | GITM | HermesCraft v1.0 | HermesCraft v1.1 Plan |
-|---------|---------|-----------|------|------------------|----------------------|
-| Block placement | Code-gen (mineflayer placeBlock) | `placeBlock()` with auto-equip + face selection | Keyboard/mouse sim via MCP | Broken (wrong face vector, hotbar-only) | Fix mod-side + auto-equip from full inventory |
-| Chest interaction | Code-gen `putInChest`/`takeFromChest` | `putInChest`/`takeFromChest` with navigation | Not a focus | None | New `chest_deposit`/`chest_withdraw` mod actions |
-| Freestyle building | Code-gen (arbitrary mineflayer code) | `newAction` code generation mode | Not implemented | Hardcoded blueprints (3 patterns) | Context-file plan + block-by-block execution |
-| Item normalization | Implicit in mineflayer registry lookups | No dedicated layer; common failure mode | Explicit repair module | None | normalizeItemName() at dispatch layer |
-| Crafting prerequisites | Not automated; LLM generates gather code | Not automated; fails if missing ingredients | Sub-goal tree decomposition | Static pre-execution checks (partial) | BFS recipe chain solver |
-| Spatial memory | No persistence; queries game state fresh | No persistence; `getNearestBlocks()` queries | Text-based knowledge base | locations.js (named POIs) | Extend locations.js + placed_blocks.json |
-| Task verification | GPT-4 critic after each program | Not implemented | Sub-goal completion check | None | Post-task vision loop injection |
-| Base tether | Curriculum-based (explore goals) | Not implemented | Not implemented | None | Distance check in tick loop |
+| Feature | Mindcraft | Voyager | HermesCraft v1.1 | HermesCraft v2.0 Plan |
+|---------|-----------|---------|-----------------|----------------------|
+| Pathfinding | mineflayer-pathfinder | mineflayer-pathfinder | Baritone (broken) | mineflayer-pathfinder |
+| LLM-to-skill interface | `!commands` + code gen | Code gen only | HTTP POST actions | `!commands` (Tier 1) + code gen (Tier 2) |
+| Autonomous modes | 10 modes, 300ms tick | None (task-based) | 0 modes | 6+ modes, 300ms tick |
+| Memory | 500-char summary + full log | Vector skill library | MEMORY.md + SKILL.md | MEMORY.md + SKILL.md (carry over) |
+| Human-feeling behavior | idle_staring, elbow_room, daily routine | None | None | idle_staring, elbow_room, daily routine |
+| Crafting chain solver | Not automatic (fails on missing ingredients) | Code-gen based | BFS solver (v1.1) | BFS solver (carry over) |
+| Multi-agent | Conversation manager + shared server | Single agent | Multi-agent (broken) | Conversation routing + separate data dirs |
+| Survival | 3 autonomous modes | None | Manual (LLM-decided) | 2 autonomous modes + mode system |
+| Building | `placeBlock` + `!newAction` for complex | Code gen (GPT-4 required) | Blueprint system (broken) | `placeBlock` + saved plans |
 
 ---
 
 ## Sources
 
-- [Mindcraft skills.js source](https://github.com/kolbytn/mindcraft/blob/main/src/agent/library/skills.js) — `placeBlock`, `craftRecipe`, `putInChest`, `takeFromChest` implementation patterns. HIGH confidence.
-- [Mindcraft world.js source](https://github.com/kolbytn/mindcraft/blob/main/src/agent/library/world.js) — spatial query approach (reactive queries, no persistent spatial memory). HIGH confidence.
-- [Voyager paper (arXiv 2305.16291)](https://arxiv.org/abs/2305.16291) — self-verification mechanism; 73% item discovery drop without it. HIGH confidence.
-- [GITM paper (OpenGVLab)](https://github.com/OpenGVLab/GITM) — LLM Decomposer sub-goal tree for crafting prerequisite chains; 99.2% tech tree coverage. HIGH confidence.
-- [MrSteve paper (arXiv 2411.06736)](https://arxiv.org/abs/2411.06736) — Place Event Memory as primary improvement over STEVE-1. MEDIUM confidence (paper findings, not source code).
-- [T2BM paper (arXiv 2406.08751)](https://arxiv.org/html/2406.08751v1) — LLM building via JSON interlayer + repair module; item name normalization patterns; 38% GPT-4 success rate. MEDIUM confidence.
-- [Mineflayer placeBlock API](https://github.com/PrismarineJS/mineflayer/blob/master/docs/api.md) — `referenceBlock` + `faceVector` pattern. HIGH confidence.
-- [prismarine-recipe](https://github.com/PrismarineJS/prismarine-recipe) — Recipe lookup by item type; does not auto-resolve chains (must implement traversal). HIGH confidence.
-- [HermesCraft v1.1 diagnosis](/.claude/projects/-home-bigphoot-Desktop-hermescraft/memory/project_v11_diagnosis.md) — Live testing root causes. HIGH confidence (first-hand observation).
-- [HermesCraft ActionExecutor.java](../mod/src/main/java/hermescraft/ActionExecutor.java) — Current `handlePlace` bug: face vector direction is inverted incorrectly, hotbar-only item lookup. HIGH confidence.
+- [Mindcraft skills.js](https://raw.githubusercontent.com/kolbytn/mindcraft/main/src/agent/library/skills.js) — Full skill function inventory with API patterns. HIGH confidence.
+- [Mindcraft world.js](https://raw.githubusercontent.com/kolbytn/mindcraft/main/src/agent/library/world.js) — 22 world observation functions. HIGH confidence.
+- [Mindcraft actions.js](https://raw.githubusercontent.com/kolbytn/mindcraft/main/src/agent/commands/actions.js) — Full action command list with descriptions. HIGH confidence.
+- [Mindcraft queries.js](https://raw.githubusercontent.com/kolbytn/mindcraft/main/src/agent/commands/queries.js) — Full query command list. HIGH confidence.
+- [Mindcraft modes.js](https://raw.githubusercontent.com/kolbytn/mindcraft/main/src/agent/modes.js) — All 10 autonomous modes, conditions, cooldowns, interrupts. HIGH confidence.
+- [Mindcraft agent.js](https://raw.githubusercontent.com/kolbytn/mindcraft/main/src/agent/agent.js) — 300ms Body tick, LLM event triggers, self_prompter integration. HIGH confidence.
+- [Mindcraft self_prompter.js](https://raw.githubusercontent.com/kolbytn/mindcraft/main/src/agent/self_prompter.js) — Self-prompting loop, 2000ms cooldown, 3-miss stop condition. HIGH confidence.
+- [Mindcraft action_manager.js](https://raw.githubusercontent.com/kolbytn/mindcraft/main/src/agent/action_manager.js) — 10-min timeout, loop detection, idle event emission, 500-char output cap. HIGH confidence.
+- [Mindcraft coder.js](https://raw.githubusercontent.com/kolbytn/mindcraft/main/src/agent/coder.js) — Code generation loop, sandbox execution, 5-attempt retry with error feedback. HIGH confidence.
+- [Mindcraft conversation.js](https://raw.githubusercontent.com/kolbytn/mindcraft/main/src/agent/conversation.js) — Chat timing (200ms idle / 5s busy), multi-agent routing, self-prompter pause. HIGH confidence.
+- [Mindcraft npc/controller.js](https://raw.githubusercontent.com/kolbytn/mindcraft/main/src/agent/npc/controller.js) — Day/night routine, idle → executeNext pattern, home management. HIGH confidence.
+- [Mindcraft history.js](https://raw.githubusercontent.com/kolbytn/mindcraft/main/src/agent/history.js) — 500-char memory summary on overflow. HIGH confidence.
+- [Voyager breakdown](https://www.hanakano.com/posts/voyager-breakdown/) — Curriculum, skill library, iterative refinement; 73% performance drop without self-verification. MEDIUM confidence.
+- [Mindcraft-CE README](https://mindcraft-ce.com/) — Augments system, enhanced unstuck navigation, multi-tier agent hierarchy. MEDIUM confidence.
+- [mineflayer-auto-eat](https://github.com/nxg-org/mineflayer-auto-eat) — Autonomous eating plugin. HIGH confidence.
+- [mineflayer-collectblock](https://github.com/PrismarineJS/mineflayer-collectblock) — Block collection with pathfinding + tool selection. HIGH confidence.
+- [HermesCraft PROJECT.md](/.planning/PROJECT.md) — v2.0 goals, constraints, carry-over requirements. HIGH confidence.
 
 ---
 
-*Feature research for: HermesCraft v1.1 Tool Quality & Building Intelligence*
-*Researched: 2026-03-21*
+*Feature research for: HermesCraft v2.0 Mineflayer Mind + Body Architecture*
+*Researched: 2026-03-22*
