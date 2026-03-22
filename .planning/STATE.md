@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Tool Quality & Building Intelligence
 status: unknown
-last_updated: "2026-03-22T05:17:39.386Z"
+last_updated: "2026-03-22T05:28:52.474Z"
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 10
+  completed_plans: 9
 ---
 
 # Project State
@@ -18,12 +18,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-21)
 
 **Core value:** Agents feel and play like real people — creative, emotional, with desires, aesthetic sense, and the ability to interact with what they see
-**Current focus:** Phase 07 — building-intelligence
+**Current focus:** Phase 08 — spatial-memory-server-scripts
 
 ## Current Position
 
-Phase: 8
-Plan: Not started
+Phase: 08 (spatial-memory-server-scripts) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Plan: Not started
 | Phase 07 P01 | 2 | 2 tasks | 2 files |
 | Phase 07 P02 | 2 | 2 tasks | 3 files |
 | Phase 07 P03 | 68s | 2 tasks | 2 files |
+| Phase 08 P02 | 1min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,8 @@ Plan: Not started
 - [Phase 07]: [Phase 07]: advanceFreestyle wired via response.mode === 'queue' check at post-action result site — queuedAction is out of scope there
 - [Phase 07]: [Phase 07]: PLACED BLOCKS summary placed after BUILD STATUS section — natural reading order for build context
 - [Phase 07]: [Phase 07]: 10% tolerance (0.9 multiplier) in placed_count check — accounts for occasional silent tracking pipeline failures
+- [Phase 08]: where/nearby_players/check_block are INFO_ACTIONS — results arrive via chat before next LLM call
+- [Phase 08]: nearby_players radius capped at 200 to prevent server-side lag
 
 ### Pending Todos
 

@@ -88,7 +88,7 @@ Plans:
 
 Plans:
 - [ ] 08-01-PLAN.md — Typed resource patches in locations.js, proximity-filtered prompt injection for locations/resources/chests
-- [ ] 08-02-PLAN.md — Skript wrappers (where.sk, nearbyplayers.sk, checkblock.sk) + command-parser.js + tool wiring
+- [x] 08-02-PLAN.md — Skript wrappers (where.sk, nearbyplayers.sk, checkblock.sk) + command-parser.js + tool wiring
 
 ## Progress
 
@@ -104,7 +104,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8
 | 5. Tool Primitives | v1.1 | 3/3 | Complete   | 2026-03-22 |
 | 6. Crafting Intelligence | v1.1 | 2/2 | Complete   | 2026-03-22 |
 | 7. Building Intelligence | v1.1 | 3/3 | Complete   | 2026-03-22 |
-| 8. Spatial Memory + Server Scripts | v1.1 | 0/2 | Not started | - |
+| 8. Spatial Memory + Server Scripts | v1.1 | 1/2 | In Progress|  |
 
 ---
 *Roadmap created: 2026-03-21*

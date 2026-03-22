@@ -38,7 +38,7 @@ Requirements for Tool Quality & Building Intelligence milestone. Each maps to ro
 
 ### Server Scripts
 
-- [ ] **SCRIPT-01**: New Skript wrappers provide server-side assistance for agent operations (e.g. /where, /nearbyplayers, /checkblock)
+- [x] **SCRIPT-01**: New Skript wrappers provide server-side assistance for agent operations (e.g. /where, /nearbyplayers, /checkblock)
 
 ## v1.0 Requirements (Validated)
 
@@ -115,7 +115,7 @@ Deferred to next milestone. Tracked but not in current roadmap.
 | BUILD-04 | Phase 7 | Complete |
 | SPACE-01 | Phase 8 | Pending |
 | SPACE-02 | Phase 8 | Pending |
-| SCRIPT-01 | Phase 8 | Pending |
+| SCRIPT-01 | Phase 8 | Complete |
 
 **Coverage:**
 - v1.1 requirements: 15 total
