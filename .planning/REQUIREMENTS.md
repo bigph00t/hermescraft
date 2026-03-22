@@ -21,7 +21,7 @@ Requirements for Mineflayer Rewrite milestone.
 - [x] **SKILL-02**: Mine skill — mine ore with auto-best-tool selection
 - [x] **SKILL-03**: Craft skill — resolve full dependency chain and craft (BFS solver)
 - [x] **SKILL-04**: Smelt skill — place/find furnace, load fuel + input, wait for output
-- [ ] **SKILL-05**: Build skill — place blocks from a structured plan, verify each placement
+- [x] **SKILL-05**: Build skill — place blocks from a structured plan, verify each placement
 - [x] **SKILL-06**: Combat skill — attack hostile mobs, flee when low health
 - [x] **SKILL-07**: Chest skill — deposit/withdraw items from chests, remember chest locations
 - [x] **SKILL-08**: Inventory management — equip best tools/armor, eat when hungry
@@ -51,7 +51,7 @@ Requirements for Mineflayer Rewrite milestone.
 
 ### Creative Building
 
-- [ ] **BUILD-01**: Agents build real structures — walls, roof, floor — not single blocks
+- [x] **BUILD-01**: Agents build real structures — walls, roof, floor — not single blocks
 - [ ] **BUILD-02**: Emergent creative behavior — agents choose what to build based on personality and context
 - [ ] **BUILD-03**: Base expansion over time — keep improving builds across sessions
 
@@ -90,7 +90,7 @@ Requirements for Mineflayer Rewrite milestone.
 | SKILL-02 | Phase 1 | Complete |
 | SKILL-03 | Phase 2 | Complete |
 | SKILL-04 | Phase 2 | Complete |
-| SKILL-05 | Phase 6 | Pending |
+| SKILL-05 | Phase 6 | Complete |
 | SKILL-06 | Phase 4 | Complete |
 | SKILL-07 | Phase 2 | Complete |
 | SKILL-08 | Phase 2 | Complete |
@@ -108,7 +108,7 @@ Requirements for Mineflayer Rewrite milestone.
 | SOUL-03 | Phase 5 | Complete |
 | SOUL-04 | Phase 5 | Complete |
 | SOUL-05 | Phase 5 | Complete |
-| BUILD-01 | Phase 6 | Pending |
+| BUILD-01 | Phase 6 | Complete |
 | BUILD-02 | Phase 6 | Pending |
 | BUILD-03 | Phase 6 | Pending |
 
