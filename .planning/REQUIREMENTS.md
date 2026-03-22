@@ -52,8 +52,8 @@ Requirements for Mineflayer Rewrite milestone.
 ### Creative Building
 
 - [x] **BUILD-01**: Agents build real structures — walls, roof, floor — not single blocks
-- [ ] **BUILD-02**: Emergent creative behavior — agents choose what to build based on personality and context
-- [ ] **BUILD-03**: Base expansion over time — keep improving builds across sessions
+- [x] **BUILD-02**: Emergent creative behavior — agents choose what to build based on personality and context
+- [x] **BUILD-03**: Base expansion over time — keep improving builds across sessions
 
 ## Future Requirements
 
@@ -109,8 +109,8 @@ Requirements for Mineflayer Rewrite milestone.
 | SOUL-04 | Phase 5 | Complete |
 | SOUL-05 | Phase 5 | Complete |
 | BUILD-01 | Phase 6 | Complete |
-| BUILD-02 | Phase 6 | Pending |
-| BUILD-03 | Phase 6 | Pending |
+| BUILD-02 | Phase 6 | Complete |
+| BUILD-03 | Phase 6 | Complete |
 
 **Coverage:**
 - v2.0 requirements: 30 total

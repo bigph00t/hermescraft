@@ -43,7 +43,7 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
 - [ ] **Phase 3: Mind Loop + LLM** — Event-driven self-prompter, command registry, rolling conversation history
 - [ ] **Phase 4: Survival Modes** — Autonomous reactive behaviors that run without the LLM: self-preservation, self-defense, unstuck, idle, item collection
 - [x] **Phase 5: Personality + Social** — SOUL files, persistent memory, grounded chat, two-agent coordination, day/night routine (completed 2026-03-22)
-- [ ] **Phase 6: Creative Building** — Real structures from plans, personality-driven build choices, base expansion across sessions
+- [x] **Phase 6: Creative Building** — Real structures from plans, personality-driven build choices, base expansion across sessions (completed 2026-03-22)
 
 ## Phase Details
 
@@ -129,10 +129,10 @@ Plans:
   1. Bot places a complete set of blocks from a structured plan (floor, walls, roof) with each placement verified server-side
   2. Jeffrey decides to build something different than John would, driven by their respective personalities and the current game context, without the user scripting the choice
   3. A structure built in session one is recognizably extended or improved in a later session without the user providing instructions
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 06-01-PLAN.md — Blueprints + build skill with queue execution and state persistence (SKILL-05, BUILD-01)
-- [ ] 06-02-PLAN.md — Mind wiring: !build registry, prompt injection, cross-session memory (BUILD-02, BUILD-03, SKILL-05)
+- [x] 06-02-PLAN.md — Mind wiring: !build registry, prompt injection, cross-session memory (BUILD-02, BUILD-03, SKILL-05)
 
 ## Progress
 
@@ -146,7 +146,7 @@ v2.0 phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 3. Mind Loop + LLM | v2.0 | 1/2 | In Progress|  |
 | 4. Survival Modes | v2.0 | 1/2 | In Progress|  |
 | 5. Personality + Social | v2.0 | 2/2 | Complete   | 2026-03-22 |
-| 6. Creative Building | v2.0 | 1/2 | In Progress|  |
+| 6. Creative Building | v2.0 | 2/2 | Complete   | 2026-03-22 |
 
 ---
 *Roadmap created: 2026-03-21*

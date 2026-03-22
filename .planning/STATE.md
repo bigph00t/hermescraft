@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Mineflayer Rewrite
-status: Ready to execute
-last_updated: "2026-03-22T19:45:56.025Z"
+status: Phase complete — ready for verification
+last_updated: "2026-03-22T19:50:51.814Z"
 progress:
   total_phases: 6
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 13
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # Project State
@@ -52,6 +52,7 @@ Plan: 2 of 2
 | Phase 05-personality-social P05-01 | 2min | 2 tasks | 4 files |
 | Phase 05-personality-social P05-02 | 3min | 2 tasks | 4 files |
 | Phase 06-creative-building P06-01 | 2m 12s | 2 tasks | 5 files |
+| Phase 06-creative-building P06-02 | 4min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -100,6 +101,9 @@ Plan: 2 of 2
 - [06-01] Blueprint name lookup tries both snake_case and kebab-case filename forms — callers using 'small_cabin' or 'small-cabin' both resolve correctly
 - [06-01] Build skill saves state every 5 blocks (not every block) — reduces disk write pressure while maintaining reasonable resume granularity
 - [06-01] Nav failure on build block = skip-and-continue (not abort) — mirrors gather.js pattern; prevents permanent stall from terrain obstacles
+- [06-02] getBuildContextForPrompt is a pure formatter in prompt.js (no body imports); mind/index.js passes data in — cleaner module boundary
+- [06-02] mind/index.js imports getActiveBuild and listBlueprints from body/ directly — pure read-only getters, pragmatic wiring layer exception (same as start.js)
+- [06-02] Build context injected as Part 5.5 (between locations and commands) so LLM sees blueprint catalog before command syntax
 
 ### Critical Pitfalls (from research)
 
@@ -137,3 +141,4 @@ None currently.
 - 2026-03-22: Completed 05-01 — mind/config.js, mind/memory.js, mind/social.js, mind/locations.js created; SOUL discovery, per-agent data dirs, player sentiment tracking with partner pre-seeding, named waypoints; SOUL-01, SOUL-02, SOUL-04 complete
 - 2026-03-22: Completed 05-02 — start.js + mind/index.js wired with config+memory+social+locations; mind/prompt.js extended with anti-hallucination grounding, rich time labels, memory/social/locations injection; body/modes.js night shelter Priority 0; all SOUL-01 through SOUL-05 complete; Phase 05 complete
 - 2026-03-22: Completed 06-01 — body/blueprints/ directory with 4 JSONs (small-cabin, animal-pen, crop-farm, watchtower); body/skills/build.js with full placement loop, cooperative interrupt, cross-session persistence, inventory check; SKILL-05, BUILD-01 complete
+- 2026-03-22: Completed 06-02 — !build wired in registry, initBuild in start.js, getBuildContextForPrompt in prompt.js, build context injected every tick, build completion records worldKnowledge + location; BUILD-02, BUILD-03, SKILL-05 complete; Phase 06 complete; v2.0 milestone DONE
