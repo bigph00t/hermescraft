@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Tool Quality & Building Intelligence
 status: unknown
-last_updated: "2026-03-22T04:08:38.110Z"
+last_updated: "2026-03-22T04:11:38.855Z"
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Project State
@@ -45,6 +45,7 @@ Plan: 3 of 3
 *Updated after each plan completion*
 | Phase 05 P01 | 98s | 2 tasks | 4 files |
 | Phase 05 P02 | 5 | 1 tasks | 1 files |
+| Phase 05 P03 | 2 | 1 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -69,6 +70,8 @@ Plan: 3 of 3
 - [Phase 05]: smart_place is an instant action (equip+look+place in one tick, not sustained)
 - [Phase 05]: chest actions enforce 6-block distance limit and require explicit x,y,z coordinates
 - [Phase 05]: sustained action timeout self-clear uses isDone() check at start of tickSustainedAction
+- [Phase 05]: place kept in VALID_ACTIONS for backward compat with queued items, removed from GAME_TOOLS so LLM never sees it
+- [Phase 05]: chest_contents auto-parsed inline in executeAction with regex; trackChest errors silently caught to never fail the action
 
 ### Pending Todos
 
