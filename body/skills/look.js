@@ -45,7 +45,7 @@ export async function lookChest(bot) {
 
   const chestBlock = bot.findBlock({
     matching: b => containerIds.includes(b.type),
-    maxDistance: 32,
+    maxDistance: 64,
   })
 
   if (!chestBlock) {

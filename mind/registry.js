@@ -54,12 +54,12 @@ const REGISTRY = new Map([
     return combatLoop(bot, target)
   }],
   ['deposit',  (bot, args) => {
-    const block = bot.findBlock({ matching: b => b.name === 'chest' || b.name === 'trapped_chest' || b.name === 'barrel', maxDistance: 32 })
+    const block = bot.findBlock({ matching: b => b.name === 'chest' || b.name === 'trapped_chest' || b.name === 'barrel', maxDistance: 64 })
     if (!block) return Promise.resolve({ success: false, reason: 'no chest/barrel found within 32 blocks' })
     return depositToChest(bot, block, args.item, parseInt(args.count) || 1)
   }],
   ['withdraw', (bot, args) => {
-    const block = bot.findBlock({ matching: b => b.name === 'chest' || b.name === 'trapped_chest' || b.name === 'barrel', maxDistance: 32 })
+    const block = bot.findBlock({ matching: b => b.name === 'chest' || b.name === 'trapped_chest' || b.name === 'barrel', maxDistance: 64 })
     if (!block) return Promise.resolve({ success: false, reason: 'no chest/barrel found within 32 blocks' })
     return withdrawFromChest(bot, block, args.item, parseInt(args.count) || 1)
   }],

@@ -304,7 +304,16 @@ export function buildUserMessage(bot, trigger, options = {}) {
     const result = options.skillResult
     if (result) {
       const status = result.success ? 'done' : `failed: ${result.reason || 'unknown'}`
-      parts.push(`[skill complete: ${skillName} — ${status}]`)
+      // Include extra result data so LLM sees what happened (chest contents, scan results, etc.)
+      const extras = []
+      if (result.items) extras.push(`contents: ${result.items}`)
+      if (result.blocks) extras.push(`blocks: ${JSON.stringify(result.blocks)}`)
+      if (result.tilled) extras.push(`tilled: ${result.tilled}`)
+      if (result.planted) extras.push(`planted: ${result.planted}`)
+      if (result.missing) extras.push(`missing: ${result.missing.join(', ')}`)
+      if (result.placed !== undefined) extras.push(`placed: ${result.placed}`)
+      const detail = extras.length > 0 ? ` | ${extras.join(' | ')}` : ''
+      parts.push(`[skill complete: ${skillName} — ${status}${detail}]`)
     } else {
       parts.push(`[skill complete: ${skillName}]`)
     }
