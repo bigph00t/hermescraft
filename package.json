@@ -8,7 +8,8 @@
     "start": "./start.sh",
     "start:v2": "node start.js",
     "agent": "node agent/index.js",
-    "dev": "node --watch agent/index.js"
+    "dev": "node --watch agent/index.js",
+    "test": "node tests/smoke.test.js"
   },
   "dependencies": {
     "minecraft-data": "^3.105.0",
