@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Mineflayer Rewrite
-status: defining_requirements
+status: ready_to_plan
 last_updated: "2026-03-22T00:00:00.000Z"
 progress:
-  total_phases: 0
+  total_phases: 6
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,34 +17,64 @@ progress:
 
 See: .planning/PROJECT.md (updated 2026-03-22)
 
-**Core value:** Agents feel and play like real people
-**Current focus:** Defining requirements for v2.0
+**Core value:** Agents feel and play like real people — creative, emotional, able to interact with the world
+**Current focus:** Phase 1 — Bot Foundation + Core Skills
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-22 — Milestone v2.0 started
+Phase: 1 of 6 (Bot Foundation + Core Skills)
+Plan: — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-03-22 — v2.0 roadmap created
+
+Progress: [░░░░░░░░░░] 0%
+
+## Performance Metrics
+
+**Velocity:**
+- Total plans completed: 0
+- Average duration: —
+- Total execution time: —
+
+**By Phase:**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| - | - | - | - |
+
+*Updated after each plan completion*
 
 ## Accumulated Context
 
-### Why v2.0
-- v1.0-v1.1 architecture (Fabric mod + HTTP bridge + Baritone) is fundamentally broken
-- Every game action fights the HTTP bridge: crosshair drift, coordinate bugs, race conditions
-- Agents narrate fantasy gameplay instead of actually playing
-- Mineflayer eliminates all of this with direct bot API
+### Key Architecture Decisions
 
-### Architecture decision
-- Mind (LLM) + Body (Mineflayer skill functions)
-- LLM called every 15-30s for decisions, not every 2s tick
-- Skill functions execute autonomously between LLM calls
-- Reference: Mindcraft (kolbytn/mindcraft) for patterns
+- Mind + Body split: LLM layer (mind/) never imports skill functions; body/ never calls LLM — boundary is enforced
+- Event-driven LLM: fires on chat received, skill complete, or 2s idle — not on a fixed tick
+- Cooperative interrupt: every skill checks `bot.interrupt_code` after every `await` — no forced termination
+- v1 data isolation: fresh `data/jeffrey/` and `data/john/` directories; v1 data archived as `*_v1/`
 
-## Blockers
+### Critical Pitfalls (from research)
+
+- Pathfinder hang: wrap `goto()` in 30s wall-clock timeout — required in Phase 1 before any skill is built on nav
+- Silent dig/place: verify block state changed with `bot.blockAt()` after every dig and place
+- Item name normalization: prerequisite for every skill — port v1 normalizer before writing any skill
+- Context overflow: cap at 40 turns with progressive summarization (oldest 10 → 500-char summary)
+- v1 memory contamination: do NOT load v1 MEMORY.md — contains dead action vocabulary
+
+### Research Flags
+
+- Phase 1: Validate `mineflayer-pathfinder` 2.4.5 live on Paper 1.21.1 before full skill dev (issue #222 behavior)
+- Phase 3: MiniMax M2.7 `!command` syntax compliance needs smoke test — not tested against this model
+
+### Pending Todos
+
+None yet.
+
+### Blockers/Concerns
 
 None currently.
 
 ## Session Log
 
 - 2026-03-22: Milestone v2.0 started — Mineflayer Rewrite
+- 2026-03-22: v2.0 roadmap created — 6 phases, 30 requirements mapped

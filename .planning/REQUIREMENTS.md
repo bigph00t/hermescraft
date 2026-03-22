@@ -81,42 +81,42 @@ Requirements for Mineflayer Rewrite milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BOT-01 | — | Pending |
-| BOT-02 | — | Pending |
-| BOT-03 | — | Pending |
-| BOT-04 | — | Pending |
-| BOT-05 | — | Pending |
-| SKILL-01 | — | Pending |
-| SKILL-02 | — | Pending |
-| SKILL-03 | — | Pending |
-| SKILL-04 | — | Pending |
-| SKILL-05 | — | Pending |
-| SKILL-06 | — | Pending |
-| SKILL-07 | — | Pending |
-| SKILL-08 | — | Pending |
-| MIND-01 | — | Pending |
-| MIND-02 | — | Pending |
-| MIND-03 | — | Pending |
-| MIND-04 | — | Pending |
-| MODE-01 | — | Pending |
-| MODE-02 | — | Pending |
-| MODE-03 | — | Pending |
-| MODE-04 | — | Pending |
-| MODE-05 | — | Pending |
-| SOUL-01 | — | Pending |
-| SOUL-02 | — | Pending |
-| SOUL-03 | — | Pending |
-| SOUL-04 | — | Pending |
-| SOUL-05 | — | Pending |
-| BUILD-01 | — | Pending |
-| BUILD-02 | — | Pending |
-| BUILD-03 | — | Pending |
+| BOT-01 | Phase 1 | Pending |
+| BOT-02 | Phase 1 | Pending |
+| BOT-03 | Phase 1 | Pending |
+| BOT-04 | Phase 1 | Pending |
+| BOT-05 | Phase 1 | Pending |
+| SKILL-01 | Phase 1 | Pending |
+| SKILL-02 | Phase 1 | Pending |
+| SKILL-03 | Phase 2 | Pending |
+| SKILL-04 | Phase 2 | Pending |
+| SKILL-05 | Phase 6 | Pending |
+| SKILL-06 | Phase 4 | Pending |
+| SKILL-07 | Phase 2 | Pending |
+| SKILL-08 | Phase 2 | Pending |
+| MIND-01 | Phase 3 | Pending |
+| MIND-02 | Phase 3 | Pending |
+| MIND-03 | Phase 3 | Pending |
+| MIND-04 | Phase 3 | Pending |
+| MODE-01 | Phase 4 | Pending |
+| MODE-02 | Phase 4 | Pending |
+| MODE-03 | Phase 4 | Pending |
+| MODE-04 | Phase 4 | Pending |
+| MODE-05 | Phase 4 | Pending |
+| SOUL-01 | Phase 5 | Pending |
+| SOUL-02 | Phase 5 | Pending |
+| SOUL-03 | Phase 5 | Pending |
+| SOUL-04 | Phase 5 | Pending |
+| SOUL-05 | Phase 5 | Pending |
+| BUILD-01 | Phase 6 | Pending |
+| BUILD-02 | Phase 6 | Pending |
+| BUILD-03 | Phase 6 | Pending |
 
 **Coverage:**
 - v2.0 requirements: 30 total
-- Mapped to phases: 0
-- Unmapped: 30
+- Mapped to phases: 30
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-22*
-*Last updated: 2026-03-22 after initial definition*
+*Last updated: 2026-03-22 — traceability populated after v2.0 roadmap creation*
