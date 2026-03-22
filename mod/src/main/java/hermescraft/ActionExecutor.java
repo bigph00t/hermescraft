@@ -17,6 +17,7 @@ import net.minecraft.recipe.ShapedRecipe;
 import net.minecraft.registry.Registries;
 import net.minecraft.screen.AbstractFurnaceScreenHandler;
 import net.minecraft.screen.CraftingScreenHandler;
+import net.minecraft.screen.GenericContainerScreenHandler;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.util.Hand;
@@ -84,6 +85,12 @@ public class ActionExecutor {
         // fish state
         boolean fishCast = false;
         int fishWaitTicks = 0;
+        // chest state
+        int chestStep = 0;
+        BlockPos chestPos;
+        String chestItemName;
+        int chestCount = 0;
+        boolean chestIsDeposit = true;  // true = deposit, false = withdraw
 
         SustainedAction(String type, CompletableFuture<String> future, int maxTicks) {
             this.type = type;
@@ -211,6 +218,14 @@ public class ActionExecutor {
                     startFish(client, pa.future);
                     return;
                 }
+                case "chest_deposit" -> {
+                    startChestAction(client, pa.action, pa.future, true);
+                    return;
+                }
+                case "chest_withdraw" -> {
+                    startChestAction(client, pa.action, pa.future, false);
+                    return;
+                }
             }
 
             // Instant action — execute immediately on the client thread
@@ -229,6 +244,7 @@ public class ActionExecutor {
             case "interact_block" -> handleInteractBlock(action, client);
             case "attack" -> handleAttack(action, client);
             case "place" -> handlePlace(action, client);
+            case "smart_place" -> handleSmartPlace(action, client);
             case "equip" -> handleEquip(action, client);
             case "look" -> handleLook(action, client);
             case "chat" -> handleChat(action, client);
@@ -356,6 +372,15 @@ public class ActionExecutor {
         SustainedAction sa = currentSustained;
         if (sa == null) return;
 
+        // SELF-CLEAR: If the future was already completed externally (e.g., HTTP timeout),
+        // clean up the sustained action immediately instead of letting it run to maxTicks.
+        if (sa.future.isDone()) {
+            HermesBridgeMod.LOGGER.info("[HermesBridge] Sustained action '{}' already completed externally, clearing", sa.type);
+            releaseAllKeys(client);
+            currentSustained = null;
+            return;
+        }
+
         sa.ticksElapsed++;
         sa.ticksRemaining--;
 
@@ -368,6 +393,7 @@ public class ActionExecutor {
             case "look_at_block" -> tickApproachBlock(client, sa);
             case "pickup_items" -> tickPickupItems(client, sa);
             case "fish" -> tickFish(client, sa);
+            case "chest_deposit", "chest_withdraw" -> tickChestAction(client, sa);
         }
     }
 
@@ -522,6 +548,194 @@ public class ActionExecutor {
             client.options.forwardKey.setPressed(false);
             client.options.useKey.setPressed(false);
         } catch (Exception ignored) {}
+    }
+
+    // ===================== CHEST ACTIONS =====================
+
+    private static void startChestAction(MinecraftClient client, JsonObject action,
+                                          CompletableFuture<String> future, boolean isDeposit) {
+        ClientPlayerEntity player = client.player;
+        if (player == null || client.interactionManager == null) {
+            future.complete(errorResult("Player not available"));
+            return;
+        }
+
+        if (!action.has("item")) {
+            future.complete(errorResult((isDeposit ? "chest_deposit" : "chest_withdraw") + " requires 'item'"));
+            return;
+        }
+
+        String itemName = action.get("item").getAsString();
+        if (!itemName.contains(":")) itemName = "minecraft:" + itemName;
+        int count = action.has("count") ? action.get("count").getAsInt() : 1;
+
+        // Require coordinates
+        if (!action.has("x") || !action.has("y") || !action.has("z")) {
+            future.complete(errorResult("Chest action requires x, y, z coordinates"));
+            return;
+        }
+
+        int x = action.get("x").getAsInt();
+        int y = action.get("y").getAsInt();
+        int z = action.get("z").getAsInt();
+        BlockPos chestPos = new BlockPos(x, y, z);
+
+        double dist = Math.sqrt(player.getBlockPos().getSquaredDistance(chestPos));
+        if (dist > 6) {
+            future.complete(errorResult("Chest too far (" + Math.round(dist) + " blocks). Get closer first."));
+            return;
+        }
+
+        // Check if screen is already a chest — skip the open step
+        boolean alreadyOpen = player.currentScreenHandler instanceof GenericContainerScreenHandler;
+
+        String type = isDeposit ? "chest_deposit" : "chest_withdraw";
+        SustainedAction sa = new SustainedAction(type, future, 30); // ~1.5 seconds max
+        sa.chestPos = chestPos;
+        sa.chestItemName = itemName;
+        sa.chestCount = count;
+        sa.chestIsDeposit = isDeposit;
+        sa.chestStep = alreadyOpen ? 1 : 0; // Skip open step if already open
+        currentSustained = sa;
+
+        if (!alreadyOpen) {
+            // Open the chest
+            Vec3d center = Vec3d.ofCenter(chestPos);
+            lookAtPos(player, center);
+            BlockHitResult hit = new BlockHitResult(center, Direction.UP, chestPos, false);
+            client.interactionManager.interactBlock(player, Hand.MAIN_HAND, hit);
+            player.swingHand(Hand.MAIN_HAND);
+        }
+
+        HermesBridgeMod.LOGGER.info("[HermesBridge] Started {} {} x{} at {}", type, itemName, count, chestPos);
+    }
+
+    private static void tickChestAction(MinecraftClient client, SustainedAction sa) {
+        ClientPlayerEntity player = client.player;
+        if (player == null) {
+            completeSustained(errorResult("Player disconnected during chest action"));
+            return;
+        }
+
+        switch (sa.chestStep) {
+            case 0 -> {
+                // Wait for chest screen to open (GenericContainerScreenHandler)
+                if (player.currentScreenHandler instanceof GenericContainerScreenHandler) {
+                    sa.chestStep = 1;
+                } else if (sa.ticksElapsed > 10) {
+                    completeSustained(errorResult("Chest did not open. Make sure you are looking at a chest."));
+                }
+            }
+            case 1 -> {
+                // Perform the transfer
+                if (!(player.currentScreenHandler instanceof GenericContainerScreenHandler container)) {
+                    completeSustained(errorResult("Chest screen closed unexpectedly"));
+                    return;
+                }
+
+                int syncId = container.syncId;
+                int chestSlots = container.getRows() * 9; // 27 for single chest, 54 for double
+                int playerInvStart = chestSlots;          // Player inventory starts after chest slots
+                int playerInvEnd = playerInvStart + 35;   // 36 player inventory slots
+
+                if (sa.chestIsDeposit) {
+                    // DEPOSIT: find item in player inventory, shift-click to chest
+                    int transferred = 0;
+                    for (int i = playerInvStart; i <= playerInvEnd && transferred < sa.chestCount; i++) {
+                        ItemStack stack = container.getSlot(i).getStack();
+                        if (stack.isEmpty()) continue;
+                        String id = Registries.ITEM.getId(stack.getItem()).toString();
+                        if (id.contains(sa.chestItemName.replace("minecraft:", ""))) {
+                            int canTransfer = Math.min(stack.getCount(), sa.chestCount - transferred);
+                            // Shift-click moves the stack to the chest
+                            client.interactionManager.clickSlot(syncId, i, 0, SlotActionType.QUICK_MOVE, player);
+                            transferred += canTransfer;
+                        }
+                    }
+
+                    if (transferred == 0) {
+                        player.closeHandledScreen();
+                        completeSustained(errorResult("Item not found in inventory: " + sa.chestItemName));
+                        return;
+                    }
+
+                    // Build chest contents for response
+                    String contents = buildChestContentsJson(container, chestSlots);
+                    player.closeHandledScreen();
+
+                    JsonObject result = new JsonObject();
+                    result.addProperty("success", true);
+                    result.addProperty("message", "Deposited " + transferred + "x " + sa.chestItemName.replace("minecraft:", ""));
+                    result.addProperty("transferred", sa.chestItemName.replace("minecraft:", "") + " x" + transferred);
+                    result.addProperty("chest_contents", contents);
+                    result.addProperty("chest_x", sa.chestPos.getX());
+                    result.addProperty("chest_y", sa.chestPos.getY());
+                    result.addProperty("chest_z", sa.chestPos.getZ());
+                    completeSustained(result.toString());
+
+                } else {
+                    // WITHDRAW: find item in chest slots, shift-click to player inventory
+                    int transferred = 0;
+                    for (int i = 0; i < chestSlots && transferred < sa.chestCount; i++) {
+                        ItemStack stack = container.getSlot(i).getStack();
+                        if (stack.isEmpty()) continue;
+                        String id = Registries.ITEM.getId(stack.getItem()).toString();
+                        if (id.contains(sa.chestItemName.replace("minecraft:", ""))) {
+                            int canTransfer = Math.min(stack.getCount(), sa.chestCount - transferred);
+                            client.interactionManager.clickSlot(syncId, i, 0, SlotActionType.QUICK_MOVE, player);
+                            transferred += canTransfer;
+                        }
+                    }
+
+                    if (transferred == 0) {
+                        player.closeHandledScreen();
+                        completeSustained(errorResult("Item not found in chest: " + sa.chestItemName));
+                        return;
+                    }
+
+                    String contents = buildChestContentsJson(container, chestSlots);
+                    player.closeHandledScreen();
+
+                    JsonObject result = new JsonObject();
+                    result.addProperty("success", true);
+                    result.addProperty("message", "Withdrew " + transferred + "x " + sa.chestItemName.replace("minecraft:", ""));
+                    result.addProperty("transferred", sa.chestItemName.replace("minecraft:", "") + " x" + transferred);
+                    result.addProperty("chest_contents", contents);
+                    result.addProperty("chest_x", sa.chestPos.getX());
+                    result.addProperty("chest_y", sa.chestPos.getY());
+                    result.addProperty("chest_z", sa.chestPos.getZ());
+                    completeSustained(result.toString());
+                }
+            }
+            default -> {
+                if (sa.ticksRemaining <= 0) {
+                    if (player.currentScreenHandler instanceof GenericContainerScreenHandler) {
+                        player.closeHandledScreen();
+                    }
+                    completeSustained(errorResult("Chest action timed out"));
+                }
+            }
+        }
+    }
+
+    /**
+     * Build a compact string of chest contents for the response.
+     * Format: "item1 x5, item2 x10, ..."
+     */
+    private static String buildChestContentsJson(GenericContainerScreenHandler container, int chestSlots) {
+        java.util.Map<String, Integer> items = new java.util.LinkedHashMap<>();
+        for (int i = 0; i < chestSlots; i++) {
+            ItemStack stack = container.getSlot(i).getStack();
+            if (stack.isEmpty()) continue;
+            String name = Registries.ITEM.getId(stack.getItem()).getPath();
+            items.merge(name, stack.getCount(), Integer::sum);
+        }
+        StringBuilder sb = new StringBuilder();
+        for (var entry : items.entrySet()) {
+            if (sb.length() > 0) sb.append(", ");
+            sb.append(entry.getKey()).append(" x").append(entry.getValue());
+        }
+        return sb.toString();
     }
 
     // ===================== INSTANT ACTIONS =====================
@@ -1231,6 +1445,144 @@ public class ActionExecutor {
         player.swingHand(Hand.MAIN_HAND);
 
         return successResult("Placed block at " + x + ", " + y + ", " + z);
+    }
+
+    // --- Smart Place: auto-equip from full 36-slot inventory + crosshair/coordinate placement ---
+    private static String handleSmartPlace(JsonObject action, MinecraftClient client) {
+        ClientPlayerEntity player = client.player;
+        if (player == null || client.interactionManager == null) {
+            return errorResult("Player not available");
+        }
+
+        if (!action.has("item")) {
+            return errorResult("smart_place requires 'item'");
+        }
+        String itemName = action.get("item").getAsString();
+
+        // Step 1: Auto-equip from full inventory (all 36 slots), not just hotbar
+        // First try hotbar
+        boolean found = selectHotbarItem(player, itemName);
+        if (!found) {
+            // Search main inventory slots 9-35 and swap to hotbar slot 0
+            int sourceSlot = -1;
+            for (int i = 9; i < player.getInventory().size(); i++) {
+                ItemStack stack = player.getInventory().getStack(i);
+                if (!stack.isEmpty()) {
+                    String id = Registries.ITEM.getId(stack.getItem()).getPath();
+                    if (id.contains(itemName)) {
+                        sourceSlot = i;
+                        break;
+                    }
+                }
+            }
+            if (sourceSlot == -1) {
+                return errorResult("Item not found in inventory: " + itemName);
+            }
+            // Swap to hotbar slot 0
+            player.getInventory().selectedSlot = 0;
+            if (client.interactionManager != null && player.currentScreenHandler != null) {
+                client.interactionManager.clickSlot(
+                    player.currentScreenHandler.syncId,
+                    sourceSlot, 0, SlotActionType.SWAP, player
+                );
+            }
+        }
+
+        // Step 2: Determine placement target
+        BlockPos supportBlock;
+        Direction placeFace;
+
+        if (action.has("x") && action.has("y") && action.has("z")) {
+            // Explicit support block coordinates provided
+            int x = action.get("x").getAsInt();
+            int y = action.get("y").getAsInt();
+            int z = action.get("z").getAsInt();
+            supportBlock = new BlockPos(x, y, z);
+
+            // Determine face direction
+            String face = action.has("face") ? action.get("face").getAsString() : "top";
+            placeFace = switch (face.toLowerCase()) {
+                case "top", "up" -> Direction.UP;
+                case "bottom", "down" -> Direction.DOWN;
+                case "north" -> Direction.NORTH;
+                case "south" -> Direction.SOUTH;
+                case "east" -> Direction.EAST;
+                case "west" -> Direction.WEST;
+                default -> Direction.UP;
+            };
+
+            // Validate: support block must be solid
+            BlockState supportState = client.world.getBlockState(supportBlock);
+            if (supportState.isAir()) {
+                return errorResult("No solid block at " + x + "," + y + "," + z + " to place against");
+            }
+
+            // Compute destination (offset from support in face direction)
+            BlockPos destPos = supportBlock.offset(placeFace);
+            BlockState destState = client.world.getBlockState(destPos);
+            if (!destState.isAir() && !destState.isReplaceable()) {
+                String blockName = Registries.BLOCK.getId(destState.getBlock()).getPath();
+                return errorResult("Destination occupied by " + blockName);
+            }
+
+            // Don't place inside the player
+            BlockPos playerFeet = player.getBlockPos();
+            BlockPos playerHead = playerFeet.up();
+            if (destPos.equals(playerFeet) || destPos.equals(playerHead)) {
+                return errorResult("Cannot place there — you are standing in the way. Move first.");
+            }
+
+        } else {
+            // Crosshair mode: use what the player is currently looking at
+            HitResult hit = client.crosshairTarget;
+            if (hit == null || hit.getType() != HitResult.Type.BLOCK) {
+                return errorResult("Not looking at a block. Use look_at_block first to aim.");
+            }
+            BlockHitResult blockHit = (BlockHitResult) hit;
+            supportBlock = blockHit.getBlockPos();
+            placeFace = blockHit.getSide();
+
+            // Compute destination
+            BlockPos destPos = supportBlock.offset(placeFace);
+            BlockState destState = client.world.getBlockState(destPos);
+            if (!destState.isAir() && !destState.isReplaceable()) {
+                String blockName = Registries.BLOCK.getId(destState.getBlock()).getPath();
+                return errorResult("Destination occupied by " + blockName);
+            }
+
+            BlockPos playerFeet = player.getBlockPos();
+            BlockPos playerHead = playerFeet.up();
+            if (destPos.equals(playerFeet) || destPos.equals(playerHead)) {
+                return errorResult("Cannot place there — you are standing in the way. Move first.");
+            }
+        }
+
+        // Step 3: Look at the support block face and place
+        Vec3d hitVec = Vec3d.ofCenter(supportBlock).add(
+            Vec3d.of(placeFace.getVector()).multiply(0.5)
+        );
+        lookAtPos(player, hitVec);
+
+        BlockHitResult hitResult = new BlockHitResult(hitVec, placeFace, supportBlock, false);
+        client.interactionManager.interactBlock(player, Hand.MAIN_HAND, hitResult);
+        player.swingHand(Hand.MAIN_HAND);
+
+        // Step 4: Build response with placement data
+        BlockPos placedPos = supportBlock.offset(placeFace);
+        String placedBlock = itemName.replace("minecraft:", "");
+
+        JsonObject result = new JsonObject();
+        result.addProperty("success", true);
+        result.addProperty("message", "Placed " + placedBlock + " at " + placedPos.getX() + ", " + placedPos.getY() + ", " + placedPos.getZ());
+
+        JsonObject placed = new JsonObject();
+        placed.addProperty("block", placedBlock);
+        placed.addProperty("x", placedPos.getX());
+        placed.addProperty("y", placedPos.getY());
+        placed.addProperty("z", placedPos.getZ());
+        result.add("placed", placed);
+
+        return result.toString();
     }
 
     // --- Equip item ---
