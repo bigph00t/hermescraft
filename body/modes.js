@@ -255,6 +255,42 @@ async function checkIdleLook(bot) {
   return true
 }
 
+/**
+ * Priority 5: Torch placement — place torch when light level is dangerously low.
+ * Prevents mob spawns and helps visibility in caves/night.
+ * Only places if bot has torches in inventory and light < 7 at feet.
+ * Rate-limited to once per 10s to avoid spamming.
+ *
+ * @param {import('mineflayer').Bot} bot
+ * @returns {Promise<boolean>} true if a torch was placed
+ */
+let _lastTorchTime = 0
+async function checkTorchPlacement(bot) {
+  if (Date.now() - _lastTorchTime < 10000) return false
+
+  const feetPos = bot.entity.position.floored()
+  const block = bot.blockAt(feetPos)
+  if (!block || block.light >= 7) return false  // bright enough
+
+  const torch = bot.inventory.items().find(i => i.name === 'torch' || i.name === 'soul_torch')
+  if (!torch) return false
+
+  // Find a solid block below to place torch on
+  const belowPos = feetPos.offset(0, -1, 0)
+  const belowBlock = bot.blockAt(belowPos)
+  if (!belowBlock || belowBlock.name === 'air' || belowBlock.name === 'water') return false
+
+  try {
+    await bot.equip(torch, 'hand')
+    await bot.placeBlock(belowBlock, { x: 0, y: 1, z: 0 })
+    console.log('[modes] torch placed — light was', block.light)
+    _lastTorchTime = Date.now()
+    return true
+  } catch {
+    return false
+  }
+}
+
 // ── Main Tick Function ──
 
 /**
@@ -284,9 +320,10 @@ async function bodyTick(bot, getSkillRunning) {
     // Priority 3: Unstuck (synchronous)
     if (checkStuck(bot)) return
 
-    // Priorities 4-5 only when not already moving
+    // Priorities 4-6 only when not already moving
     if (!bot.pathfinder.isMoving()) {
       if (await checkItemPickup(bot)) return
+      if (await checkTorchPlacement(bot)) return
       await checkIdleLook(bot)
     }
   } catch (err) {

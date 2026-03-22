@@ -11,6 +11,11 @@ import { combatLoop } from '../body/skills/combat.js'
 import { build, updatePalette } from '../body/skills/build.js'
 import { scanArea } from '../body/skills/scan.js'
 import { depositToChest, withdrawFromChest } from '../body/skills/chest.js'
+import { farm } from '../body/skills/farm.js'
+import { breed } from '../body/skills/breed.js'
+import { mountBoat, dismountBoat } from '../body/skills/boat.js'
+import { lookChest, lookInventory } from '../body/skills/look.js'
+import { give } from '../body/skills/give.js'
 
 // REGISTRY maps !command names to async handler functions.
 // Args come in as strings from parseCommand — registry must parseInt() numeric args.
@@ -76,6 +81,16 @@ const REGISTRY = new Map([
     const z2 = parseInt(args.z2) || Math.round(pos.z) + 8
     return Promise.resolve(scanArea(bot, x1, y1, z1, x2, y2, z2))
   }],
+  ['farm',     (bot, args) => farm(bot, args.seed || args.item || 'wheat_seeds', parseInt(args.count) || 4)],
+  ['breed',    (bot, args) => breed(bot, args.animal || args.type || 'cow')],
+  ['mount',    (bot, _args) => mountBoat(bot)],
+  ['dismount', (bot, _args) => dismountBoat(bot)],
+  ['look',     (bot, args) => {
+    const target = args.target || args.at || 'inventory'
+    if (target === 'chest') return lookChest(bot)
+    return lookInventory(bot)
+  }],
+  ['give',     (bot, args) => give(bot, args.player || args.to, args.item, parseInt(args.count) || 1)],
   ['material', (_bot, args) => {
     const oldBlock = args.old || args.from
     const newBlock = args.new || args.to
