@@ -104,7 +104,7 @@ Plans:
 **Plans:** 1/2 plans executed
 Plans:
 - [x] 04-01-PLAN.md — Combat skill (attackTarget + combatLoop) and !combat registry wiring (SKILL-06, MODE-02)
-- [ ] 04-02-PLAN.md — 300ms body tick with 5-priority behavior cascade + start.js wiring (MODE-01, MODE-03, MODE-04, MODE-05)
+- [x] 04-02-PLAN.md — 300ms body tick with 5-priority behavior cascade + start.js wiring (MODE-01, MODE-03, MODE-04, MODE-05)
 
 ### Phase 5: Personality + Social
 **Goal**: Jeffrey and John load their SOUL personalities, remember lessons across sessions, speak only about what they have actually observed in the game world, coordinate with each other via natural chat, and follow a day/night routine

@@ -35,11 +35,11 @@ Requirements for Mineflayer Rewrite milestone.
 
 ### Autonomous Modes
 
-- [ ] **MODE-01**: Self-preservation — auto-eat, flee fire/lava/drowning, no LLM needed
+- [x] **MODE-01**: Self-preservation — auto-eat, flee fire/lava/drowning, no LLM needed
 - [x] **MODE-02**: Self-defense — attack hostile mobs targeting the bot
-- [ ] **MODE-03**: Unstuck detection — detect and recover from pathfinder hangs or wall-stuck
-- [ ] **MODE-04**: Idle behaviors — look at nearby entities randomly, feel alive
-- [ ] **MODE-05**: Item collection — auto-pickup nearby dropped items
+- [x] **MODE-03**: Unstuck detection — detect and recover from pathfinder hangs or wall-stuck
+- [x] **MODE-04**: Idle behaviors — look at nearby entities randomly, feel alive
+- [x] **MODE-05**: Item collection — auto-pickup nearby dropped items
 
 ### Personality & Social
 
@@ -98,11 +98,11 @@ Requirements for Mineflayer Rewrite milestone.
 | MIND-02 | Phase 3 | Complete |
 | MIND-03 | Phase 3 | Complete |
 | MIND-04 | Phase 3 | Complete |
-| MODE-01 | Phase 4 | Pending |
+| MODE-01 | Phase 4 | Complete |
 | MODE-02 | Phase 4 | Complete |
-| MODE-03 | Phase 4 | Pending |
-| MODE-04 | Phase 4 | Pending |
-| MODE-05 | Phase 4 | Pending |
+| MODE-03 | Phase 4 | Complete |
+| MODE-04 | Phase 4 | Complete |
+| MODE-05 | Phase 4 | Complete |
 | SOUL-01 | Phase 5 | Pending |
 | SOUL-02 | Phase 5 | Pending |
 | SOUL-03 | Phase 5 | Pending |

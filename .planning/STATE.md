@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Mineflayer Rewrite
-status: Ready to execute
-last_updated: "2026-03-22T18:51:40.302Z"
+status: Phase complete — ready for verification
+last_updated: "2026-03-22T18:56:33.123Z"
 progress:
   total_phases: 6
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 9
-  completed_plans: 8
+  completed_plans: 9
 ---
 
 # Project State
@@ -48,6 +48,7 @@ Plan: 2 of 2
 | Phase 03-mind-loop-llm P03-01 | 2m 23s | 2 tasks | 3 files |
 | Phase 03-mind-loop-llm P03-02 | 1m 30s | 2 tasks | 3 files |
 | Phase 04-survival-modes P04-01 | 2min | 2 tasks | 2 files |
+| Phase 04-survival-modes P04-02 | 2m 6s | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -82,6 +83,9 @@ Plan: 2 of 2
 - [04-01] Two-export combat design: attackTarget (body tick, non-blocking single action) + combatLoop (LLM dispatch, blocking sustained loop) — separates reactive body behaviors from blocking LLM-dispatched skills
 - [04-01] HOSTILE_MOBS exported from combat.js for body/modes.js reuse — single source of truth, 42 entries for MC 1.21.1
 - [04-01] Registry !combat uses nearestEntity(e.type === 'mob') not HOSTILE_MOBS filter — LLM explicitly chose to attack, any nearby mob is valid
+- [04-02] isSkillRunning exported as getter from mind/index.js — passed as callback from start.js so body/ never imports mind/
+- [04-02] checkCombat in body tick uses attackTarget (single hit/tick, non-blocking) not combatLoop — prevents body tick from being blocked for full combat duration (Pitfall 2)
+- [04-02] Survival Priority 1 fires even during active skills; starvation override at food<=2 eats unconditionally; hazard flee cooperatively interrupts running skill via requestInterrupt()
 
 ### Critical Pitfalls (from research)
 
@@ -115,3 +119,4 @@ None currently.
 - 2026-03-22: Completed 02-02 — body/skills/smelt.js, body/skills/chest.js, body/skills/inventory.js created; SKILL-04, SKILL-07, SKILL-08 complete; Phase 2 complete
 - 2026-03-22: Completed 03-01 — mind/llm.js, mind/prompt.js, mind/registry.js created; LLM client + history + !command parser + prompt builder + command dispatch bridge; MIND-02, MIND-03 complete
 - 2026-03-22: Completed 04-01 — body/skills/combat.js created (attackTarget + combatLoop + HOSTILE_MOBS 42-entry Set); !combat wired into mind/registry.js; SKILL-06, MODE-02 complete
+- 2026-03-22: Completed 04-02 — body/modes.js created (300ms body tick, 5-priority cascade: survival+flee, combat, unstuck, item pickup, idle look); isSkillRunning exported from mind/index.js; initModes wired in start.js; MODE-01, MODE-03, MODE-04, MODE-05 complete; Phase 04 complete
