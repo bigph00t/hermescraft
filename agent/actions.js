@@ -2,6 +2,7 @@
 
 import { normalizeItemName } from './normalizer.js'
 import { trackChest } from './chests.js'
+import { recordPlacement } from './placement-tracker.js'
 
 const MOD_URL = process.env.MOD_URL || 'http://localhost:3001';
 
@@ -402,6 +403,15 @@ export async function executeAction(action) {
       trackChest(result.chest_x, result.chest_y, result.chest_z, contents)
     } catch (e) {
       // Non-critical — don't fail the action if chest tracking fails
+    }
+  }
+
+  // Auto-track placed blocks from smart_place responses
+  if (type === 'smart_place' && result.success && result.placed) {
+    try {
+      recordPlacement(result.placed)
+    } catch (e) {
+      // Non-critical — don't fail the action if tracking fails
     }
   }
 

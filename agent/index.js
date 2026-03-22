@@ -42,7 +42,9 @@ import { detectBehaviorMode } from './needs.js';
 import { initQueue, popAction, peekAction, clearQueue, getQueueLength, getQueueSummary, getQueueGoal } from './action-queue.js';
 import { startBaritone, updatePosition, getStatus as getBaritoneStatus, stopBaritone, isBaritoneActive, getBaritoneContext } from './baritone-tracker.js';
 import { GAME_TOOLS } from './tools.js';
-import { initCrafter } from './crafter.js';
+import { initCrafter } from './crafter.js'
+import { initFreestyle, isFreestyleActive } from './freestyle.js'
+import { initPlacementTracker } from './placement-tracker.js';
 
 const TICK_INTERVAL = parseInt(process.env.TICK_MS || '2000', 10);
 const MAX_STUCK_COUNT = 2;
@@ -546,7 +548,8 @@ async function tick() {
   }
 
   // Resume active build — places blocks each tick while build is in progress
-  if (isBuildActive()) {
+  // Skip legacy resumeBuild when freestyle is active to prevent double-place race condition
+  if (isBuildActive() && !isFreestyleActive()) {
     const buildResult = await resumeBuild(state.inventory || [])
     if (buildResult.complete) {
       logInfo(`[builder] Build complete! ${buildResult.placed} blocks placed.`)
@@ -1393,6 +1396,8 @@ async function main() {
   initChatHistory(agentConfig);
   initQueue(agentConfig);
   initCrafter();
+  initFreestyle(agentConfig)
+  initPlacementTracker(agentConfig)
 
   // Set per-agent notepad and task plan paths
   NOTEPAD_FILE = join(agentConfig.dataDir, 'notepad.txt');
