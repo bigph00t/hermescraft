@@ -367,6 +367,17 @@ const upNoActive = build.updatePalette('stone', 'cobblestone')
 assert('updatePalette no active build: success false', upNoActive.success === false)
 assert('updatePalette no active build: reason no_active_build', upNoActive.reason === 'no_active_build')
 
+// ── Section 13: Build History Module ──
+
+section('Build History Module')
+
+const buildHistory = await import('../mind/build-history.js')
+assert('mind/build-history: initBuildHistory exported', typeof buildHistory.initBuildHistory === 'function')
+assert('mind/build-history: loadBuildHistory exported', typeof buildHistory.loadBuildHistory === 'function')
+assert('mind/build-history: recordBuild exported', typeof buildHistory.recordBuild === 'function')
+assert('mind/build-history: getBuildHistoryForPrompt exported', typeof buildHistory.getBuildHistoryForPrompt === 'function')
+assert('mind/build-history: saveBuildHistory exported', typeof buildHistory.saveBuildHistory === 'function')
+
 // ── Final Summary ──
 
 console.log(`\n${'='.repeat(40)}`)
