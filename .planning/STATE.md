@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Creative Building + Bug Fixes
-status: Ready to plan
-last_updated: "2026-03-22T20:36:05.803Z"
+status: Ready to execute
+last_updated: "2026-03-22T20:46:42.895Z"
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
 ---
 
 # Project State
@@ -18,12 +18,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-22)
 
 **Core value:** Agents feel and play like real people — creative, emotional, able to interact with the world
-**Current focus:** Phase 07 — live-testing-bug-fixes
+**Current focus:** Phase 08 — blueprint-intelligence
 
 ## Current Position
 
-Phase: 8
-Plan: Not started
+Phase: 08 (blueprint-intelligence) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -37,6 +37,7 @@ Plan: Not started
 |-------|------|----------|-------|-------|
 | 07-live-testing-bug-fixes | 01 | 12min | 2 | 4 |
 | 07-live-testing-bug-fixes | 02 | 15min | 1 | 2 |
+| 08-blueprint-intelligence | 01 | 3min | 2 | 10 |
 
 *Updated after each plan completion*
 
@@ -54,6 +55,9 @@ Plan: Not started
 - Normalizer: registry identity check (=== ITEM_REGISTRY) gates item-only aliases — iron_ore/gold_ore block lookups are NOT aliased to raw_iron/raw_gold (07-01)
 - Smoke test pattern: pure Node.js ESM, no test framework, assert(name, condition) helper, process.exit(failed>0?1:0) (07-02)
 - bot.js and start.js excluded from smoke test imports — both attempt live MC server connection (07-02)
+- validateBlueprint() infers size from grid when size field absent — LLM need not include it (08-01)
+- Validator collects ALL errors before returning — LLM sees full issue list, not just first (08-01)
+- Only preferred[0] validated against mcData; preferred[1+] are fallback alternatives (08-01)
 
 ### Critical Pitfalls (from v2.0)
 
@@ -83,3 +87,4 @@ None currently.
 - 2026-03-22: Plan 07-01 complete — fixed deps, ore alias, and missing prompt commands
 - 2026-03-22: Plan 07-02 complete — 152-assertion smoke test, npm test passes 0 failures
 - 2026-03-22: Phase 07 complete — all v2 bug fixes and smoke test gate shipped
+- 2026-03-22: Plan 08-01 complete — 8 new blueprints + validateBlueprint() with 41-assertion TDD suite

@@ -16,8 +16,8 @@ Requirements for Creative Building + Bug Fixes milestone.
 
 - [ ] **CBUILD-01**: Player says "build a dock here" and the bot generates a valid blueprint JSON and begins placing blocks at the specified location
 - [ ] **CBUILD-02**: Player says "use stone on this wall" and the bot modifies the active build plan to use the specified material
-- [ ] **CBUILD-03**: Bot generates structurally valid JSON blueprints from natural language descriptions (floor, walls, roof layers in correct order)
-- [ ] **CBUILD-04**: System prompt includes 10+ reference blueprints as few-shot examples for LLM-generated designs
+- [x] **CBUILD-03**: Bot generates structurally valid JSON blueprints from natural language descriptions (floor, walls, roof layers in correct order)
+- [x] **CBUILD-04**: System prompt includes 10+ reference blueprints as few-shot examples for LLM-generated designs
 - [ ] **CBUILD-05**: Bot scans a 3D region with bot.blockAt() and reports what blocks exist, enabling it to see its own builds
 
 ### Build Memory
@@ -51,8 +51,8 @@ Requirements for Creative Building + Bug Fixes milestone.
 |-------------|-------|--------|
 | FIX-01 | Phase 7 | Complete |
 | FIX-02 | Phase 7 | Complete |
-| CBUILD-03 | Phase 8 | Pending |
-| CBUILD-04 | Phase 8 | Pending |
+| CBUILD-03 | Phase 8 | Complete |
+| CBUILD-04 | Phase 8 | Complete |
 | CBUILD-01 | Phase 9 | Pending |
 | CBUILD-02 | Phase 9 | Pending |
 | CBUILD-05 | Phase 9 | Pending |
