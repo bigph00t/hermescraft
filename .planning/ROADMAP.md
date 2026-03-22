@@ -57,7 +57,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — crafter.js: BFS recipe chain solver using minecraft-data 3.105.0; declare minecraft-data in package.json
+- [x] 06-01-PLAN.md — crafter.js: BFS recipe chain solver using minecraft-data 3.105.0; declare minecraft-data in package.json
 - [ ] 06-02-PLAN.md — Planner integration: expand abstract `craft X` queue entries into dependency-ordered action steps via solveCraft
 
 ### Phase 7: Building Intelligence
@@ -102,7 +102,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8
 | 3. Plugin Integration + Custom Commands | v1.0 | 4/4 | Complete | 2026-03-21 |
 | 4. Personality + Creative Play | v1.0 | 3/3 | Complete | 2026-03-22 |
 | 5. Tool Primitives | v1.1 | 3/3 | Complete   | 2026-03-22 |
-| 6. Crafting Intelligence | v1.1 | 0/2 | Not started | - |
+| 6. Crafting Intelligence | v1.1 | 1/2 | In Progress|  |
 | 7. Building Intelligence | v1.1 | 0/3 | Not started | - |
 | 8. Spatial Memory + Server Scripts | v1.1 | 0/2 | Not started | - |
 

@@ -21,7 +21,7 @@ Requirements for Tool Quality & Building Intelligence milestone. Each maps to ro
 
 ### Crafting Intelligence
 
-- [ ] **CRAFT-01**: Agent has access to full MC 1.21.1 recipe database via minecraft-data
+- [x] **CRAFT-01**: Agent has access to full MC 1.21.1 recipe database via minecraft-data
 - [ ] **CRAFT-02**: Agent can resolve crafting dependency chains (e.g. oak_log → planks → sticks → wooden_pickaxe) in a single plan step
 
 ### Building Intelligence
@@ -107,7 +107,7 @@ Deferred to next milestone. Tracked but not in current roadmap.
 | TOOL-04 | Phase 5 | Complete |
 | CHEST-01 | Phase 5 | Complete |
 | CHEST-02 | Phase 5 | Complete |
-| CRAFT-01 | Phase 6 | Pending |
+| CRAFT-01 | Phase 6 | Complete |
 | CRAFT-02 | Phase 6 | Pending |
 | BUILD-01 | Phase 7 | Pending |
 | BUILD-02 | Phase 7 | Pending |

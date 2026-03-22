@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Tool Quality & Building Intelligence
 status: unknown
-last_updated: "2026-03-22T04:18:12.010Z"
+last_updated: "2026-03-22T04:30:32.046Z"
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 5
+  completed_plans: 4
 ---
 
 # Project State
@@ -18,12 +18,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-21)
 
 **Core value:** Agents feel and play like real people — creative, emotional, with desires, aesthetic sense, and the ability to interact with what they see
-**Current focus:** Phase 05 — tool-primitives
+**Current focus:** Phase 06 — crafting-intelligence
 
 ## Current Position
 
-Phase: 6
-Plan: Not started
+Phase: 06 (crafting-intelligence) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -47,6 +47,7 @@ Plan: Not started
 | Phase 05 P02 | 5 | 1 tasks | 1 files |
 | Phase 05 P03 | 2 | 1 tasks | 3 files |
 | Phase 05 P03 | 10 | 1 tasks | 3 files |
+| Phase 06 P01 | 2 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,9 @@ Plan: Not started
 - [Phase 05]: place kept in VALID_ACTIONS for backward compat with queued items, removed from GAME_TOOLS so LLM never sees it
 - [Phase 05]: chest_contents auto-parsed inline in executeAction with regex; trackChest errors silently caught to never fail the action
 - [Phase 05]: Live testing of smart_place and chest tools deferred by user at checkpoint — code-complete, 8/8 static checks pass
+- [Phase 06]: Use minecraft-data directly at startup — no separate recipes.json file to maintain
+- [Phase 06]: selectBestVariant tie-breaks by preferring end of recipes array (oak variants last, most common early-game)
+- [Phase 06]: solveCraft simulates inventory to avoid redundant prerequisite steps when crafting produces excess
 
 ### Pending Todos
 
