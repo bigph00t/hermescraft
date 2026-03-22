@@ -24,7 +24,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 **Milestone Goal:** Fix every broken tool primitive and build real building ability so the LLM's good reasoning actually translates to successful in-game execution.
 
 - [x] **Phase 5: Tool Primitives** — Fix place, equip, chest interaction, mine removal, and sustained action lock in one mod rebuild (completed 2026-03-22)
-- [ ] **Phase 6: Crafting Intelligence** — Full recipe chain solver so the agent can craft wooden_pickaxe from oak_log in a single plan step
+- [x] **Phase 6: Crafting Intelligence** — Full recipe chain solver so the agent can craft wooden_pickaxe from oak_log in a single plan step (completed 2026-03-22)
 - [ ] **Phase 7: Building Intelligence** — Freestyle building with LLM-designed plans, block placement tracking, and post-build verification
 - [ ] **Phase 8: Spatial Memory + Server Scripts** — Persistent typed world map, proximity-filtered prompt injection, new Skript server commands
 
@@ -58,7 +58,7 @@ Plans:
 
 Plans:
 - [x] 06-01-PLAN.md — crafter.js: BFS recipe chain solver using minecraft-data 3.105.0; declare minecraft-data in package.json
-- [ ] 06-02-PLAN.md — Planner integration: expand abstract `craft X` queue entries into dependency-ordered action steps via solveCraft
+- [x] 06-02-PLAN.md — Planner integration: expand abstract `craft X` queue entries into dependency-ordered action steps via solveCraft
 
 ### Phase 7: Building Intelligence
 **Goal**: Agent generates an LLM-designed building plan, executes it block-by-block, tracks every placed block, and verifies the result against the original design
@@ -102,7 +102,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8
 | 3. Plugin Integration + Custom Commands | v1.0 | 4/4 | Complete | 2026-03-21 |
 | 4. Personality + Creative Play | v1.0 | 3/3 | Complete | 2026-03-22 |
 | 5. Tool Primitives | v1.1 | 3/3 | Complete   | 2026-03-22 |
-| 6. Crafting Intelligence | v1.1 | 1/2 | In Progress|  |
+| 6. Crafting Intelligence | v1.1 | 2/2 | Complete   | 2026-03-22 |
 | 7. Building Intelligence | v1.1 | 0/3 | Not started | - |
 | 8. Spatial Memory + Server Scripts | v1.1 | 0/2 | Not started | - |
 

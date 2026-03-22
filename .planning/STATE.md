@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Tool Quality & Building Intelligence
 status: unknown
-last_updated: "2026-03-22T04:30:32.046Z"
+last_updated: "2026-03-22T04:35:52.871Z"
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 5
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 # Project State
@@ -48,6 +48,7 @@ Plan: 2 of 2
 | Phase 05 P03 | 2 | 1 tasks | 3 files |
 | Phase 05 P03 | 10 | 1 tasks | 3 files |
 | Phase 06 P01 | 2 | 2 tasks | 4 files |
+| Phase 06 P02 | 525595min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,8 @@ Plan: 2 of 2
 - [Phase 06]: Use minecraft-data directly at startup — no separate recipes.json file to maintain
 - [Phase 06]: selectBestVariant tie-breaks by preferring end of recipes array (oak variants last, most common early-game)
 - [Phase 06]: solveCraft simulates inventory to avoid redundant prerequisite steps when crafting produces excess
+- [Phase 06]: Craft chain expansion happens at queue-write time in planner, not at execution time in action loop
+- [Phase 06]: inventoryToMap placed in planner.js — adapts state.inventory array format to solveCraft contract
 
 ### Pending Todos
 
