@@ -20,6 +20,7 @@ import { updateAgentState, getOtherAgentsContext, getSharedLocations, getActiveP
 import { setQueue, getQueueLength, clearQueue, getQueueSummary } from './action-queue.js'
 import { isBuildActive } from './builder.js'
 import { isFarmActive } from './farming.js'
+import { solveCraft } from './crafter.js'
 
 const __dirname_planner = dirname(fileURLToPath(import.meta.url))
 
@@ -75,7 +76,17 @@ export function updatePlannerPluginState(skillCache, lastCommandResults) {
 
 // ── Queue Parser ──
 
-function parseQueueFromPlan(planText) {
+// Convert state.inventory array to { itemName: count } map expected by solveCraft
+function inventoryToMap(state) {
+  const inv = {}
+  for (const slot of (state?.inventory || [])) {
+    const name = (slot.item || slot.name || '').replace('minecraft:', '')
+    if (name) inv[name] = (inv[name] || 0) + (slot.count || 1)
+  }
+  return inv
+}
+
+function parseQueueFromPlan(planText, state) {
   const queueMatch = planText.match(/QUEUE:\s*\n([\s\S]*?)(?:\n\n|\n##|\n\*\*|$)/)
   if (!queueMatch) return []
 
@@ -102,6 +113,36 @@ function parseQueueFromPlan(planText) {
         break
       case 'craft': case 'smelt': case 'equip':
         args = { item: parts.slice(1).join('_') }
+        // Expand craft chains via crafter.js — resolve dependencies at queue-write time
+        if (type === 'craft' && state) {
+          try {
+            const inv = inventoryToMap(state)
+            const chain = solveCraft(args.item, inv)
+            if (chain.steps.length > 1) {
+              // Simulated inventory to track table procurement within this expansion
+              const simInv = Object.assign({}, inv)
+              for (const step of chain.steps) {
+                if (step.needsTable && !simInv['crafting_table']) {
+                  // Ensure crafting_table is in the chain — solveCraft should already include it,
+                  // but add it explicitly if missing from steps
+                  const tableChain = solveCraft('crafting_table', simInv)
+                  for (const ts of tableChain.steps) {
+                    items.push({ type: 'craft', args: { item: ts.item }, reason: 'need crafting table' })
+                    if (items.length >= 20) break
+                  }
+                  simInv['crafting_table'] = 1
+                }
+                items.push({ type: 'craft', args: { item: step.item }, reason: reason || `chain: ${step.item}` })
+                if (items.length >= 20) break
+              }
+              if (items.length >= 20) break
+              continue  // Skip the normal items.push at line 154
+            }
+          } catch (e) {
+            // Fall through to normal single-craft behavior on error
+            console.log('[Planner] Craft chain error:', e.message)
+          }
+        }
         break
       case 'place':
         args = { item: parts[1] || '' }
@@ -739,7 +780,7 @@ Write a concise strategy (5-8 sentences). Be specific about coordinates, items, 
       if (planText.includes('QUEUE: keep') || planText.includes('QUEUE:keep')) {
         console.log('[Planner] Plan reviewed — keeping current queue')
       }
-      const queueItems = planText.includes('QUEUE: keep') ? [] : parseQueueFromPlan(planText)
+      const queueItems = planText.includes('QUEUE: keep') ? [] : parseQueueFromPlan(planText, state)
       if (queueItems.length > 0) {
         const goal = planText.split('\n').find(l => l.trim().length > 5)?.trim().slice(0, 80) || 'planner strategy'
         setQueue(queueItems, goal, 'planner')

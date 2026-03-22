@@ -42,6 +42,7 @@ import { detectBehaviorMode } from './needs.js';
 import { initQueue, popAction, peekAction, clearQueue, getQueueLength, getQueueSummary, getQueueGoal } from './action-queue.js';
 import { startBaritone, updatePosition, getStatus as getBaritoneStatus, stopBaritone, isBaritoneActive, getBaritoneContext } from './baritone-tracker.js';
 import { GAME_TOOLS } from './tools.js';
+import { initCrafter } from './crafter.js';
 
 const TICK_INTERVAL = parseInt(process.env.TICK_MS || '2000', 10);
 const MAX_STUCK_COUNT = 2;
@@ -1391,6 +1392,7 @@ async function main() {
   initChests(agentConfig);
   initChatHistory(agentConfig);
   initQueue(agentConfig);
+  initCrafter();
 
   // Set per-agent notepad and task plan paths
   NOTEPAD_FILE = join(agentConfig.dataDir, 'notepad.txt');
