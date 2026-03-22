@@ -43,8 +43,8 @@ import { initQueue, popAction, peekAction, clearQueue, getQueueLength, getQueueS
 import { startBaritone, updatePosition, getStatus as getBaritoneStatus, stopBaritone, isBaritoneActive, getBaritoneContext } from './baritone-tracker.js';
 import { GAME_TOOLS } from './tools.js';
 import { initCrafter } from './crafter.js'
-import { initFreestyle, isFreestyleActive } from './freestyle.js'
-import { initPlacementTracker } from './placement-tracker.js';
+import { initFreestyle, isFreestyleActive, advanceFreestyle } from './freestyle.js'
+import { initPlacementTracker, getPlacedBlockCount } from './placement-tracker.js';
 
 const TICK_INTERVAL = parseInt(process.env.TICK_MS || '2000', 10);
 const MAX_STUCK_COUNT = 2;
@@ -394,6 +394,17 @@ function reviewSubtaskOutcome(state) {
     if (state.health < minHealth) {
       passed = false
       actual = `health is ${state.health} (expected >= ${minHealth})`
+    }
+  }
+
+  // Check placed block count (e.g. "placed_count:20 blocks for Watchtower")
+  const placedCountMatch = expected.match(/placed_count:(\d+)/)
+  if (placedCountMatch) {
+    const required = parseInt(placedCountMatch[1])
+    const actual_count = getPlacedBlockCount()
+    if (actual_count < required * 0.9) {  // 10% tolerance
+      passed = false
+      actual = `only ${actual_count}/${required} blocks placed`
     }
   }
 
@@ -1295,6 +1306,11 @@ async function tick() {
     error: success ? null : (result?.error || result?.message || 'failed'),
     timestamp: Date.now(),
   });
+
+  // Advance freestyle progress pointer after successful smart_place from queue
+  if (actionType === 'smart_place' && success && response.mode === 'queue' && isFreestyleActive()) {
+    advanceFreestyle()
+  }
 
   // Auto-close crafting screen on craft/smelt failure to prevent items stuck in grid
   if (!success && (actionType === 'craft' || actionType === 'smelt')) {
