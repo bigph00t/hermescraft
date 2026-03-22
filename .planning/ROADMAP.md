@@ -26,7 +26,7 @@ Full details: `.planning/milestones/v1.0-ROADMAP.md`
 - [x] **Phase 5: Tool Primitives** — Fix place, equip, chest interaction, mine removal, and sustained action lock in one mod rebuild (completed 2026-03-22)
 - [x] **Phase 6: Crafting Intelligence** — Full recipe chain solver so the agent can craft wooden_pickaxe from oak_log in a single plan step (completed 2026-03-22)
 - [x] **Phase 7: Building Intelligence** — Freestyle building with LLM-designed plans, block placement tracking, and post-build verification (completed 2026-03-22)
-- [ ] **Phase 8: Spatial Memory + Server Scripts** — Persistent typed world map, proximity-filtered prompt injection, new Skript server commands
+- [x] **Phase 8: Spatial Memory + Server Scripts** — Persistent typed world map, proximity-filtered prompt injection, new Skript server commands (completed 2026-03-22)
 
 ## Phase Details
 
@@ -87,7 +87,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 08-01-PLAN.md — Typed resource patches in locations.js, proximity-filtered prompt injection for locations/resources/chests
+- [x] 08-01-PLAN.md — Typed resource patches in locations.js, proximity-filtered prompt injection for locations/resources/chests
 - [x] 08-02-PLAN.md — Skript wrappers (where.sk, nearbyplayers.sk, checkblock.sk) + command-parser.js + tool wiring
 
 ## Progress
@@ -104,7 +104,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8
 | 5. Tool Primitives | v1.1 | 3/3 | Complete   | 2026-03-22 |
 | 6. Crafting Intelligence | v1.1 | 2/2 | Complete   | 2026-03-22 |
 | 7. Building Intelligence | v1.1 | 3/3 | Complete   | 2026-03-22 |
-| 8. Spatial Memory + Server Scripts | v1.1 | 1/2 | In Progress|  |
+| 8. Spatial Memory + Server Scripts | v1.1 | 2/2 | Complete   | 2026-03-22 |
 
 ---
 *Roadmap created: 2026-03-21*

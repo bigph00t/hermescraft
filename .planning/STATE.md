@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Tool Quality & Building Intelligence
 status: unknown
-last_updated: "2026-03-22T05:28:52.474Z"
+last_updated: "2026-03-22T05:29:14.509Z"
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 10
-  completed_plans: 9
+  completed_plans: 10
 ---
 
 # Project State
@@ -53,6 +53,7 @@ Plan: 2 of 2
 | Phase 07 P02 | 2 | 2 tasks | 3 files |
 | Phase 07 P03 | 68s | 2 tasks | 2 files |
 | Phase 08 P02 | 1min | 2 tasks | 6 files |
+| Phase 08 P01 | 5min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -96,6 +97,9 @@ Plan: 2 of 2
 - [Phase 07]: [Phase 07]: 10% tolerance (0.9 multiplier) in placed_count check — accounts for occasional silent tracking pipeline failures
 - [Phase 08]: where/nearby_players/check_block are INFO_ACTIONS — results arrive via chat before next LLM call
 - [Phase 08]: nearby_players radius capped at 200 to prevent server-side lag
+- [Phase 08]: Use _resources key in locations.json to avoid collision with any location named 'resources'
+- [Phase 08]: Horizontal distance only for resource proximity checks — ignores Y so underground resources register correctly
+- [Phase 08]: getLocationsForPrompt backward compat: if no position arg, return all entries (existing callers unaffected)
 
 ### Pending Todos
 

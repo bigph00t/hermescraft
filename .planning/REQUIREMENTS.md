@@ -33,8 +33,8 @@ Requirements for Tool Quality & Building Intelligence milestone. Each maps to ro
 
 ### Spatial Memory
 
-- [ ] **SPACE-01**: Agent maintains typed resource patches (ore veins, tree clusters, build sites) in persistent spatial memory
-- [ ] **SPACE-02**: Spatial memory is proximity-filtered when injected into prompts (prevents unbounded growth)
+- [x] **SPACE-01**: Agent maintains typed resource patches (ore veins, tree clusters, build sites) in persistent spatial memory
+- [x] **SPACE-02**: Spatial memory is proximity-filtered when injected into prompts (prevents unbounded growth)
 
 ### Server Scripts
 
@@ -113,8 +113,8 @@ Deferred to next milestone. Tracked but not in current roadmap.
 | BUILD-02 | Phase 7 | Complete |
 | BUILD-03 | Phase 7 | Complete |
 | BUILD-04 | Phase 7 | Complete |
-| SPACE-01 | Phase 8 | Pending |
-| SPACE-02 | Phase 8 | Pending |
+| SPACE-01 | Phase 8 | Complete |
+| SPACE-02 | Phase 8 | Complete |
 | SCRIPT-01 | Phase 8 | Complete |
 
 **Coverage:**
