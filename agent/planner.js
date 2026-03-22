@@ -14,7 +14,7 @@ import { getChestsForPrompt } from './chests.js'
 import { getChatSummary, getRecentChats } from './chat-history.js'
 import { getCooperationContext } from './cooperation.js'
 import { getRelationshipSummary } from './social.js'
-import { getHome, getLocationsForPrompt, getNearbyDangers, getUnexploredDirection, getExplorationStats } from './locations.js'
+import { getHome, getLocationsForPrompt, getResourcesForPrompt, getNearbyDangers, getUnexploredDirection, getExplorationStats } from './locations.js'
 import { detectBehaviorMode, calculateNeeds, formatNeedsForPrompt } from './needs.js'
 import { updateAgentState, getOtherAgentsContext, getSharedLocations, getActiveProjects } from './shared-state.js'
 import { setQueue, getQueueLength, clearQueue, getQueueSummary } from './action-queue.js'
@@ -341,7 +341,7 @@ function consolidateMemory(state) {
   if (timeline) sections.push('== YOUR STORY ==\n' + timeline)
 
   // Chest inventory
-  const chests = getChestsForPrompt()
+  const chests = getChestsForPrompt(state.position)
   if (chests) sections.push('== STORED ITEMS ==\n' + chests)
 
   // Relationship context
@@ -353,8 +353,12 @@ function consolidateMemory(state) {
   if (chatContext) sections.push('== RECENT CONVERSATIONS ==\n' + chatContext)
 
   // Known locations including home
-  const locationContext = getLocationsForPrompt()
+  const locationContext = getLocationsForPrompt(state.position)
   if (locationContext) sections.push('== KNOWN PLACES ==\n' + locationContext)
+
+  // Nearby resource patches (ore veins, tree clusters, etc.)
+  const resourceContext = getResourcesForPrompt(state.position)
+  if (resourceContext) sections.push('== NEARBY RESOURCES ==\n' + resourceContext)
 
   // Home tracking (D-09)
   const home = getHome()

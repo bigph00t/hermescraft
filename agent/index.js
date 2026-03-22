@@ -30,7 +30,7 @@ import {
   logStuck, logSkillCreated, logSessionStats, logStartupBanner,
 } from './logger.js';
 import { initSocial, trackPlayer, getPlayersForPrompt, savePlayers, isKnownPlayer } from './social.js';
-import { initLocations, autoDetectLocations, getLocationsForPrompt, saveLocations, saveLocation, recordDeathLocation, parseLocationFromChat } from './locations.js';
+import { initLocations, autoDetectLocations, getLocationsForPrompt, getResourcesForPrompt, saveLocations, saveLocation, recordDeathLocation, parseLocationFromChat } from './locations.js';
 import { initAutobiography, recordEvent } from './autobiography.js';
 import { initChests, trackChest, saveChests } from './chests.js';
 import { initChatHistory, recordChat } from './chat-history.js';
@@ -869,7 +869,8 @@ async function tick() {
   // Build prompts with full context
   const memoryText = getMemoryForPrompt();
   const socialText = getPlayersForPrompt(state.nearbyEntities);
-  const locationText = getLocationsForPrompt();
+  const locationText = getLocationsForPrompt(state.position);
+  const resourceText = getResourcesForPrompt(state.position);
   const skillIndex = getSkillIndex();
   const activeSkill = getActiveSkill(currentPhase, {
     mode: _agentConfig.mode,
@@ -880,8 +881,8 @@ async function tick() {
 
   const notepadContent = readNotepad();
 
-  // Combine memory + social + location context
-  const fullMemoryText = [memoryText, socialText, locationText].filter(Boolean).join('\n');
+  // Combine memory + social + location + resource context
+  const fullMemoryText = [memoryText, socialText, locationText, resourceText].filter(Boolean).join('\n');
 
   // Load pinned context documents (survives any history wipe)
   const pinnedContext = loadPinnedContext(_agentConfig.dataDir);
