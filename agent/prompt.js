@@ -3,6 +3,7 @@
 
 import { readFileSync, readdirSync, existsSync } from 'fs';
 import { join } from 'path';
+import { getPlacedBlocksForPrompt } from './placement-tracker.js'
 
 const NOTEPAD_MAX_CHARS = 2000;  // Raised from 600 — notepad is the agent's primary scratchpad
 
@@ -263,6 +264,22 @@ export function buildUserMessage(stateSummary, actionHistory, {
       } else {
         parts.push(`== REVIEW FAILED == Subtask ${reviewResult.subtaskIndex}: expected "${reviewResult.expected_outcome}" but found: ${reviewResult.actual}`)
         parts.push(`This subtask has been set back to in-progress for retry. Try a DIFFERENT approach.`)
+
+        // Add build-specific context for placement failures
+        if (reviewResult.expected_outcome && reviewResult.expected_outcome.includes('placed_count')) {
+          const placedSummary = getPlacedBlocksForPrompt()
+          if (placedSummary) {
+            parts.push(`Placement log: ${placedSummary}`)
+          }
+          if (visionContext) {
+            // Extract BUILD: line from vision if present
+            const buildLine = visionContext.split('\n').find(l => l.trim().startsWith('BUILD:'))
+            if (buildLine) {
+              parts.push(`Vision assessment: ${buildLine.trim()}`)
+            }
+          }
+          parts.push(`Re-queue remaining blocks with "freestyle [plan_file].md" in your next plan.`)
+        }
       }
       parts.push('')
     }
@@ -309,6 +326,12 @@ export function buildUserMessage(stateSummary, actionHistory, {
   // Build progress — active construction status from builder
   if (buildProgress) {
     parts.push(`\n== BUILD STATUS ==\n${buildProgress}`);
+  }
+
+  // Placed blocks summary — always show if blocks have been placed recently
+  const placedBlocksSummary = getPlacedBlocksForPrompt()
+  if (placedBlocksSummary) {
+    parts.push(`\n== PLACED BLOCKS ==\n${placedBlocksSummary}`)
   }
 
   // Recent actions (compact)
