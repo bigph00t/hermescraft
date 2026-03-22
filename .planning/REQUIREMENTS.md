@@ -9,8 +9,8 @@ Requirements for Creative Building + Bug Fixes milestone.
 
 ### Bug Fixes
 
-- [ ] **FIX-01**: v2.0 live testing — bot connects, stays alive, and responds to chat on Paper 1.21.1 server
-- [ ] **FIX-02**: v2.0 live testing — all 11 registry commands (!gather through !withdraw) execute without errors
+- [x] **FIX-01**: v2.0 live testing — bot connects, stays alive, and responds to chat on Paper 1.21.1 server
+- [x] **FIX-02**: v2.0 live testing — all 11 registry commands (!gather through !withdraw) execute without errors
 
 ### Creative Building
 
@@ -49,8 +49,8 @@ Requirements for Creative Building + Bug Fixes milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FIX-01 | Phase 7 | Pending |
-| FIX-02 | Phase 7 | Pending |
+| FIX-01 | Phase 7 | Complete |
+| FIX-02 | Phase 7 | Complete |
 | CBUILD-03 | Phase 8 | Pending |
 | CBUILD-04 | Phase 8 | Pending |
 | CBUILD-01 | Phase 9 | Pending |

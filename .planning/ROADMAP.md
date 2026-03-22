@@ -34,10 +34,10 @@ memory/social/locations subsystems, 24 JS modules, 3389 lines of code.
   1. Bot connects to the Paper 1.21.1 server, stays connected, and responds to player chat without crashing
   2. All 11 registry commands (!gather, !mine, !craft, !smelt, !navigate, !chat, !idle, !combat, !build, !deposit, !withdraw) execute against live server without throwing uncaught errors
   3. 300ms survival tick runs continuously alongside the Mind loop without interfering with command execution
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
-- [ ] 07-01-PLAN.md — Fix package.json deps, normalizer ore alias bug, system prompt missing commands
+- [x] 07-01-PLAN.md — Fix package.json deps, normalizer ore alias bug, system prompt missing commands
 - [ ] 07-02-PLAN.md — Create smoke test validating all v2 modules, exports, and integration contracts
 
 ### Phase 8: Blueprint Intelligence
@@ -75,7 +75,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 7. Live Testing + Bug Fixes | v2.1 | 0/2 | In progress | - |
+| 7. Live Testing + Bug Fixes | v2.1 | 1/2 | In Progress|  |
 | 8. Blueprint Intelligence | v2.1 | 0/TBD | Not started | - |
 | 9. Directed Building | v2.1 | 0/TBD | Not started | - |
 | 10. Build Memory | v2.1 | 0/TBD | Not started | - |
