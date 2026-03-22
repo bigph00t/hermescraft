@@ -43,10 +43,10 @@ Requirements for Mineflayer Rewrite milestone.
 
 ### Personality & Social
 
-- [ ] **SOUL-01**: SOUL file loading — Jeffrey and John with distinct personalities, creative drives
-- [ ] **SOUL-02**: Persistent memory — lessons, strategies, world knowledge across sessions
+- [x] **SOUL-01**: SOUL file loading — Jeffrey and John with distinct personalities, creative drives
+- [x] **SOUL-02**: Persistent memory — lessons, strategies, world knowledge across sessions
 - [ ] **SOUL-03**: Natural grounded chat — only reference real game state, never hallucinate
-- [ ] **SOUL-04**: Multi-agent coordination — 2 bots on same server, chat naturally, cooperate
+- [x] **SOUL-04**: Multi-agent coordination — 2 bots on same server, chat naturally, cooperate
 - [ ] **SOUL-05**: Day/night behavior — work during day, shelter at night, social in evening
 
 ### Creative Building
@@ -103,10 +103,10 @@ Requirements for Mineflayer Rewrite milestone.
 | MODE-03 | Phase 4 | Complete |
 | MODE-04 | Phase 4 | Complete |
 | MODE-05 | Phase 4 | Complete |
-| SOUL-01 | Phase 5 | Pending |
-| SOUL-02 | Phase 5 | Pending |
+| SOUL-01 | Phase 5 | Complete |
+| SOUL-02 | Phase 5 | Complete |
 | SOUL-03 | Phase 5 | Pending |
-| SOUL-04 | Phase 5 | Pending |
+| SOUL-04 | Phase 5 | Complete |
 | SOUL-05 | Phase 5 | Pending |
 | BUILD-01 | Phase 6 | Pending |
 | BUILD-02 | Phase 6 | Pending |

@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Mineflayer Rewrite
-status: Ready to plan
-last_updated: "2026-03-22T19:01:19.443Z"
+status: Ready to execute
+last_updated: "2026-03-22T19:18:49.157Z"
 progress:
   total_phases: 6
   completed_phases: 4
-  total_plans: 9
-  completed_plans: 9
+  total_plans: 11
+  completed_plans: 10
 ---
 
 # Project State
@@ -18,12 +18,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-22)
 
 **Core value:** Agents feel and play like real people — creative, emotional, able to interact with the world
-**Current focus:** Phase 04 — survival-modes
+**Current focus:** Phase 05 — personality-social
 
 ## Current Position
 
-Phase: 5
-Plan: Not started
+Phase: 05 (personality-social) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -49,6 +49,7 @@ Plan: Not started
 | Phase 03-mind-loop-llm P03-02 | 1m 30s | 2 tasks | 3 files |
 | Phase 04-survival-modes P04-01 | 2min | 2 tasks | 2 files |
 | Phase 04-survival-modes P04-02 | 2m 6s | 2 tasks | 3 files |
+| Phase 05-personality-social P05-01 | 2min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,10 @@ Plan: Not started
 - [04-02] isSkillRunning exported as getter from mind/index.js — passed as callback from start.js so body/ never imports mind/
 - [04-02] checkCombat in body tick uses attackTarget (single hit/tick, non-blocking) not combatLoop — prevents body tick from being blocked for full combat duration (Pitfall 2)
 - [04-02] Survival Priority 1 fires even during active skills; starvation override at food<=2 eats unconditionally; hazard flee cooperatively interrupts running skill via requestInterrupt()
+- [05-01] No history.json persistence in memory.js — stale conversation context does more harm than good; v2 starts clean each session
+- [05-01] getPlayersForPrompt takes bot object directly — reads bot.players + bot.entities for nearby detection; no intermediate array needed
+- [05-01] partner seeded at sentiment:3/acquaintance in social.js — jeffrey and john recognize each other from session 1, not treated as strangers
+- [05-01] getLocationsForPrompt radius 500 blocks (v1: 150) — open world exploration warrants wider location awareness
 
 ### Critical Pitfalls (from research)
 
@@ -120,3 +125,4 @@ None currently.
 - 2026-03-22: Completed 03-01 — mind/llm.js, mind/prompt.js, mind/registry.js created; LLM client + history + !command parser + prompt builder + command dispatch bridge; MIND-02, MIND-03 complete
 - 2026-03-22: Completed 04-01 — body/skills/combat.js created (attackTarget + combatLoop + HOSTILE_MOBS 42-entry Set); !combat wired into mind/registry.js; SKILL-06, MODE-02 complete
 - 2026-03-22: Completed 04-02 — body/modes.js created (300ms body tick, 5-priority cascade: survival+flee, combat, unstuck, item pickup, idle look); isSkillRunning exported from mind/index.js; initModes wired in start.js; MODE-01, MODE-03, MODE-04, MODE-05 complete; Phase 04 complete
+- 2026-03-22: Completed 05-01 — mind/config.js, mind/memory.js, mind/social.js, mind/locations.js created; SOUL discovery, per-agent data dirs, player sentiment tracking with partner pre-seeding, named waypoints; SOUL-01, SOUL-02, SOUL-04 complete
