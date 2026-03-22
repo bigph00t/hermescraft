@@ -1,0 +1,37 @@
+{
+  "name": "animal_pen",
+  "description": "A 7x7 fenced animal pen with gate on one side",
+  "size": { "x": 7, "y": 2, "z": 7 },
+  "palette": {
+    "P": { "preferred": ["oak_fence", "spruce_fence", "birch_fence"], "tag": "fence" },
+    "K": { "preferred": ["oak_fence_gate", "spruce_fence_gate", "birch_fence_gate"], "tag": "gate" }
+  },
+  "layers": [
+    {
+      "y": 0,
+      "comment": "Ground level — open dirt/grass, no blocks placed (animals walk on natural terrain)",
+      "grid": [
+        ".......",
+        ".......",
+        ".......",
+        ".......",
+        ".......",
+        ".......",
+        "......."
+      ]
+    },
+    {
+      "y": 1,
+      "comment": "Fence perimeter with gate at front center (z=0, x=3)",
+      "grid": [
+        "PPPKPPP",
+        "P.....P",
+        "P.....P",
+        "P.....P",
+        "P.....P",
+        "P.....P",
+        "PPPPPPP"
+      ]
+    }
+  ]
+}

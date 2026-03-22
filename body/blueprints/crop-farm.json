@@ -1,0 +1,43 @@
+{
+  "name": "crop_farm",
+  "description": "A 9x9 crop farm with water channel down the center for irrigation",
+  "size": { "x": 9, "y": 2, "z": 9 },
+  "comment": "Farmland blocks require special handling: place dirt first, then till with hoe. Water at x=4 irrigates all farmland within 4 blocks.",
+  "palette": {
+    "T": { "preferred": ["farmland"], "tag": "farmland" },
+    "H": { "preferred": ["water"], "tag": "water" },
+    "B": { "preferred": ["dirt", "cobblestone"], "tag": "border" }
+  },
+  "layers": [
+    {
+      "y": 0,
+      "comment": "Ground level — farmland rows with water channel at x=4. Place dirt then till for farmland. Dig hole and place water_bucket for water.",
+      "grid": [
+        "TTTTHTTTT",
+        "TTTTHTTTT",
+        "TTTTHTTTT",
+        "TTTTHTTTT",
+        "TTTTHTTTT",
+        "TTTTHTTTT",
+        "TTTTHTTTT",
+        "TTTTHTTTT",
+        "TTTTHTTTT"
+      ]
+    },
+    {
+      "y": 1,
+      "comment": "Air above farmland — crops are planted here after tilling, not part of block placement",
+      "grid": [
+        ".........",
+        ".........",
+        ".........",
+        ".........",
+        ".........",
+        ".........",
+        ".........",
+        ".........",
+        "........."
+      ]
+    }
+  ]
+}

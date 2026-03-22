@@ -1,0 +1,101 @@
+{
+  "name": "watchtower",
+  "description": "A 5x5 stone tower, 8 blocks tall, open observation platform on top",
+  "size": { "x": 5, "y": 8, "z": 5 },
+  "palette": {
+    "S": { "preferred": ["cobblestone", "stone", "stone_bricks"], "tag": "wall" },
+    "F": { "preferred": ["oak_planks", "spruce_planks"], "tag": "floor" },
+    "L": { "preferred": ["cobblestone_stairs", "stone_stairs"], "tag": "ladder_platform" },
+    "P": { "preferred": ["cobblestone_wall", "stone_brick_wall"], "tag": "parapet" }
+  },
+  "layers": [
+    {
+      "y": 0,
+      "comment": "Solid 5x5 floor base",
+      "grid": [
+        "FFFFF",
+        "FFFFF",
+        "FFFFF",
+        "FFFFF",
+        "FFFFF"
+      ]
+    },
+    {
+      "y": 1,
+      "comment": "Ground walls with open doorway at z=0, x=2 (no block placed = open entry)",
+      "grid": [
+        "SS.SS",
+        "S...S",
+        "S...S",
+        "S...S",
+        "SSSSS"
+      ]
+    },
+    {
+      "y": 2,
+      "comment": "Wall perimeter — hollow interior",
+      "grid": [
+        "SSSSS",
+        "S...S",
+        "S...S",
+        "S...S",
+        "SSSSS"
+      ]
+    },
+    {
+      "y": 3,
+      "comment": "Wall perimeter — hollow interior",
+      "grid": [
+        "SSSSS",
+        "S...S",
+        "S...S",
+        "S...S",
+        "SSSSS"
+      ]
+    },
+    {
+      "y": 4,
+      "comment": "Wall perimeter — hollow interior",
+      "grid": [
+        "SSSSS",
+        "S...S",
+        "S...S",
+        "S...S",
+        "SSSSS"
+      ]
+    },
+    {
+      "y": 5,
+      "comment": "Wall perimeter — hollow interior",
+      "grid": [
+        "SSSSS",
+        "S...S",
+        "S...S",
+        "S...S",
+        "SSSSS"
+      ]
+    },
+    {
+      "y": 6,
+      "comment": "Wall perimeter — hollow interior",
+      "grid": [
+        "SSSSS",
+        "S...S",
+        "S...S",
+        "S...S",
+        "SSSSS"
+      ]
+    },
+    {
+      "y": 7,
+      "comment": "Observation platform — parapet walls around edge, floor planks in center",
+      "grid": [
+        "PPPPP",
+        "P.F.P",
+        "P.F.P",
+        "P.F.P",
+        "PPPPP"
+      ]
+    }
+  ]
+}
