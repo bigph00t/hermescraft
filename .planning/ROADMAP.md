@@ -60,7 +60,7 @@ Full details: `.planning/milestones/v1.1-ROADMAP.md`
 **Plans:** 1/3 plans executed
 Plans:
 - [x] 01-01-PLAN.md — Bot lifecycle, interrupt harness, normalizer (BOT-01, BOT-05)
-- [ ] 01-02-PLAN.md — Navigate, dig, place primitives with safety wrappers (BOT-02, BOT-03, BOT-04)
+- [x] 01-02-PLAN.md — Navigate, dig, place primitives with safety wrappers (BOT-02, BOT-03, BOT-04)
 - [ ] 01-03-PLAN.md — Gather and mine skills (SKILL-01, SKILL-02)
 
 ### Phase 2: Crafting + Inventory

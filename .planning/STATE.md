@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Mineflayer Rewrite
 status: Ready to execute
-last_updated: "2026-03-22T17:24:33.402Z"
+last_updated: "2026-03-22T17:29:50.086Z"
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-03-22)
 ## Current Position
 
 Phase: 01 (bot-foundation-core-skills) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 
 ## Performance Metrics
 
@@ -41,6 +41,7 @@ Plan: 2 of 3
 
 *Updated after each plan completion*
 | Phase 01-bot-foundation-core-skills P01 | 2min | 2 tasks | 5 files |
+| Phase 01-bot-foundation-core-skills P02 | 2min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -56,6 +57,9 @@ Plan: 2 of 3
 - [01-01] bot.interrupt_code on bot object (not module state) — supports multiple concurrent bot instances
 - [01-01] normalizeBlockName shares _normalize helper with normalizeItemName — avoids duplicating 9-step pipeline; ALIASES apply to both items and blocks
 - [01-01] Movements set inside spawn handler per research Pitfall 6 — new Movements(bot) requires initialized world state
+- [01-02] CJS import for mineflayer-pathfinder: import mpf then destructure — `import { goals }` named import fails in Node 24 ESM
+- [01-02] timerId pattern in navigateTo: clearTimeout in both success and error paths prevents lingering timer leaks
+- [01-02] All body/ primitives return { success, reason } structs and never throw — skills always check result.success
 
 ### Critical Pitfalls (from research)
 
@@ -83,3 +87,4 @@ None currently.
 - 2026-03-22: Milestone v2.0 started — Mineflayer Rewrite
 - 2026-03-22: v2.0 roadmap created — 6 phases, 30 requirements mapped
 - 2026-03-22: Completed 01-01 — body/bot.js, body/interrupt.js, body/normalizer.js created; mineflayer-pathfinder + mineflayer-tool installed
+- 2026-03-22: Completed 01-02 — body/navigate.js, body/dig.js, body/place.js created; all three action primitives with safety wrappers
