@@ -101,27 +101,27 @@ Deferred to next milestone. Tracked but not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TOOL-01 | — | Pending |
-| TOOL-02 | — | Pending |
-| TOOL-03 | — | Pending |
-| TOOL-04 | — | Pending |
-| CHEST-01 | — | Pending |
-| CHEST-02 | — | Pending |
-| CRAFT-01 | — | Pending |
-| CRAFT-02 | — | Pending |
-| BUILD-01 | — | Pending |
-| BUILD-02 | — | Pending |
-| BUILD-03 | — | Pending |
-| BUILD-04 | — | Pending |
-| SPACE-01 | — | Pending |
-| SPACE-02 | — | Pending |
-| SCRIPT-01 | — | Pending |
+| TOOL-01 | Phase 5 | Pending |
+| TOOL-02 | Phase 5 | Pending |
+| TOOL-03 | Phase 5 | Pending |
+| TOOL-04 | Phase 5 | Pending |
+| CHEST-01 | Phase 5 | Pending |
+| CHEST-02 | Phase 5 | Pending |
+| CRAFT-01 | Phase 6 | Pending |
+| CRAFT-02 | Phase 6 | Pending |
+| BUILD-01 | Phase 7 | Pending |
+| BUILD-02 | Phase 7 | Pending |
+| BUILD-03 | Phase 7 | Pending |
+| BUILD-04 | Phase 7 | Pending |
+| SPACE-01 | Phase 8 | Pending |
+| SPACE-02 | Phase 8 | Pending |
+| SCRIPT-01 | Phase 8 | Pending |
 
 **Coverage:**
 - v1.1 requirements: 15 total
-- Mapped to phases: 0
-- Unmapped: 15
+- Mapped to phases: 15
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-21*
-*Last updated: 2026-03-21 after initial definition*
+*Last updated: 2026-03-21 — v1.1 roadmap created, all 15 requirements mapped*

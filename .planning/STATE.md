@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Tool Quality & Building Intelligence
-status: defining_requirements
+status: ready_to_plan
 last_updated: "2026-03-21T00:00:00.000Z"
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
-  total_plans: 0
+  total_plans: 11
   completed_plans: 0
 ---
 
@@ -18,14 +18,60 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-21)
 
 **Core value:** Agents feel and play like real people — creative, emotional, with desires, aesthetic sense, and the ability to interact with what they see
-**Current focus:** Defining requirements for v1.1
+**Current focus:** Phase 5 — Tool Primitives
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-21 — Milestone v1.1 started
+Phase: 5 of 8 (Tool Primitives)
+Plan: 0 of 4 in current phase
+Status: Ready to plan
+Last activity: 2026-03-21 — v1.1 roadmap created
+
+Progress: [░░░░░░░░░░] 0%
+
+## Performance Metrics
+
+**Velocity:**
+- Total plans completed: 0 (v1.1)
+- Average duration: —
+- Total execution time: —
+
+**By Phase:**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| 5. Tool Primitives | 0/4 | — | — |
+| 6. Crafting Intelligence | 0/2 | — | — |
+| 7. Building Intelligence | 0/3 | — | — |
+| 8. Spatial Memory + Server Scripts | 0/2 | — | — |
+
+*Updated after each plan completion*
+
+## Accumulated Context
+
+### Key Facts for Planning
+
+- Phase 5 requires exactly ONE mod rebuild — batch smart place + chest interaction + timeout fix together, do not split across plans
+- normalizer.js and mine removal are agent-only changes (Plans 05-01) — zero rebuild risk, ship first
+- minecraft-data 3.105.0 is already in node_modules via mineflayer transitive dep — declare it explicitly in package.json in Phase 6
+- freestyle.js parseFreestylePlan() markdown format is undefined — define the contract as the first deliverable of Phase 7 before writing any code
+- Craft two-call pattern: 3x3 crafting table recipes require two `craft` calls (open table, then craft) — crafter.js queue expansion must account for this
+- Existing builder.js double-place race condition must be resolved before freestyle builder is trusted
+
+### Decisions
+
+- Batch mod rebuild in Phase 5 (one rebuild covers smart place + chest + timeout fix)
+- response-driven state updates: embed state changes in action response JSON, not via polling
+- planner expands abstract actions into concrete dependency-ordered steps at queue-write time
+- each new agent-side module owns exactly one JSON file in data/{name}/
+
+### Pending Todos
+
+None.
+
+### Blockers/Concerns
+
+None currently.
 
 ## History
 
@@ -33,33 +79,10 @@ Last activity: 2026-03-21 — Milestone v1.1 started
 
 - Paper 1.21.1 server with 12 plugins in Docker on Glass
 - Brain-hands-eyes 3-loop architecture (action 2s, vision 10s, planner 30s)
-- Surface-first spatial awareness with look_at_block + break_block
-- 37 agent tools (29 game + 8 plugin-backed)
-- Creative intelligence: debt counter, BUILD vision evaluation, per-agent creative behaviors
-- Deep SOUL personalities with creative drives and anti-meta-game enforcement
-- Known critical issues: place action broken, no chest interaction, mine goes underground, blueprint builder unusable, wrong item names, no crafting chain solver
-
-## Accumulated Context
-
-- LLM reasoning is good — tools are what's failing it
-- place action needs auto-equip + look-at-surface + place-on-face (like a real player)
-- mine must be removed entirely — look_at_block + break_block only
-- Agents wander 300+ blocks from base with no tether
-- No chest interaction exists — agents can't use shared storage
-- Item names wrong (sticks→stick, oak_planks_4→oak_planks)
-- No crafting prerequisite chain resolution
-- Blueprint builder has impossible material requirements — needs freestyle replacement
-- Planner memory was fixed in live session (500-message rolling history)
-- Chat filtering partially fixed but still fragile
-
-## Blockers
-
-None currently.
-
-## Decisions
-
-(Carrying forward from v1.0 — see MILESTONES.md for full v1.0 decision history)
+- 37 agent tools (29 game + 8 plugin-backed), creative intelligence, deep SOUL personalities
+- Critical issues entering v1.1: place 90% failure rate, no chest interaction, mine goes underground, blueprint builder unusable, wrong item names, no crafting chain solver
 
 ## Session Log
 
 - 2026-03-21: Milestone v1.1 started — Tool Quality & Building Intelligence
+- 2026-03-21: v1.1 roadmap created — 4 phases (5-8), 11 plans, 15 requirements mapped
