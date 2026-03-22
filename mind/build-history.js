@@ -9,9 +9,11 @@ let history = []
 // ── Init ──
 
 export function initBuildHistory(config) {
-  HISTORY_FILE = join(config.dataDir, 'build_history.json')
-  const dir = config.dataDir
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+  // Shared build history — all agents read/write the same file so they know
+  // about each other's builds. Stored one level up from per-agent data dirs.
+  const sharedDir = join(config.dataDir, '..')
+  HISTORY_FILE = join(sharedDir, 'shared_build_history.json')
+  if (!existsSync(sharedDir)) mkdirSync(sharedDir, { recursive: true })
 }
 
 // ── Load / Save ──
@@ -63,7 +65,8 @@ export function getBuildHistoryForPrompt() {
   for (const entry of history) {
     const dateShort = entry.date ? entry.date.slice(0, 10) : 'unknown'
     const dim = entry.dimensions
-    lines.push(`  ${entry.name} at ${entry.origin.x},${entry.origin.y},${entry.origin.z} (${dim.x}x${dim.y}x${dim.z}, ${entry.blockCount} blocks) -- ${dateShort}`)
+    const who = entry.builder ? ` by ${entry.builder}` : ''
+    lines.push(`  ${entry.name} at ${entry.origin.x},${entry.origin.y},${entry.origin.z} (${entry.blockCount} blocks${who}) -- ${dateShort}`)
   }
   return lines.join('\n')
 }
