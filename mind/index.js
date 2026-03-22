@@ -61,15 +61,35 @@ async function respondToChat(bot, sender, message) {
       console.log('[mind] chat reasoning:', result.reasoning.slice(0, 150))
     }
 
-    // If LLM produced a command (not just chat), interrupt current skill and dispatch
-    if (result.command && result.command !== 'idle' && result.command !== 'chat') {
+    // If LLM wants to chat back, send it immediately
+    if (result.command === 'chat') {
+      const msg = result.args?.message || ''
+      if (msg) {
+        bot.chat(msg)
+        console.log('[mind] chat reply sent:', msg.slice(0, 80))
+      }
+    }
+    // If LLM produced an action command, interrupt current skill and queue it
+    else if (result.command && result.command !== 'idle') {
       console.log('[mind] chat triggered command:', result.command, result.args)
       if (skillRunning) {
         requestInterrupt(bot)
         console.log('[mind] interrupted running skill for chat command')
       }
-      // Queue the command for when think() is free
       _pendingChat = { trigger: 'chat', sender, message, forceCommand: result }
+    }
+    // No command — LLM just reasoned without acting. If there's reasoning that
+    // looks like a response, send it as chat (the LLM often "says" things in
+    // reasoning without using !chat)
+    else if (!result.command && result.reasoning) {
+      // Extract any conversational text from reasoning (first sentence-like chunk)
+      const lines = result.reasoning.split('\n').filter(l => l.trim())
+      const conversational = lines.find(l =>
+        !l.startsWith('I ') && !l.startsWith('My ') && !l.startsWith('Let me') &&
+        !l.includes('inventory') && !l.includes('should') && l.length < 100
+      )
+      // Don't auto-extract — too risky. Just log that no response was sent.
+      console.log('[mind] no !chat in response — LLM reasoned but didn\'t reply')
     }
   } catch (err) {
     console.error('[mind] chat response error:', err.message)
