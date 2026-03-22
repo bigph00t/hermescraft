@@ -72,7 +72,10 @@ Plans:
   2. Bot smelts raw iron by placing it in a furnace with fuel and collecting the output when done
   3. Bot deposits items into a chest and later withdraws them, remembering the chest's location
   4. Bot equips best available tool before digging and eats food when hunger drops below threshold without being told to
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 02-01-PLAN.md — BFS crafting chain solver + craft skill (SKILL-03)
+- [ ] 02-02-PLAN.md — Smelt, chest, and inventory management skills (SKILL-04, SKILL-07, SKILL-08)
 
 ### Phase 3: Mind Loop + LLM
 **Goal**: The LLM layer fires on events (chat received, skill complete, idle timeout), outputs !commands the Body executes, and maintains a 40-turn rolling history — the end-to-end Mind + Body pipeline is alive
@@ -127,7 +130,7 @@ v2.0 phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1. Bot Foundation + Core Skills | v2.0 | 3/3 | Complete   | 2026-03-22 |
-| 2. Crafting + Inventory | v2.0 | 0/? | Not started | - |
+| 2. Crafting + Inventory | v2.0 | 0/2 | Planning complete | - |
 | 3. Mind Loop + LLM | v2.0 | 0/? | Not started | - |
 | 4. Survival Modes | v2.0 | 0/? | Not started | - |
 | 5. Personality + Social | v2.0 | 0/? | Not started | - |
