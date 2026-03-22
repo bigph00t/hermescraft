@@ -29,7 +29,18 @@ Agents must feel and play like real people — creative, emotional, with desires
 
 ### Active
 
-(No active requirements — next milestone not yet defined)
+- [ ] Smart place action (auto-equip from inventory, look-at-surface, place-on-face)
+- [ ] Chest interaction (deposit/withdraw items from nearby chests)
+- [ ] Remove `mine` action entirely — look_at_block + break_block only
+- [ ] Freestyle building (LLM designs in markdown, executes block-by-block with placement tracking)
+- [ ] Block placement tracking (persistent record of where agent placed blocks)
+- [ ] Item name normalization layer (fix sticks→stick, oak_planks_4→oak_planks)
+- [ ] Crafting chain solver with recipe database (full dependency resolution)
+- [ ] Spatial memory (persistent world map of discovered locations, chests, resources)
+- [ ] Task completion verification (agent checks own work against intent)
+- [ ] Base tether (auto-return when wandering too far from home)
+- [ ] Human message guaranteed response
+- [ ] New Skript wrappers for server-side agent assistance
 
 ### Out of Scope
 
@@ -38,6 +49,18 @@ Agents must feel and play like real people — creative, emotional, with desires
 - Custom Paper plugin (Java) — use Skript for custom commands
 - Nether/End gameplay — focus on overworld island survival first
 - Hostile mob combat — peaceful mode for building/cooperation focus
+
+## Current Milestone: v1.1 Tool Quality & Building Intelligence
+
+**Goal:** Fix every broken tool and build real building ability so the LLM's good reasoning actually translates to successful in-game execution.
+
+**Target features:**
+- Smart place, chest interaction, mine removal
+- Freestyle building with block placement tracking
+- Item name normalization + crafting chain solver
+- Spatial memory, base tether, task verification
+- New Skript wrappers for server-side agent help
+- Human message guaranteed response
 
 ## Context
 
@@ -74,5 +97,22 @@ Agents must feel and play like real people — creative, emotional, with desires
 | Creative debt counter | Forces creative activity after gathering | ✓ Good — 5-cycle threshold |
 | Two-layer meta-game filter | Prompt trains LLM + regex backstop | ✓ Good — FORBIDDEN_WORDS + META_GAME_REGEX |
 
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd:transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd:complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
+
 ---
-*Last updated: 2026-03-22 after v1.0 milestone*
+*Last updated: 2026-03-21 after v1.1 milestone start*
