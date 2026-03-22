@@ -94,17 +94,54 @@ export const GAME_TOOLS = [
   {
     type: 'function',
     function: {
-      name: 'place',
-      description: 'Place block from inventory at coordinates or at crosshair. For building, always specify x,y,z.',
+      name: 'smart_place',
+      description: 'Place a block. Auto-equips from inventory. Use look_at_block first to aim, then call with just the item name. Or specify support block coords + face.',
       parameters: {
         type: 'object',
         properties: {
-          item: { type: 'string', description: 'e.g. "oak_planks", "cobblestone", "oak_door"' },
-          x: { type: 'integer', description: 'Target X coordinate' },
-          y: { type: 'integer', description: 'Target Y coordinate' },
-          z: { type: 'integer', description: 'Target Z coordinate' },
+          item: { type: 'string', description: 'Block to place, e.g. "oak_planks", "cobblestone"' },
+          x: { type: 'integer', description: 'Support block X (optional — omit to place at crosshair)' },
+          y: { type: 'integer', description: 'Support block Y' },
+          z: { type: 'integer', description: 'Support block Z' },
+          face: { type: 'string', description: 'Face to place on: "top", "north", "south", "east", "west", "bottom". Default: "top"' },
         },
         required: ['item'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'chest_deposit',
+      description: 'Deposit items from inventory into a nearby chest. Must be within 6 blocks.',
+      parameters: {
+        type: 'object',
+        properties: {
+          x: { type: 'integer', description: 'Chest X coordinate' },
+          y: { type: 'integer', description: 'Chest Y coordinate' },
+          z: { type: 'integer', description: 'Chest Z coordinate' },
+          item: { type: 'string', description: 'Item to deposit, e.g. "oak_log"' },
+          count: { type: 'integer', description: 'How many to deposit (default: all)' },
+        },
+        required: ['x', 'y', 'z', 'item'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'chest_withdraw',
+      description: 'Take items from a nearby chest into inventory. Must be within 6 blocks.',
+      parameters: {
+        type: 'object',
+        properties: {
+          x: { type: 'integer', description: 'Chest X coordinate' },
+          y: { type: 'integer', description: 'Chest Y coordinate' },
+          z: { type: 'integer', description: 'Chest Z coordinate' },
+          item: { type: 'string', description: 'Item to withdraw, e.g. "stick"' },
+          count: { type: 'integer', description: 'How many to take (default: all)' },
+        },
+        required: ['x', 'y', 'z', 'item'],
       },
     },
   },

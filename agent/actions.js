@@ -1,6 +1,7 @@
 // actions.js — Translate LLM decisions to Fabric mod API calls
 
 import { normalizeItemName } from './normalizer.js'
+import { trackChest } from './chests.js'
 
 const MOD_URL = process.env.MOD_URL || 'http://localhost:3001';
 
@@ -8,6 +9,7 @@ const VALID_ACTIONS = new Set([
   'navigate', 'look_at_block', 'interact_block', 'pickup_items',
   'craft', 'smelt', 'attack', 'eat', 'place', 'equip', 'chat',
   'stop', 'break_block', 'close_screen',
+  'smart_place', 'chest_deposit', 'chest_withdraw',
   'build', 'cancel_build', 'farm', 'harvest', 'breed', 'fish', 'interact_entity',
   // Keep these for backward compat but they're not in the tool list:
   'look', 'use_item', 'drop', 'swap_hands', 'jump', 'sneak', 'sprint', 'walk',
@@ -37,6 +39,9 @@ const ACTION_SCHEMAS = {
   attack:       () => true,
   eat:          () => true,
   place:        (a) => typeof a.item === 'string',
+  smart_place:  (a) => typeof a.item === 'string',
+  chest_deposit: (a) => typeof a.item === 'string' && a.x !== undefined && a.y !== undefined && a.z !== undefined,
+  chest_withdraw: (a) => typeof a.item === 'string' && a.x !== undefined && a.y !== undefined && a.z !== undefined,
   equip:        (a) => typeof a.item === 'string',
   look:         (a) => a.yaw !== undefined || a.pitch !== undefined,
   chat:         (a) => typeof a.message === 'string',
@@ -226,6 +231,13 @@ export function validatePreExecution(action, state) {
       break;
     }
 
+    case 'smart_place': {
+      if (!hasItem(action.item)) {
+        return { valid: false, reason: `Cannot place "${action.item}" — not in inventory.` };
+      }
+      break;
+    }
+
     case 'breed': {
       const breedFood = {
         'cow': 'wheat', 'sheep': 'wheat', 'chicken': 'seeds',
@@ -377,7 +389,23 @@ export async function executeAction(action) {
     return sendSingleAction({ type: 'chat', message: `/qs create ${price}` })
   }
 
-  return sendSingleAction(payload)
+  const result = await sendSingleAction(payload)
+
+  // Auto-update chest memory from chest action responses
+  if ((type === 'chest_deposit' || type === 'chest_withdraw') && result.success && result.chest_contents !== undefined) {
+    try {
+      const contents = result.chest_contents.split(', ').map(entry => {
+        const match = entry.match(/^(.+?) x(\d+)$/)
+        if (match) return { item: match[1], count: parseInt(match[2]) }
+        return null
+      }).filter(Boolean)
+      trackChest(result.chest_x, result.chest_y, result.chest_z, contents)
+    } catch (e) {
+      // Non-critical — don't fail the action if chest tracking fails
+    }
+  }
+
+  return result
 }
 
 export function queueActions(actions) {

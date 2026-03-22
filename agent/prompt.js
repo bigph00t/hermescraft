@@ -47,6 +47,8 @@ const GAMEPLAY_INSTRUCTIONS = `How to play:
 - If no target blocks in surfaceBlocks, use scan_blocks to find them on the surface, then navigate closer and use look_at_block + break_block.
 - "navigate" pathfinds to coordinates. Only navigate to coordinates you know exist.
 - interact_block(x,y,z) right-clicks blocks (doors, chests, crafting tables). MUST be within 4 blocks.
+- PLACE: Use smart_place("item") after look_at_block to place on the surface you're facing. Auto-equips from full inventory.
+- CHESTS: To store items, use chest_deposit(x,y,z,"item",count). To take items, use chest_withdraw(x,y,z,"item",count). You know chest locations from your memory.
 - Check inventory before crafting. Use exact item IDs (e.g. "stick" not "sticks").
 - FIRST PRIORITY: Get wood! Check surfaceBlocks for oak_log → look_at + break. No logs visible? scan_blocks("oak_log") to find them.
 - Crafting table=4 planks. PLACE it for 3x3 recipes. Tool tiers: wood→stone→iron→diamond.
