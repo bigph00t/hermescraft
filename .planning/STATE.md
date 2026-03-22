@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Creative Building + Bug Fixes
-status: Ready to plan
-last_updated: "2026-03-22T20:54:01.478Z"
+status: Ready to execute
+last_updated: "2026-03-22T21:03:27.274Z"
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 6
+  completed_plans: 5
 ---
 
 # Project State
@@ -18,12 +18,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-22)
 
 **Core value:** Agents feel and play like real people — creative, emotional, able to interact with the world
-**Current focus:** Phase 08 — blueprint-intelligence
+**Current focus:** Phase 09 — directed-building
 
 ## Current Position
 
-Phase: 9
-Plan: Not started
+Phase: 09 (directed-building) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -39,6 +39,8 @@ Plan: Not started
 | 07-live-testing-bug-fixes | 02 | 15min | 1 | 2 |
 | 08-blueprint-intelligence | 01 | 3min | 2 | 10 |
 | 08-blueprint-intelligence | 02 | 3min | 2 | 4 |
+
+| 09-directed-building | 01 | 8min | 2 | 3 |
 
 *Updated after each plan completion*
 
@@ -63,6 +65,10 @@ Plan: Not started
 - Generated blueprints written to body/blueprints/_generated.json — avoids API changes to build() (08-02)
 - Two-stage JSON extraction for LLM blueprint output: strip think tags -> direct parse -> regex {[\s\S]*} fallback (08-02)
 - !design registry entry is a stub for listCommands() coverage; real logic is pre-dispatch in think() (08-02)
+- scanArea total excludes air/unloaded — solid/fluid only for 'how many blocks placed?' queries (09-01)
+- _buildQueue is in-memory only (not JSON-serialized) to avoid bloating build_state.json (09-01)
+- resolvedPalette stored in _activeBuild and persisted so palette changes survive session restarts (09-01)
+- updatePalette loops all palette chars (no break) — multiple chars can map to same block (09-01)
 
 ### Critical Pitfalls (from v2.0)
 
@@ -95,3 +101,4 @@ None currently.
 - 2026-03-22: Plan 08-01 complete — 8 new blueprints + validateBlueprint() with 41-assertion TDD suite
 - 2026-03-22: Plan 08-02 complete — !design pipeline: buildDesignPrompt() + designAndBuild() + registry wiring, 194 smoke tests pass
 - 2026-03-22: Phase 08 complete — blueprint intelligence shipped
+- 2026-03-22: Plan 09-01 complete — scanArea() + updatePalette() body skills, 213 smoke tests pass

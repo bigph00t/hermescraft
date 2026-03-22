@@ -65,7 +65,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 09-01-PLAN.md — Create scan skill and palette mutation in body/ layer
+- [x] 09-01-PLAN.md — Create scan skill and palette mutation in body/ layer
 - [ ] 09-02-PLAN.md — Wire !scan and !material into registry, prompt guidance for directed building
 
 ### Phase 10: Build Memory
