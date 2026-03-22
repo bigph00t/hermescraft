@@ -1,5 +1,23 @@
 # Milestones
 
+## v1.1 Tool Quality & Building Intelligence (Shipped: 2026-03-22)
+
+**Phases completed:** 4 phases, 10 plans, 13 tasks
+
+**Key accomplishments:**
+
+- One-liner:
+- Java mod ActionExecutor.java extended with smart_place (full 36-slot equip + surface placement + placed data), chest_deposit/chest_withdraw sustained actions, and timeout self-clear fix — mod builds successfully
+- smart_place replaces place in the LLM tool list; chest_deposit/chest_withdraw added with auto-tracking of chest contents via trackChest on every response
+- minecraft-data 1.21.1 BFS recipe chain solver that resolves full dependency trees from inventory, returning ordered leaf-to-root craft steps with crafting table flags and inventory-aware variant selection
+- Craft chain expansion wired into planner: `craft wooden_pickaxe` auto-expands to oak_planks, stick, wooden_pickaxe queue entries at plan-write time via solveCraft
+- Markdown building plan parser (freestyle.js) and persistent placed-block log (placement-tracker.js) — standalone modules ready for wiring in 07-02
+- Freestyle building wired end-to-end: placement tracking in actions.js, queue expansion in planner.js, init at startup in index.js, and LLM taught the freestyle type via prompt updates
+- placed_count deterministic build verification wired to reviewSubtaskOutcome with 10% tolerance; build failure prompt injection and PLACED BLOCKS summary added to buildUserMessage; advanceFreestyle wired in tick loop after each successful queued smart_place
+- agent/locations.js:
+
+---
+
 ## v1.0 Paper Migration + Plugin-Enhanced Agents (Shipped: 2026-03-22)
 
 **Phases completed:** 4 phases, 15 plans, 29 tasks

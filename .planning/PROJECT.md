@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A Minecraft AI agent system where AI characters (Jeffrey Enderstein, John Kwon, Alex, Anthony) play like real humans on a Survival Island. They build structures with aesthetic intent, gather resources from visible surfaces, explore and name locations, trade surplus items, learn skills over time, and have genuine conversations referencing their backstories — all driven by LLM reasoning with visual awareness. The system uses a Paper server with 12 plugins for enhanced gameplay, a brain-hands-eyes agent architecture with creative intelligence, and Claude Haiku for vision-based build evaluation.
+A Minecraft AI agent system where AI characters (Jeffrey Enderstein, John Kwon, Alex, Anthony) play like real humans on a Survival Island. They build structures with aesthetic intent using freestyle LLM-designed plans, gather resources from visible surfaces, explore and name locations with typed spatial memory, trade surplus items via chest interaction, craft complex items with automatic dependency resolution, learn skills over time, and have genuine conversations referencing their backstories — all driven by LLM reasoning with visual awareness and post-build verification.
 
 ## Core Value
 
@@ -18,65 +18,52 @@ Agents must feel and play like real people — creative, emotional, with desires
 - ✓ MiniMax M2.7 for action and planning LLM calls — v1
 - ✓ Deep personality SOUL files for each agent — v1
 - ✓ HermesBridge Fabric client mod (HTTP API for state/actions) — v1
-- ✓ Paper 1.21.1 server with 12 plugins (Timber, VeinMiner, AutoPickup, EssentialsX, AuraSkills, QuickShop, LuckPerms, Skript, ServerTap, StopSpam, Chunky) — v1.0
-- ✓ Agent spatial awareness: surfaceBlocks + look_at_block + break_block primary interaction — v1.0
-- ✓ Brain-hands-eyes architecture: planner writes queue, action loop executes, vision feeds awareness — v1.0
+- ✓ Paper 1.21.1 server with 12 plugins — v1.0
+- ✓ Agent spatial awareness: surfaceBlocks + look_at_block + break_block — v1.0
+- ✓ Brain-hands-eyes architecture: planner writes queue, action loop executes — v1.0
 - ✓ Custom Skript commands: /scan, /share-location, /myskills — v1.0
-- ✓ 8 plugin-backed agent tools: scan_blocks, go_home, set_home, share_location, check_skills, use_ability, query_shops, create_shop — v1.0
-- ✓ Creative intelligence: creative debt counter, per-agent CREATIVE_BEHAVIOR, vision BUILD evaluation, meta-game word filter — v1.0
-- ✓ SOUL files enhanced with creative drives, aesthetic preferences, emotional triggers — v1.0
-- ✓ Anti-meta-game enforcement: FORBIDDEN_WORDS_BLOCK + META_GAME_REGEX two-layer filter — v1.0
-- ✓ Smart place action: auto-equip from full 36-slot inventory, support block + face model — v1.1 Phase 5
-- ✓ Chest interaction: deposit/withdraw items with auto-tracking to chests.json — v1.1 Phase 5
-- ✓ Mine action removed: all block breaking via look_at_block + break_block only — v1.1 Phase 5
-- ✓ Item name normalization: 18-alias normalizer.js with minecraft-data validation — v1.1 Phase 5
-- ✓ Sustained action timeout self-clear: prevents permanent action lock — v1.1 Phase 5
-- ✓ Crafting chain solver: BFS dependency resolver with minecraft-data, variant selection, 3x3 table detection — v1.1 Phase 6
-- ✓ Planner auto-expands craft X into dependency-ordered steps at queue-write time — v1.1 Phase 6
-- ✓ Freestyle building: LLM designs ## BUILD: plans, agent executes block-by-block with 200-block cap — v1.1 Phase 7
-- ✓ Block placement tracking: persistent placed_blocks.json with 1000-entry truncation — v1.1 Phase 7
-- ✓ Post-build verification: placed_count:N deterministic check with 10% tolerance — v1.1 Phase 7
-- ✓ Typed spatial memory: resource patches (ore_vein, tree_cluster, build_site, poi) with proximity-filtered prompt injection — v1.1 Phase 8
-- ✓ 3 Skript server commands: /where, /nearbyplayers, /checkblock with command-parser.js extractors — v1.1 Phase 8
+- ✓ 8 plugin-backed agent tools — v1.0
+- ✓ Creative intelligence with BUILD vision evaluation — v1.0
+- ✓ SOUL files with creative drives, anti-meta-game enforcement — v1.0
+- ✓ Smart place: auto-equip from full 36-slot inventory, support block + face model — v1.1
+- ✓ Chest interaction: deposit/withdraw with auto-tracking to chests.json — v1.1
+- ✓ Mine action removed: all block breaking via look_at_block + break_block only — v1.1
+- ✓ Item name normalization: 18-alias normalizer.js with minecraft-data validation — v1.1
+- ✓ Sustained action timeout self-clear — v1.1
+- ✓ Crafting chain solver: BFS with minecraft-data, variant selection, 3x3 table detection — v1.1
+- ✓ Planner auto-expands craft X into dependency-ordered steps — v1.1
+- ✓ Freestyle building: LLM designs ## BUILD: plans, block-by-block execution — v1.1
+- ✓ Block placement tracking: persistent placed_blocks.json — v1.1
+- ✓ Post-build verification: placed_count:N deterministic check — v1.1
+- ✓ Typed spatial memory: resource patches with proximity-filtered prompt injection — v1.1
+- ✓ 6 Skript server commands: /scan, /share-location, /myskills, /where, /nearbyplayers, /checkblock — v1.1
 
 ### Active
-- [ ] Spatial memory (persistent world map of discovered locations, chests, resources)
-- [ ] Task completion verification (agent checks own work against intent)
-- [ ] Base tether (auto-return when wandering too far from home)
-- [ ] Human message guaranteed response
-- [ ] New Skript wrappers for server-side agent assistance
+
+(No active requirements — next milestone not yet defined)
 
 ### Out of Scope
 
 - Scoreboard display — user doesn't want it
-- More than 2 agents for now — scale later
 - Custom Paper plugin (Java) — use Skript for custom commands
 - Nether/End gameplay — focus on overworld island survival first
 - Hostile mob combat — peaceful mode for building/cooperation focus
-
-## Current Milestone: v1.1 Tool Quality & Building Intelligence
-
-**Goal:** Fix every broken tool and build real building ability so the LLM's good reasoning actually translates to successful in-game execution.
-
-**Target features:**
-- Smart place, chest interaction, mine removal
-- Freestyle building with block placement tracking
-- Item name normalization + crafting chain solver
-- Spatial memory, base tether, task verification
-- New Skript wrappers for server-side agent help
-- Human message guaranteed response
+- Mineflayer integration — fix existing mod-based primitives instead
+- LLM-generated block coordinates — LLM designs high-level, agent executes deterministically
+- Real-time voxel world map — enormous memory cost, POI map suffices
 
 ## Context
 
-### Current State (post v1.0)
+### Current State (post v1.1)
 - Server: Paper 1.21.1 (build #133) in Docker on Glass with 12 plugins
 - Clients: 2x Fabric clients with HermesBridge mod + Baritone, running in Xvfb
 - Agent: Node.js ESM with 3 async loops (action 2s, vision 10s, planner 30s)
 - LLM: MiniMax M2.7 for text, Claude Haiku for vision BUILD evaluation
-- Codebase: ~8,300 LOC JavaScript (agent), ~2,700 LOC Java (mod), ~50 LOC Skript
+- Codebase: ~9,000 LOC JavaScript (agent), ~2,900 LOC Java (mod), ~100 LOC Skript
 - 4 SOUL files with deep personality + creative subsections
-- 37 agent tools (29 game + 8 plugin)
-- Known tech debt: VeinMiner sneak not documented to agent, ServerTap port 4567 not Docker-exposed, AuraSkills static Level 0 (needs PlaceholderAPI)
+- 41 agent tools (32 game + 9 plugin/info)
+- New modules: normalizer.js, crafter.js, freestyle.js, placement-tracker.js
+- Known tech debt: 3 stale mine refs in index.js, 3 dead command-parser extractors, VeinMiner sneak undocumented, ServerTap port not Docker-exposed
 
 ## Constraints
 
@@ -91,15 +78,19 @@ Agents must feel and play like real people — creative, emotional, with desires
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Paper over Fabric server | Plugin ecosystem, performance | ✓ Good — 12 plugins running |
-| Skript over custom Java plugin | Faster iteration, no compilation | ✓ Good — /scan, /share-location, /myskills |
-| Look+break over Baritone #mine | Prevents underground tunneling | ✓ Good — surface-first gameplay |
+| Skript over custom Java plugin | Faster iteration, no compilation | ✓ Good — 6 commands |
+| Look+break over Baritone #mine | Prevents underground tunneling | ✓ Good — mine removed entirely in v1.1 |
 | Keep MiniMax for LLM | Cheap, fast, adequate quality | ✓ Good |
 | Claude Haiku for vision | Image understanding, BUILD evaluation | ✓ Good — drives creative feedback loop |
 | Brain-hands-eyes architecture | Planner is brain, action loop is hands | ✓ Good — queue-based execution |
 | No artificial token limits | Let LLM generate naturally | ✓ Good |
-| AuraSkills over mcMMO | mcMMO SpigotMC-only, AuraSkills equivalent | ✓ Good — installed, needs PlaceholderAPI |
 | Creative debt counter | Forces creative activity after gathering | ✓ Good — 5-cycle threshold |
-| Two-layer meta-game filter | Prompt trains LLM + regex backstop | ✓ Good — FORBIDDEN_WORDS + META_GAME_REGEX |
+| Two-layer meta-game filter | Prompt trains LLM + regex backstop | ✓ Good |
+| Smart place replaces place | Support block + face model, full inventory equip | ✓ Good — fixes 90% failure rate |
+| minecraft-data for recipes | Static DB, not runtime /recipes calls | ✓ Good — 782 recipe types loaded at startup |
+| Freestyle replaces blueprints | LLM designs, agent executes deterministically | ✓ Good — 200-block cap, context file persistence |
+| Proximity-filtered spatial prompts | Prevents unbounded context growth | ✓ Good — 150-block radius, hard caps |
+| Response-driven state updates | Embed state in action response, not polling | ✓ Good — placed blocks, chest contents |
 
 ## Evolution
 
@@ -119,4 +110,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-21 after Phase 8 completion (v1.1 all phases complete)*
+*Last updated: 2026-03-22 after v1.1 milestone*
