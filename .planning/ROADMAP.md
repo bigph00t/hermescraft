@@ -73,7 +73,7 @@ Plans:
 
 Plans:
 - [x] 07-01-PLAN.md — freestyle.js parser + placement-tracker.js module (new standalone modules)
-- [ ] 07-02-PLAN.md — Wire freestyle execution into planner + placement tracking into actions + startup init
+- [x] 07-02-PLAN.md — Wire freestyle execution into planner + placement tracking into actions + startup init
 - [ ] 07-03-PLAN.md — Post-build verification: placed_count keyword in reviewSubtaskOutcome + prompt injection
 
 ### Phase 8: Spatial Memory + Server Scripts
@@ -103,7 +103,7 @@ Phases execute in numeric order: 5 → 6 → 7 → 8
 | 4. Personality + Creative Play | v1.0 | 3/3 | Complete | 2026-03-22 |
 | 5. Tool Primitives | v1.1 | 3/3 | Complete   | 2026-03-22 |
 | 6. Crafting Intelligence | v1.1 | 2/2 | Complete   | 2026-03-22 |
-| 7. Building Intelligence | v1.1 | 0/3 | Not started | - |
+| 7. Building Intelligence | v1.1 | 2/3 | In Progress|  |
 | 8. Spatial Memory + Server Scripts | v1.1 | 0/2 | Not started | - |
 
 ---

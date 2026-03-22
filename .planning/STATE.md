@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Tool Quality & Building Intelligence
 status: unknown
-last_updated: "2026-03-22T05:06:47.930Z"
+last_updated: "2026-03-22T05:11:08.825Z"
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 8
-  completed_plans: 6
+  completed_plans: 7
 ---
 
 # Project State
@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-03-21)
 ## Current Position
 
 Phase: 07 (building-intelligence) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Plan: 2 of 3
 | Phase 06 P01 | 2 | 2 tasks | 4 files |
 | Phase 06 P02 | 525595min | 1 tasks | 2 files |
 | Phase 07 P01 | 2 | 2 tasks | 2 files |
+| Phase 07 P02 | 2 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,9 @@ Plan: 2 of 3
 - [Phase 07]: Soft cap at 200 blocks in parseFreestylePlan() — warns and truncates to prevent runaway builds
 - [Phase 07]: getPlacedBlocksForPrompt() shows last 5 entries only — prevents prompt bloat; full array reserved for verification
 - [Phase 07]: placed_blocks.json stored as {blocks:[...]} wrapper matching chests.js pattern
+- [Phase 07]: getFreestyleProgress() does not expose planFile — template string in planner prompt omits planFile reference to avoid undefined property access
+- [Phase 07]: Freestyle progress injected into userContent (not systemPrompt) so it shows per-cycle current state alongside CURRENT PLAN
+- [Phase 07]: case 'freestyle' uses block scoping {} to allow const declarations without conflicts with other switch cases
 
 ### Pending Todos
 
