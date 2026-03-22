@@ -1,98 +1,78 @@
-# HermesCraft Agent Hardening & Workflow Overhaul
+# HermesCraft: AI Agents That Play Minecraft Like People
 
 ## What This Is
 
-HermesCraft is a Minecraft AI agent system: a Node.js agent loop talks to an LLM (Hermes 4.3 via vLLM/LiteLLM) and controls a Minecraft client via a Fabric mod's HTTP bridge. The agent observes game state, reasons about what to do, and executes actions in a tick loop. This milestone focuses on fixing critical bugs in the memory/compression system and building a proper plan→execute→review workflow so the agent can handle complex multi-step tasks reliably.
+A Minecraft AI agent system where AI characters (Jeffrey Enderstein, John Kwon, Alex, Anthony) play like real humans on a Survival Island. They build structures with aesthetic intent, gather resources from visible surfaces, explore and name locations, trade surplus items, learn skills over time, and have genuine conversations referencing their backstories — all driven by LLM reasoning with visual awareness. The system uses a Paper server with 12 plugins for enhanced gameplay, a brain-hands-eyes agent architecture with creative intelligence, and Claude Haiku for vision-based build evaluation.
 
 ## Core Value
 
-The agent must never silently lose its execution context — and when given a complex task, it must plan, execute, and review its own work instead of fire-and-forget.
+Agents must feel and play like real people — creative, emotional, with desires, aesthetic sense, and the ability to look at the world around them and interact with what they see. A human observer watching for 30 minutes shouldn't immediately tell they're bots.
 
 ## Requirements
 
 ### Validated
 
-- ✓ Observe→Think→Act tick loop with LLM integration — existing (`agent/index.js`)
-- ✓ Multi-level memory: L1 session (conversation), L2 curated (MEMORY.md), L3 transcripts (JSONL), L4 skills — existing (`agent/memory.js`, `agent/skills.js`)
-- ✓ Native tool calling with Hermes XML fallback parser — existing (`agent/llm.js`)
-- ✓ Notepad tool for persistent scratch planning — existing (`agent/index.js:177-203`)
-- ✓ Pinned context injection from `dataDir/context/` — existing (`agent/prompt.js:16-42`)
-- ✓ Death recording with countermeasure generation — existing (`agent/memory.js:175-242`)
-- ✓ Skill creation from phase completion — existing (`agent/skills.js:174-207`)
-- ✓ Social/player tracking with sentiment — existing (`agent/social.js`)
-- ✓ Location auto-detection — existing (`agent/locations.js`)
-- ✓ Fabric mod HTTP bridge (state, action, recipes, chat) — existing (`mod/`)
-- ✓ Multi-agent support via AGENT_NAME env var — existing (`agent/config.js`)
-- ✓ Action pipelining for sustained actions — existing (`agent/index.js:620-637`)
+- ✓ Multi-agent system with per-agent memory, skills, social tracking — v1
+- ✓ 3-loop architecture (action/vision/planner) with shared state — v1
+- ✓ Claude Haiku vision for screenshot analysis — v1
+- ✓ MiniMax M2.7 for action and planning LLM calls — v1
+- ✓ Deep personality SOUL files for each agent — v1
+- ✓ HermesBridge Fabric client mod (HTTP API for state/actions) — v1
+- ✓ Paper 1.21.1 server with 12 plugins (Timber, VeinMiner, AutoPickup, EssentialsX, AuraSkills, QuickShop, LuckPerms, Skript, ServerTap, StopSpam, Chunky) — v1.0
+- ✓ Agent spatial awareness: surfaceBlocks + look_at_block + break_block primary interaction — v1.0
+- ✓ Brain-hands-eyes architecture: planner writes queue, action loop executes, vision feeds awareness — v1.0
+- ✓ Custom Skript commands: /scan, /share-location, /myskills — v1.0
+- ✓ 8 plugin-backed agent tools: scan_blocks, go_home, set_home, share_location, check_skills, use_ability, query_shops, create_shop — v1.0
+- ✓ Creative intelligence: creative debt counter, per-agent CREATIVE_BEHAVIOR, vision BUILD evaluation, meta-game word filter — v1.0
+- ✓ SOUL files enhanced with creative drives, aesthetic preferences, emotional triggers — v1.0
+- ✓ Anti-meta-game enforcement: FORBIDDEN_WORDS_BLOCK + META_GAME_REGEX two-layer filter — v1.0
 
 ### Active
 
-- [ ] Fix `trimHistoryGraduated` boundary bug — must respect conversation round boundaries so a `tool` role message never becomes the first history entry
-- [ ] Fix second full-wipe path in corrupt tool call handler (`llm.js:266-270`) — should use graduated trim instead of `conversationHistory.length = 0`
-- [ ] Persist conversation history to disk — L1 session memory must survive OOM/SIGKILL, not just live in-memory
-- [ ] Fix open-ended mode skill injection (`skills.js:146`) — returns `.content` but skills have `.body`, silently breaks skill injection
-- [ ] Fix chat message deduplication — agent re-processes same messages every tick because `/chat` endpoint never clears and Node.js side has no tracking
-- [ ] Fix `autoConnectAttempted` reset on disconnect — currently only resets in catch block, not when player gets kicked later
-- [ ] Agent-writable pinned context — add a tool so the agent can save its own planning docs to `dataDir/context/` (currently only humans can populate)
-- [ ] Plan→Execute→Review loop — build a proper multi-step task planning system: agent creates plan, tracks progress against it, reviews outcomes, iterates on failures
-- [ ] Self-review quality gate — agent evaluates its own output/action before committing, with auto-correction for obviously wrong actions
-- [ ] Task decomposition tool — agent can break complex instructions into subtasks and track completion
+(No active requirements — next milestone not yet defined)
 
 ### Out of Scope
 
-- Vision/screenshot integration — separate concern, LiteLLM vision model config is a deployment issue not an agent architecture issue
-- Multi-agent coordination protocol — save for after single-agent workflows are solid
-- External API integrations beyond Minecraft — no webhooks, Discord bots, etc. in this milestone
-- Rewriting the Fabric mod in a different framework — Java mod is working, just needs bug fixes
+- Scoreboard display — user doesn't want it
+- More than 2 agents for now — scale later
+- Custom Paper plugin (Java) — use Skript for custom commands
+- Nether/End gameplay — focus on overworld island survival first
+- Hostile mob combat — peaceful mode for building/cooperation focus
 
 ## Context
 
-**Codebase state:** ~1,300 lines of agent JS across 13 files, plus Java Fabric mod. The agent works but has reliability gaps that compound under load — the compression system can wipe all context, skills silently break in open-ended mode, and there's no mechanism for the agent to plan or review multi-step work.
-
-**The triggering incident:** A Discord bot (Hermes) built up 562 messages (~443K tokens) of planning context, then auto-compressed to 7 messages (~837 tokens) — destroying all execution context. The graduated trim fix was applied but the deep dive found it still has a boundary bug that can cascade to a full wipe.
-
-**Existing memory architecture:**
-- L1: `conversationHistory[]` in llm.js — in-memory only, volatile
-- L2: `MEMORY.md` — lessons, strategies, world knowledge — persisted to disk
-- L3: Session JSONL transcripts — append-only log files
-- L4: Skills — SKILL.md files in per-agent directories
-- Notepad: `notepad.txt` — persistent scratch space
-- Pinned context: `dataDir/context/*.md` — injected into system prompt every tick
-
-**Key architectural constraint:** The agent runs a 2-second tick loop. Any new planning/review system must fit within this loop without blocking for multiple seconds.
+### Current State (post v1.0)
+- Server: Paper 1.21.1 (build #133) in Docker on Glass with 12 plugins
+- Clients: 2x Fabric clients with HermesBridge mod + Baritone, running in Xvfb
+- Agent: Node.js ESM with 3 async loops (action 2s, vision 10s, planner 30s)
+- LLM: MiniMax M2.7 for text, Claude Haiku for vision BUILD evaluation
+- Codebase: ~8,300 LOC JavaScript (agent), ~2,700 LOC Java (mod), ~50 LOC Skript
+- 4 SOUL files with deep personality + creative subsections
+- 37 agent tools (29 game + 8 plugin)
+- Known tech debt: VeinMiner sneak not documented to agent, ServerTap port 4567 not Docker-exposed, AuraSkills static Level 0 (needs PlaceholderAPI)
 
 ## Constraints
 
-- **Tick budget**: Agent tick runs every 2s. Planning/review must be lightweight enough to not starve the game loop. Consider async/background processing for heavy work.
-- **Token budget**: System prompt + user message + history must fit in the model's context window. Pinned context is already capped at 5 files × 8000 chars.
-- **LLM latency**: vLLM with Hermes 4.3 36B at FP8. First call ~2s uncached, subsequent ~0.5-1s. Can't afford multiple LLM calls per tick for review.
-- **Mod stability**: Java mod changes require rebuild and Minecraft restart. Minimize mod changes.
+- **Server hardware**: Glass has 15GB RAM, running MC server + 2 clients + 2 agents
+- **LLM cost**: MiniMax M2.7 is cheap. Claude Haiku for vision on user's subscription
+- **MC version**: Must stay on 1.21.1 for Baritone compatibility
+- **Client mods**: HermesBridge and Baritone are client-side only
+- **Difficulty**: Peaceful mode (no hostile mobs) — focus on building and cooperation
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Graduated trim respects round boundaries | Prevents orphaned `tool` messages that cascade to full wipes | — Pending |
-| Persist L1 to disk on periodic save | Conversation history survives crashes without per-tick I/O overhead | — Pending |
-| Plan/review via notepad extension, not separate LLM calls | Fits within tick budget — agent writes plan to notepad, references it each tick | — Pending |
-| Chat dedup via timestamp tracking on Node.js side | Simpler than modifying Java mod — just track last-seen message | — Pending |
-
-## Evolution
-
-This document evolves at phase transitions and milestone boundaries.
-
-**After each phase transition** (via `/gsd:transition`):
-1. Requirements invalidated? → Move to Out of Scope with reason
-2. Requirements validated? → Move to Validated with phase reference
-3. New requirements emerged? → Add to Active
-4. Decisions to log? → Add to Key Decisions
-5. "What This Is" still accurate? → Update if drifted
-
-**After each milestone** (via `/gsd:complete-milestone`):
-1. Full review of all sections
-2. Core Value check — still the right priority?
-3. Audit Out of Scope — reasons still valid?
-4. Update Context with current state
+| Paper over Fabric server | Plugin ecosystem, performance | ✓ Good — 12 plugins running |
+| Skript over custom Java plugin | Faster iteration, no compilation | ✓ Good — /scan, /share-location, /myskills |
+| Look+break over Baritone #mine | Prevents underground tunneling | ✓ Good — surface-first gameplay |
+| Keep MiniMax for LLM | Cheap, fast, adequate quality | ✓ Good |
+| Claude Haiku for vision | Image understanding, BUILD evaluation | ✓ Good — drives creative feedback loop |
+| Brain-hands-eyes architecture | Planner is brain, action loop is hands | ✓ Good — queue-based execution |
+| No artificial token limits | Let LLM generate naturally | ✓ Good |
+| AuraSkills over mcMMO | mcMMO SpigotMC-only, AuraSkills equivalent | ✓ Good — installed, needs PlaceholderAPI |
+| Creative debt counter | Forces creative activity after gathering | ✓ Good — 5-cycle threshold |
+| Two-layer meta-game filter | Prompt trains LLM + regex backstop | ✓ Good — FORBIDDEN_WORDS + META_GAME_REGEX |
 
 ---
-*Last updated: 2026-03-20 after initialization*
+*Last updated: 2026-03-22 after v1.0 milestone*
