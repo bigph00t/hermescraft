@@ -9,6 +9,7 @@ import { initMind, isSkillRunning } from './mind/index.js'
 import { initModes } from './body/modes.js'
 import { initBuild } from './body/skills/build.js'
 import { initChestMemory } from './body/skills/chest.js'
+import { initBuildHistory, loadBuildHistory, saveBuildHistory } from './mind/build-history.js'
 
 async function main() {
   console.log('[hermescraft] v2 starting...')
@@ -30,6 +31,8 @@ async function main() {
   // 3.5. Init chest memory + build state
   initChestMemory(config.name)
   initBuild(config)
+  initBuildHistory(config)
+  loadBuildHistory()
 
   // 4. Set bot.homeLocation for body/modes.js night shelter (mind/body boundary: property on bot, not import)
   const home = getHome()
@@ -46,11 +49,12 @@ async function main() {
   initModes(bot, isSkillRunning)
   console.log('[hermescraft] body modes started -- survival tick active')
 
-  // 7. Periodic save every 60s — saves memory, players, locations to disk
+  // 7. Periodic save every 60s — saves memory, players, locations, build history to disk
   setInterval(() => {
     periodicSave()
     savePlayers()
     saveLocations()
+    saveBuildHistory()
   }, 60000)
 
   // Global error handlers — keep the process alive on unexpected errors.

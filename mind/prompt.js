@@ -115,7 +115,9 @@ export function buildSystemPrompt(bot, options = {}) {
 Only reference what appears in the game state below. If uncertain, stay silent or say so briefly.
 Keep chat brief and natural -- you only speak when you have something real to say.
 
-When a player asks you to build something "here" or "at this spot", use !design with their description — your current position will be the build site. When a player asks to change materials on the current build, use !material. When a player asks what's around or what you've built, use !scan first.`)
+When a player asks you to build something "here" or "at this spot", use !design with their description — your current position will be the build site. When a player asks to change materials on the current build, use !material. When a player asks what's around or what you've built, use !scan first.
+
+When you remember building something before (listed in "Previous builds"), you can return to expand it: !navigate to the site, then !scan to see what exists, then !design to add to it. Don't rebuild what's already there -- scan first.`)
 
   // Part 3: Memory — lessons, strategies, world knowledge from previous sessions
   if (options.memory) {
@@ -135,6 +137,11 @@ When a player asks you to build something "here" or "at this spot", use !design 
   // Part 5.5: Build context — active build progress and available blueprints
   if (options.buildContext) {
     parts.push(options.buildContext)
+  }
+
+  // Part 5.6: Build history — what the bot has built in prior sessions
+  if (options.buildHistory) {
+    parts.push(options.buildHistory)
   }
 
   // Part 6: !command reference — all available commands with argument syntax

@@ -378,6 +378,16 @@ assert('mind/build-history: recordBuild exported', typeof buildHistory.recordBui
 assert('mind/build-history: getBuildHistoryForPrompt exported', typeof buildHistory.getBuildHistoryForPrompt === 'function')
 assert('mind/build-history: saveBuildHistory exported', typeof buildHistory.saveBuildHistory === 'function')
 
+// Wiring assertions — source-level checks confirm integration in start.js and mind/index.js
+import { readFileSync as _readFileSync } from 'fs'
+import { fileURLToPath as _fileURLToPath } from 'url'
+import { dirname as _dirname, join as _join } from 'path'
+const _here = _dirname(_fileURLToPath(import.meta.url))
+const _startSrc = _readFileSync(_join(_here, '../start.js'), 'utf-8')
+const _indexSrc = _readFileSync(_join(_here, '../mind/index.js'), 'utf-8')
+assert('start.js imports initBuildHistory', _startSrc.includes('initBuildHistory'))
+assert('mind/index.js imports recordBuild', _indexSrc.includes('recordBuild'))
+
 // ── Final Summary ──
 
 console.log(`\n${'='.repeat(40)}`)

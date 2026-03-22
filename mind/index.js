@@ -13,6 +13,7 @@ import { getLocationsForPrompt, saveLocation, setHome, getHome } from './locatio
 // is the wiring layer (like start.js) that orchestrates LLM calls + body skill execution.
 import { getActiveBuild, listBlueprints, build } from '../body/skills/build.js'
 import { validateBlueprint } from '../body/blueprints/validate.js'
+import { recordBuild, getBuildHistoryForPrompt } from './build-history.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 // BLUEPRINTS_DIR mirrors the path in body/skills/build.js — co-located with blueprint JSONs
@@ -55,6 +56,7 @@ async function think(bot, context) {
       players: getPlayersForPrompt(bot),
       locations: getLocationsForPrompt(bot.entity?.position),
       buildContext,
+      buildHistory: getBuildHistoryForPrompt(),
     })
 
     // Inject partner's last chat into user message if available
@@ -110,11 +112,18 @@ async function think(bot, context) {
       console.log('[mind] design result:', designResult.success ? 'OK' : designResult.reason)
       lastActionTime = Date.now()
 
-      // Record successful designs + builds in world knowledge and locations
+      // Record successful designs + builds in world knowledge, locations, and build history
       if (designResult.success) {
         const pos = bot.entity.position
         addWorldKnowledge(`Designed and built "${description}" at ${Math.round(pos.x)},${Math.round(pos.y)},${Math.round(pos.z)}`)
         saveLocation(`custom_build`, Math.round(pos.x), Math.round(pos.y), Math.round(pos.z), 'build')
+        recordBuild({
+          name: description,
+          origin: { x: Math.round(pos.x), y: Math.round(pos.y), z: Math.round(pos.z) },
+          dimensions: { x: 0, y: 0, z: 0 },
+          blockCount: designResult.placed || designResult.total || 0,
+          builder: bot.username,
+        })
       }
 
       setTimeout(() => think(bot, { trigger: 'skill_complete', skillName: 'design', skillResult: designResult }), 0)
@@ -130,7 +139,7 @@ async function think(bot, context) {
     console.log('[mind] skill result:', result.command, skillResult.success ? 'OK' : skillResult.reason)
     lastActionTime = Date.now()
 
-    // Record build completion to world knowledge and locations for cross-session recall (BUILD-03)
+    // Record build completion to world knowledge, locations, and build history for cross-session recall (BUILD-03)
     if (result.command === 'build' && skillResult.success) {
       const bpName = result.args.blueprint || result.args.blueprintName || result.args.name
       const bx = result.args.x
@@ -138,6 +147,13 @@ async function think(bot, context) {
       const bz = result.args.z
       addWorldKnowledge(`Built ${bpName} at ${bx},${by},${bz}. Consider expanding or adding nearby.`)
       saveLocation(`${bpName}_site`, parseInt(bx), parseInt(by), parseInt(bz), 'build')
+      recordBuild({
+        name: bpName,
+        origin: { x: parseInt(bx), y: parseInt(by), z: parseInt(bz) },
+        dimensions: { x: 0, y: 0, z: 0 },
+        blockCount: skillResult.placed || skillResult.total || 0,
+        builder: bot.username,
+      })
     }
 
     // Schedule skill_complete think on the next event loop tick so:
