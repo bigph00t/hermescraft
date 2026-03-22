@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Tool Quality & Building Intelligence
 status: unknown
-last_updated: "2026-03-22T04:04:41.519Z"
+last_updated: "2026-03-22T04:08:38.110Z"
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -23,7 +23,7 @@ See: .planning/PROJECT.md (updated 2026-03-21)
 ## Current Position
 
 Phase: 05 (tool-primitives) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 
 ## Performance Metrics
 
@@ -44,6 +44,7 @@ Plan: 2 of 3
 
 *Updated after each plan completion*
 | Phase 05 P01 | 98s | 2 tasks | 4 files |
+| Phase 05 P02 | 5 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,9 @@ Plan: 2 of 3
 - [Phase 05]: Strip _N numeric suffix only when base name is a valid registry item — prevents raw_iron → raw_iro
 - [Phase 05]: Return input unchanged on failed normalization — downstream error is more visible than silent wrong name
 - [Phase 05]: Mine handler left intact in mod — unreachable but harmless, avoids mod rebuild
+- [Phase 05]: smart_place is an instant action (equip+look+place in one tick, not sustained)
+- [Phase 05]: chest actions enforce 6-block distance limit and require explicit x,y,z coordinates
+- [Phase 05]: sustained action timeout self-clear uses isDone() check at start of tickSustainedAction
 
 ### Pending Todos
 
