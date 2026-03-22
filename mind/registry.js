@@ -46,6 +46,11 @@ const REGISTRY = new Map([
     if (isNaN(x) || isNaN(y) || isNaN(z)) return Promise.resolve({ success: false, reason: 'missing coordinates. Usage: !build blueprint:small_cabin x:N y:N z:N' })
     return build(bot, name, x, y, z)
   }],
+  // !design is handled in mind/index.js think() BEFORE dispatch is called (like !sethome).
+  // This entry ensures listCommands() includes 'design' for help text and acts as a safety net.
+  ['design',   (_bot, _args) => {
+    return Promise.resolve({ success: false, reason: 'design must be handled by the Mind loop — description:"your idea here"' })
+  }],
 ])
 
 // Dispatch a !command to the corresponding body/ skill.

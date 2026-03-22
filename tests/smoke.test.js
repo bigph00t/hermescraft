@@ -146,9 +146,9 @@ assert('body/skills/chest: withdrawFromChest exported', typeof chest.withdrawFro
 section('Registry Completeness')
 
 const commands = registry.listCommands()
-assert('registry has 11 commands', commands.length === 11)
+assert('registry has 12 commands', commands.length === 12)
 
-const expectedCmds = ['gather', 'mine', 'craft', 'smelt', 'navigate', 'chat', 'idle', 'combat', 'deposit', 'withdraw', 'build']
+const expectedCmds = ['gather', 'mine', 'craft', 'smelt', 'navigate', 'chat', 'idle', 'combat', 'deposit', 'withdraw', 'build', 'design']
 for (const cmd of expectedCmds) {
   assert(`registry has !${cmd}`, commands.includes(cmd))
 }
@@ -171,7 +171,7 @@ const sysPrompt = prompt.buildSystemPrompt(mockBot)
 assert('buildSystemPrompt returns a string', typeof sysPrompt === 'string')
 assert('system prompt is non-empty', sysPrompt.length > 100)
 
-const promptCmds = ['gather', 'mine', 'craft', 'smelt', 'navigate', 'chat', 'build', 'sethome', 'combat', 'idle', 'deposit', 'withdraw']
+const promptCmds = ['gather', 'mine', 'craft', 'smelt', 'navigate', 'chat', 'build', 'design', 'sethome', 'combat', 'idle', 'deposit', 'withdraw']
 for (const cmd of promptCmds) {
   assert(`system prompt mentions !${cmd}`, sysPrompt.includes(`!${cmd}`))
 }

@@ -1,14 +1,22 @@
 // index.js -- Event-driven Mind loop: chat/skill/idle -> think() -> dispatch()
 
+import { readFileSync, readdirSync, writeFileSync } from 'fs'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
 import { queryLLM, clearConversation } from './llm.js'
-import { buildSystemPrompt, buildUserMessage, getBuildContextForPrompt } from './prompt.js'
+import { buildSystemPrompt, buildUserMessage, getBuildContextForPrompt, buildDesignPrompt } from './prompt.js'
 import { dispatch } from './registry.js'
 import { getMemoryForPrompt, addWorldKnowledge, recordDeath, writeSessionEntry } from './memory.js'
 import { trackPlayer, getPlayersForPrompt, getPartnerLastChat, savePlayers } from './social.js'
 import { getLocationsForPrompt, saveLocation, setHome, getHome } from './locations.js'
-// Direct getters from body/ — pure data queries with no side effects.
-// Pragmatic boundary crossing: mind/index.js is the wiring layer (like start.js).
-import { getActiveBuild, listBlueprints } from '../body/skills/build.js'
+// Direct getters and build function from body/ — pragmatic boundary crossing: mind/index.js
+// is the wiring layer (like start.js) that orchestrates LLM calls + body skill execution.
+import { getActiveBuild, listBlueprints, build } from '../body/skills/build.js'
+import { validateBlueprint } from '../body/blueprints/validate.js'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+// BLUEPRINTS_DIR mirrors the path in body/skills/build.js — co-located with blueprint JSONs
+const BLUEPRINTS_DIR = join(__dirname, '..', 'body', 'blueprints')
 
 // ── Module-level Guard State ──
 
@@ -85,6 +93,34 @@ async function think(bot, context) {
       return
     }
 
+    // !design — generate a blueprint from natural language and auto-build it.
+    // Handled here (before dispatch) because it requires a separate LLM call and
+    // special result recording. The registry entry is only a fallback/help-text stub.
+    if (result.command === 'design') {
+      const description = result.args.description || ''
+      if (!description) {
+        console.log('[mind] !design missing description')
+        lastActionTime = Date.now()
+        return
+      }
+      console.log('[mind] designing:', description)
+      skillRunning = true
+      const designResult = await designAndBuild(bot, description)
+      skillRunning = false
+      console.log('[mind] design result:', designResult.success ? 'OK' : designResult.reason)
+      lastActionTime = Date.now()
+
+      // Record successful designs + builds in world knowledge and locations
+      if (designResult.success) {
+        const pos = bot.entity.position
+        addWorldKnowledge(`Designed and built "${description}" at ${Math.round(pos.x)},${Math.round(pos.y)},${Math.round(pos.z)}`)
+        saveLocation(`custom_build`, Math.round(pos.x), Math.round(pos.y), Math.round(pos.z), 'build')
+      }
+
+      setTimeout(() => think(bot, { trigger: 'skill_complete', skillName: 'design', skillResult: designResult }), 0)
+      return
+    }
+
     // Dispatch a real command to the body
     console.log('[mind] dispatching:', result.command, result.args)
     skillRunning = true
@@ -117,6 +153,104 @@ async function think(bot, context) {
     // Ensure skillRunning is cleared if dispatch threw before explicit reset
     if (skillRunning) skillRunning = false
   }
+}
+
+// ── Design + Build Pipeline ──
+
+// designAndBuild(bot, description) — orchestrates the full !design pipeline:
+//   1. Select 3 reference blueprints from BLUEPRINTS_DIR (excluding _generated.json)
+//   2. Build a dedicated design system prompt with those references
+//   3. Make a SEPARATE LLM call with the design prompt (not the normal game prompt)
+//   4. Extract JSON from the LLM response (strip <think> tags, then parse)
+//   5. Validate with validateBlueprint()
+//   6. Write to _generated.json for build() to load by name
+//   7. Auto-execute build() at the bot's current position
+//
+// Returns the build result { success, ... } or { success: false, reason } on failure.
+export async function designAndBuild(bot, description) {
+  // ── 1. Select 3 reference blueprints ──
+  let refs = []
+  try {
+    const files = readdirSync(BLUEPRINTS_DIR)
+      .filter(f => f.endsWith('.json') && f !== '_generated.json')
+    // Shuffle and take up to 3
+    const shuffled = files.sort(() => Math.random() - 0.5).slice(0, 3)
+    for (const f of shuffled) {
+      try {
+        const raw = readFileSync(join(BLUEPRINTS_DIR, f), 'utf-8')
+        const bp = JSON.parse(raw)
+        refs.push({ name: bp.name || f.replace('.json', ''), json: JSON.stringify(bp, null, 2) })
+      } catch {
+        // Skip unreadable blueprints silently
+      }
+    }
+  } catch (err) {
+    console.log('[mind] designAndBuild: could not read blueprints dir:', err.message)
+  }
+
+  // ── 2. Build the design prompt ──
+  const designPrompt = buildDesignPrompt(description, refs)
+
+  // ── 3. Dedicated LLM call with design prompt ──
+  // This call uses the design prompt as the system prompt, replacing the normal game prompt
+  // for this one exchange. The conversation history will include it (acceptable trade-off —
+  // the exchange provides context about what was designed).
+  let result
+  try {
+    result = await queryLLM(designPrompt, 'Generate the blueprint now.')
+  } catch (err) {
+    return { success: false, reason: `LLM call failed: ${err.message}` }
+  }
+
+  // ── 4. Extract JSON from response ──
+  // LLM should produce pure JSON. Strip <think> blocks first, then parse.
+  const stripped = (result.raw || '').replace(/<think>[\s\S]*?<\/think>/g, '').trim()
+
+  let jsonString = null
+
+  // First try: direct parse of stripped text
+  try {
+    JSON.parse(stripped)
+    jsonString = stripped
+  } catch {
+    // Second try: regex extract the outermost {...} object
+    const match = stripped.match(/\{[\s\S]*\}/)
+    if (match) {
+      try {
+        JSON.parse(match[0])
+        jsonString = match[0]
+      } catch {
+        jsonString = null
+      }
+    }
+  }
+
+  if (!jsonString) {
+    return { success: false, reason: 'LLM did not produce valid JSON' }
+  }
+
+  // ── 5. Validate ──
+  const validation = validateBlueprint(jsonString)
+  if (!validation.valid) {
+    return { success: false, reason: 'Blueprint validation failed: ' + validation.errors.join('; ') }
+  }
+
+  // ── 6. Write to _generated.json ──
+  const generatedPath = join(BLUEPRINTS_DIR, '_generated.json')
+  try {
+    writeFileSync(generatedPath, jsonString)
+  } catch (err) {
+    return { success: false, reason: `Failed to write generated blueprint: ${err.message}` }
+  }
+
+  // ── 7. Auto-execute build at bot's current position ──
+  const pos = bot.entity.position
+  const originX = Math.round(pos.x)
+  const originY = Math.round(pos.y)
+  const originZ = Math.round(pos.z)
+
+  const buildResult = await build(bot, '_generated', originX, originY, originZ)
+  return buildResult
 }
 
 // ── Exported Init Function ──
