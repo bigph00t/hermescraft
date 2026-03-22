@@ -15,7 +15,7 @@ const TICK_MS = 300
 const FIRE_BLOCKS = new Set(['fire', 'soul_fire', 'lava', 'campfire', 'soul_campfire'])
 const HAZARD_FLEE_HEALTH = 16    // flee environmental hazards when < 8 hearts
 const EAT_THRESHOLD = 14         // eat when food < 14 (sprint disabled)
-const STUCK_TICK_THRESHOLD = 10  // 10 x 300ms = 3 seconds
+const STUCK_TICK_THRESHOLD = 100  // 100 x 300ms = 30 seconds (was 3s — way too aggressive)
 const ITEM_PICKUP_RANGE = 8      // scan radius for dropped items
 const IDLE_LOOK_RANGE = 16       // scan radius for entities to look at
 const COMBAT_ENGAGE_RANGE = 8    // engage hostiles within 8 blocks
