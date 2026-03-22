@@ -1,0 +1,122 @@
+# Requirements: HermesCraft
+
+**Defined:** 2026-03-22
+**Core Value:** Agents must feel and play like real people — creative, emotional, with the ability to interact with the world around them
+
+## v2.0 Requirements
+
+Requirements for Mineflayer Rewrite milestone.
+
+### Bot Foundation
+
+- [ ] **BOT-01**: Mineflayer bot connects to Paper 1.21.1 server in offline mode and spawns successfully
+- [ ] **BOT-02**: Bot navigates to any reachable coordinate using mineflayer-pathfinder with wall-clock timeout on unreachable goals
+- [ ] **BOT-03**: Bot digs blocks using bot.dig() with post-dig verification (block actually changed)
+- [ ] **BOT-04**: Bot places blocks using bot.placeBlock() with post-place verification
+- [ ] **BOT-05**: Cooperative interrupt system — all skill functions check interrupt flag and yield cleanly
+
+### Gameplay Skills
+
+- [ ] **SKILL-01**: Gather skill — collect N of a resource (find nearest, pathfind, dig, repeat)
+- [ ] **SKILL-02**: Mine skill — mine ore with auto-best-tool selection
+- [ ] **SKILL-03**: Craft skill — resolve full dependency chain and craft (BFS solver)
+- [ ] **SKILL-04**: Smelt skill — place/find furnace, load fuel + input, wait for output
+- [ ] **SKILL-05**: Build skill — place blocks from a structured plan, verify each placement
+- [ ] **SKILL-06**: Combat skill — attack hostile mobs, flee when low health
+- [ ] **SKILL-07**: Chest skill — deposit/withdraw items from chests, remember chest locations
+- [ ] **SKILL-08**: Inventory management — equip best tools/armor, eat when hungry
+
+### Mind Loop
+
+- [ ] **MIND-01**: Event-driven LLM — fires on idle (2s no action), chat received, or skill completion
+- [ ] **MIND-02**: Command registry — LLM calls skills by name (!command pattern)
+- [ ] **MIND-03**: Conversation history — 40-turn rolling window with graduated trimming
+- [ ] **MIND-04**: Self-prompter — when idle with no goal, LLM re-evaluates and picks next action
+
+### Autonomous Modes
+
+- [ ] **MODE-01**: Self-preservation — auto-eat, flee fire/lava/drowning, no LLM needed
+- [ ] **MODE-02**: Self-defense — attack hostile mobs targeting the bot
+- [ ] **MODE-03**: Unstuck detection — detect and recover from pathfinder hangs or wall-stuck
+- [ ] **MODE-04**: Idle behaviors — look at nearby entities randomly, feel alive
+- [ ] **MODE-05**: Item collection — auto-pickup nearby dropped items
+
+### Personality & Social
+
+- [ ] **SOUL-01**: SOUL file loading — Jeffrey and John with distinct personalities, creative drives
+- [ ] **SOUL-02**: Persistent memory — lessons, strategies, world knowledge across sessions
+- [ ] **SOUL-03**: Natural grounded chat — only reference real game state, never hallucinate
+- [ ] **SOUL-04**: Multi-agent coordination — 2 bots on same server, chat naturally, cooperate
+- [ ] **SOUL-05**: Day/night behavior — work during day, shelter at night, social in evening
+
+### Creative Building
+
+- [ ] **BUILD-01**: Agents build real structures — walls, roof, floor — not single blocks
+- [ ] **BUILD-02**: Emergent creative behavior — agents choose what to build based on personality and context
+- [ ] **BUILD-03**: Base expansion over time — keep improving builds across sessions
+
+## Future Requirements
+
+### Scaling
+- **SCALE-01**: Support 5-10 agents simultaneously
+- **SCALE-02**: Agent personality generation from templates
+
+### Advanced Gameplay
+- **ADV-01**: Nether exploration
+- **ADV-02**: Enchanting and brewing
+- **ADV-03**: Redstone contraptions and automated farms
+- **ADV-04**: Ender Dragon quest line
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Fabric client mod (HermesBridge) | Replaced by Mineflayer |
+| Baritone | Replaced by mineflayer-pathfinder |
+| Vision/screenshots (Claude Haiku) | Mineflayer provides world state directly |
+| 3-loop architecture | Replaced by Mind + Body |
+| HTTP bridge | Mineflayer is direct API |
+
+## Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| BOT-01 | — | Pending |
+| BOT-02 | — | Pending |
+| BOT-03 | — | Pending |
+| BOT-04 | — | Pending |
+| BOT-05 | — | Pending |
+| SKILL-01 | — | Pending |
+| SKILL-02 | — | Pending |
+| SKILL-03 | — | Pending |
+| SKILL-04 | — | Pending |
+| SKILL-05 | — | Pending |
+| SKILL-06 | — | Pending |
+| SKILL-07 | — | Pending |
+| SKILL-08 | — | Pending |
+| MIND-01 | — | Pending |
+| MIND-02 | — | Pending |
+| MIND-03 | — | Pending |
+| MIND-04 | — | Pending |
+| MODE-01 | — | Pending |
+| MODE-02 | — | Pending |
+| MODE-03 | — | Pending |
+| MODE-04 | — | Pending |
+| MODE-05 | — | Pending |
+| SOUL-01 | — | Pending |
+| SOUL-02 | — | Pending |
+| SOUL-03 | — | Pending |
+| SOUL-04 | — | Pending |
+| SOUL-05 | — | Pending |
+| BUILD-01 | — | Pending |
+| BUILD-02 | — | Pending |
+| BUILD-03 | — | Pending |
+
+**Coverage:**
+- v2.0 requirements: 30 total
+- Mapped to phases: 0
+- Unmapped: 30
+
+---
+*Requirements defined: 2026-03-22*
+*Last updated: 2026-03-22 after initial definition*
