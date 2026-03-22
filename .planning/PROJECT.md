@@ -26,12 +26,13 @@ Agents must feel and play like real people — creative, emotional, with desires
 - ✓ Creative intelligence: creative debt counter, per-agent CREATIVE_BEHAVIOR, vision BUILD evaluation, meta-game word filter — v1.0
 - ✓ SOUL files enhanced with creative drives, aesthetic preferences, emotional triggers — v1.0
 - ✓ Anti-meta-game enforcement: FORBIDDEN_WORDS_BLOCK + META_GAME_REGEX two-layer filter — v1.0
+- ✓ Smart place action: auto-equip from full 36-slot inventory, support block + face model — v1.1 Phase 5
+- ✓ Chest interaction: deposit/withdraw items with auto-tracking to chests.json — v1.1 Phase 5
+- ✓ Mine action removed: all block breaking via look_at_block + break_block only — v1.1 Phase 5
+- ✓ Item name normalization: 18-alias normalizer.js with minecraft-data validation — v1.1 Phase 5
+- ✓ Sustained action timeout self-clear: prevents permanent action lock — v1.1 Phase 5
 
 ### Active
-
-- [ ] Smart place action (auto-equip from inventory, look-at-surface, place-on-face)
-- [ ] Chest interaction (deposit/withdraw items from nearby chests)
-- [ ] Remove `mine` action entirely — look_at_block + break_block only
 - [ ] Freestyle building (LLM designs in markdown, executes block-by-block with placement tracking)
 - [ ] Block placement tracking (persistent record of where agent placed blocks)
 - [ ] Item name normalization layer (fix sticks→stick, oak_planks_4→oak_planks)
@@ -115,4 +116,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-21 after v1.1 milestone start*
+*Last updated: 2026-03-21 after Phase 5 completion*
