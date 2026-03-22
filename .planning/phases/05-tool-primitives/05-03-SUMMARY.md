@@ -51,7 +51,7 @@ completed: "2026-03-22"
 - **Duration:** 2 min
 - **Started:** 2026-03-22T04:09:38Z
 - **Completed:** 2026-03-22T04:10:58Z
-- **Tasks:** 1 of 2 (Task 2 is checkpoint:human-verify, pending live test)
+- **Tasks:** 1 of 2 (Task 2 checkpoint:human-verify — live testing deferred by user)
 - **Files modified:** 3
 
 ## Accomplishments
@@ -90,11 +90,16 @@ None.
 
 None — no external service configuration required.
 
+## Deferred Items
+
+- **Task 2 (live verification) — deferred by user at checkpoint.** Full 7-step end-to-end test (item normalization, mine removal, smart_place, chest deposit/withdraw, timeout recovery) was skipped. User explicitly chose to continue without live testing at the checkpoint gate. The agent-side wiring is code-complete and static verification passes (8/8 checks). Live testing should be done before relying on chest interaction in production.
+
 ## Next Phase Readiness
 
-- Task 2 (checkpoint:human-verify) requires live agent test with deployed mod jar
-- Agent-side wiring is complete; mod jar from Plan 05-02 must be deployed to MC mods folder
-- After human verification, Phase 5 is complete — Phase 6 (Crafting Intelligence) can begin
+- Agent-side wiring is code-complete; all 8 static checks pass
+- Mod jar from Plan 05-02 must be deployed to MC mods folder before live test
+- Live verification (Task 2) deferred — can be done ad-hoc before or during Phase 6
+- Phase 6 (Crafting Intelligence) can begin — no blocking dependency on live test results
 
 ---
 *Phase: 05-tool-primitives*
