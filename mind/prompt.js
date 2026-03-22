@@ -1,4 +1,56 @@
-// prompt.js — System prompt builder and game state summary formatter for v2 Mind layer
+// prompt.js — System prompt builder, game state summary, and blueprint design prompt for v2 Mind layer
+
+// ── Design Prompt ──
+
+// Build a dedicated system prompt for blueprint generation — used only in the !design LLM call.
+// This is NOT the regular game prompt. It drives a SEPARATE LLM call whose sole purpose is to
+// produce blueprint JSON. The caller (mind/index.js designAndBuild) passes the references.
+//
+// Parameters:
+//   description        — natural language structure description from the user/game command
+//   referenceBlueprints — array of { name: string, json: string } objects (typically 3)
+//
+// Returns a string prompt that instructs the model to output ONLY valid blueprint JSON.
+export function buildDesignPrompt(description, referenceBlueprints) {
+  // Reference examples section — each blueprint inline in the prompt
+  const refExamples = (referenceBlueprints || []).map(ref => {
+    return `=== ${ref.name} ===\n${ref.json}`
+  }).join('\n\n')
+
+  return `You are a Minecraft blueprint designer. Given a structure description, output ONLY valid JSON matching this exact schema:
+
+{
+  "name": "snake_case_name",
+  "description": "human-readable description",
+  "size": { "x": width, "y": height, "z": depth },
+  "palette": {
+    "CHAR": { "preferred": ["minecraft_block_name", "alt1", "alt2"], "tag": "semantic_label" }
+  },
+  "layers": [
+    { "y": 0, "comment": "layer description", "grid": ["ROW...", ...] },
+    { "y": 1, "comment": "layer description", "grid": ["ROW...", ...] }
+  ]
+}
+
+Rules:
+- Layers MUST be in ascending y order (y:0 = ground floor, then y:1, y:2, ...)
+- '.' in grid means air/empty space
+- Every non-'.' character in grid MUST be a key in palette
+- Every grid row must have exactly size.x characters
+- Every layer must have exactly size.z rows
+- palette preferred[] must contain valid Minecraft 1.21.1 block names
+- Keep structures modest: max 10x10 footprint, max 8 blocks tall
+- Floor before walls before roof — build bottom-up
+- Provide 2-3 material alternatives in each preferred[] list
+
+Here are reference examples:
+
+${refExamples}
+
+Now design: ${description}
+
+Output ONLY the JSON. No explanation, no markdown fencing, no text before or after.`
+}
 
 // ── Build Context ──
 
@@ -97,6 +149,7 @@ Available commands:
   !navigate x:N y:N z:N               — walk to coordinates
   !chat message:"text"                 — say something in chat
   !build blueprint:name x:N y:N z:N   — build a structure from a blueprint at coordinates
+  !design description:"text"           — design a new structure from description (generates blueprint + builds)
   !deposit item:name count:N           — put items from inventory into nearest chest/barrel
   !withdraw item:name count:N          — take items from nearest chest/barrel into inventory
   !sethome                             -- mark current position as home base
@@ -114,6 +167,7 @@ Examples:
   !navigate x:100 y:64 z:200
   !chat message:"I'm going to get some wood"
   !build blueprint:small_cabin x:120 y:64 z:200
+  !design description:"a small wooden dock extending over the water"
   !deposit item:cobblestone count:32
   !withdraw item:iron_ingot count:5
   !sethome
