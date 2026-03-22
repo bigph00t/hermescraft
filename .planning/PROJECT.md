@@ -81,6 +81,7 @@ Mineflayer eliminates all of this: `bot.dig(block)` just works, `bot.placeBlock(
 - **MC version**: 1.21.1 (Paper server)
 - **Agents**: 2 for now (Jeffrey, John), designed to scale to 5-10
 - **No peaceful mode restriction** — agents should handle survival properly
+- **No artificial throttling** — no arbitrary cooldowns, turn caps, token limits, or forced delays. Let the Mind think as fast and as often as it can. If the LLM responds in 0.5s, use it immediately. The agent should be as responsive and active as the hardware allows.
 
 ## Key Decisions
 

@@ -49,16 +49,18 @@ Progress: [░░░░░░░░░░] 0%
 ### Key Architecture Decisions
 
 - Mind + Body split: LLM layer (mind/) never imports skill functions; body/ never calls LLM — boundary is enforced
-- Event-driven LLM: fires on chat received, skill complete, or 2s idle — not on a fixed tick
+- Event-driven LLM: fires on chat received, skill complete, or idle — not on a fixed tick
+- NO ARTIFICIAL DELAYS: the Mind should think as fast and often as possible. No arbitrary cooldowns, no forced wait timers, no token-per-minute caps. If the LLM can respond in 0.5s, fire again in 0.5s. Let it think.
+- NO ARTIFICIAL CAPS: don't hardcode turn limits, message limits, or action limits. Use graduated trimming when context gets large, but don't preemptively throttle. Let the agent be as active as it wants.
 - Cooperative interrupt: every skill checks `bot.interrupt_code` after every `await` — no forced termination
 - v1 data isolation: fresh `data/jeffrey/` and `data/john/` directories; v1 data archived as `*_v1/`
 
 ### Critical Pitfalls (from research)
 
-- Pathfinder hang: wrap `goto()` in 30s wall-clock timeout — required in Phase 1 before any skill is built on nav
+- Pathfinder hang: wrap `goto()` in wall-clock timeout — required in Phase 1 before any skill is built on nav
 - Silent dig/place: verify block state changed with `bot.blockAt()` after every dig and place
 - Item name normalization: prerequisite for every skill — port v1 normalizer before writing any skill
-- Context overflow: cap at 40 turns with progressive summarization (oldest 10 → 500-char summary)
+- Context overflow: use graduated trimming when context gets large (summarize oldest turns), but do NOT preemptively cap at a fixed number
 - v1 memory contamination: do NOT load v1 MEMORY.md — contains dead action vocabulary
 
 ### Research Flags
