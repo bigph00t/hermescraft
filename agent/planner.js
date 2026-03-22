@@ -21,6 +21,7 @@ import { setQueue, getQueueLength, clearQueue, getQueueSummary } from './action-
 import { isBuildActive } from './builder.js'
 import { isFarmActive } from './farming.js'
 import { solveCraft } from './crafter.js'
+import { parseFreestylePlan, startFreestyle, isFreestyleActive, getNextFreestyleBatch, getFreestyleProgress } from './freestyle.js'
 
 const __dirname_planner = dirname(fileURLToPath(import.meta.url))
 
@@ -160,6 +161,67 @@ function parseQueueFromPlan(planText, state) {
       case 'build':
         if (parts.length >= 5) args = { blueprint: parts[1], x: parseInt(parts[2]), y: parseInt(parts[3]), z: parseInt(parts[4]) }
         break
+      case 'freestyle': {
+        // freestyle build_plan.md | build the watchtower
+        const planFile = parts[1] || ''
+        if (!planFile || !_agentConfig) break
+
+        // If a freestyle build is already active, queue the next batch
+        if (isFreestyleActive()) {
+          const batch = getNextFreestyleBatch(20)
+          for (const b of batch) {
+            items.push({ type: 'smart_place', args: { item: b.block, x: b.x, y: b.y, z: b.z }, reason: reason || 'freestyle build' })
+            if (items.length >= 20) break
+          }
+          break
+        }
+
+        // Read context file
+        const contextPath = join(_agentConfig.dataDir, 'context', planFile)
+        let planText2
+        try {
+          if (!existsSync(contextPath)) {
+            items.push({ type: 'chat', args: { message: `Cannot find build plan: ${planFile}` }, reason: 'missing plan file' })
+            break
+          }
+          planText2 = readFileSync(contextPath, 'utf-8')
+        } catch (e) {
+          items.push({ type: 'chat', args: { message: `Error reading build plan: ${e.message}` }, reason: 'plan read error' })
+          break
+        }
+
+        // Parse the building plan
+        const origin = state?.position || { x: 0, y: 64, z: 0 }
+        const plan = parseFreestylePlan(planText2, Math.round(origin.x), Math.round(origin.y), Math.round(origin.z))
+        if (!plan || plan.blocks.length === 0) {
+          items.push({ type: 'chat', args: { message: 'Build plan could not be parsed — check format.' }, reason: 'parse failed' })
+          break
+        }
+
+        // Materials check: reject if >10% blocks not in inventory
+        if (state) {
+          const inv = inventoryToMap(state)
+          let missing = 0
+          for (const [block, count] of Object.entries(plan.materials)) {
+            const have = inv[block] || 0
+            if (have < count) missing += (count - have)
+          }
+          const totalNeeded = Object.values(plan.materials).reduce((a, b) => a + b, 0)
+          if (totalNeeded > 0 && missing / totalNeeded > 0.1) {
+            items.push({ type: 'chat', args: { message: `Need more materials for ${plan.name}: missing ${missing}/${totalNeeded} blocks.` }, reason: 'insufficient materials' })
+            break
+          }
+        }
+
+        // Start freestyle build and queue first batch
+        startFreestyle(plan.name, planFile, plan.blocks)
+        const batch = getNextFreestyleBatch(20)
+        for (const b of batch) {
+          items.push({ type: 'smart_place', args: { item: b.block, x: b.x, y: b.y, z: b.z }, reason: reason || `build ${plan.name}` })
+          if (items.length >= 20) break
+        }
+        break
+      }
       case 'scan_blocks':
         args = { block_type: parts.slice(1).join('_') || 'oak_log', radius: 50 }
         if (parts.length >= 3 && !isNaN(parseInt(parts[parts.length - 1]))) {
@@ -552,7 +614,19 @@ Consider:
 - Are other people nearby? What are they working on? How can we help or complement them?
 - What would make this place feel like HOME — not just a survival camp?
 
-Available blueprints: small-cabin (5x5 house), animal-pen (fenced area), crop-farm (tilled rows with water).
+To build a structure: first save_context a building plan, then queue "freestyle plan_file.md | reason".
+Building plan format — write this to a context file:
+## BUILD: Structure Name
+dimensions: WxDxH
+origin: current position
+
+### Materials
+block_type: count
+
+### Placement
+1. block_type dx dy dz
+2. block_type dx dy dz
+(offsets from origin, bottom layer first, layer by layer)
 ${buildingKnowledge ? '\n## Building Reference\n' + buildingKnowledge : ''}
 
 Your world has powerful tools:
@@ -590,8 +664,8 @@ craft oak_planks | convert logs to planks
 craft stick | need for tools
 craft wooden_pickaxe | first tool
 
-Valid types: mine, navigate, craft, smelt, equip, place, attack, eat, interact_block, look_at_block, break_block, chat, pickup_items, build, farm, harvest, fish, stop, scan_blocks, go_home, set_home, share_location, check_skills, use_ability, query_shops, create_shop
-Format: "type args | reason"  (mine block_name, navigate x y z, craft item, equip item, place item x y z, chat message)
+Valid types: mine, navigate, craft, smelt, equip, place, attack, eat, interact_block, look_at_block, break_block, chat, pickup_items, build, farm, harvest, fish, stop, scan_blocks, go_home, set_home, share_location, check_skills, use_ability, query_shops, create_shop, freestyle
+Format: "type args | reason"  (mine block_name, navigate x y z, craft item, equip item, place item x y z, chat message, freestyle plan_file.md)
 
 CHAT RULES — Say: lines go AFTER the QUEUE, and ONLY when:
 - A real person spoke to you (you MUST respond)
@@ -639,6 +713,11 @@ Write a concise strategy (5-8 sentences). Be specific about coordinates, items, 
     const currentQueue = getQueueSummary()
     if (currentQueue && !hasHumanChat) {
       userContent += `== CURRENT PLAN (${getQueueLength()} actions remaining) ==\n${currentQueue}\nReview this plan against current state. Keep it if still good, adjust if situation changed, or replace entirely.\n\n`
+    }
+    // Freestyle build progress — visible in every planner cycle when a build is active
+    const freestyleProgress = getFreestyleProgress()
+    if (freestyleProgress) {
+      userContent += `== FREESTYLE BUILD ==\nBuild "${freestyleProgress.name}": ${freestyleProgress.completed}/${freestyleProgress.total} blocks placed (${freestyleProgress.remaining} remaining).\n\n`
     }
     userContent += `== GAME STATE ==\n${stateSummary}`
     if (visionContext) {
