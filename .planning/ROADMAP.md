@@ -72,7 +72,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 07-01-PLAN.md — freestyle.js parser + placement-tracker.js module (new standalone modules)
+- [x] 07-01-PLAN.md — freestyle.js parser + placement-tracker.js module (new standalone modules)
 - [ ] 07-02-PLAN.md — Wire freestyle execution into planner + placement tracking into actions + startup init
 - [ ] 07-03-PLAN.md — Post-build verification: placed_count keyword in reviewSubtaskOutcome + prompt injection
 

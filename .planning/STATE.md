@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Tool Quality & Building Intelligence
 status: unknown
-last_updated: "2026-03-22T04:39:14.740Z"
+last_updated: "2026-03-22T05:06:47.930Z"
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 8
+  completed_plans: 6
 ---
 
 # Project State
@@ -18,12 +18,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-21)
 
 **Core value:** Agents feel and play like real people — creative, emotional, with desires, aesthetic sense, and the ability to interact with what they see
-**Current focus:** Phase 06 — crafting-intelligence
+**Current focus:** Phase 07 — building-intelligence
 
 ## Current Position
 
-Phase: 7
-Plan: Not started
+Phase: 07 (building-intelligence) — EXECUTING
+Plan: 2 of 3
 
 ## Performance Metrics
 
@@ -49,6 +49,7 @@ Plan: Not started
 | Phase 05 P03 | 10 | 1 tasks | 3 files |
 | Phase 06 P01 | 2 | 2 tasks | 4 files |
 | Phase 06 P02 | 525595min | 1 tasks | 2 files |
+| Phase 07 P01 | 2 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,9 @@ Plan: Not started
 - [Phase 06]: solveCraft simulates inventory to avoid redundant prerequisite steps when crafting produces excess
 - [Phase 06]: Craft chain expansion happens at queue-write time in planner, not at execution time in action loop
 - [Phase 06]: inventoryToMap placed in planner.js — adapts state.inventory array format to solveCraft contract
+- [Phase 07]: Soft cap at 200 blocks in parseFreestylePlan() — warns and truncates to prevent runaway builds
+- [Phase 07]: getPlacedBlocksForPrompt() shows last 5 entries only — prevents prompt bloat; full array reserved for verification
+- [Phase 07]: placed_blocks.json stored as {blocks:[...]} wrapper matching chests.js pattern
 
 ### Pending Todos
 
