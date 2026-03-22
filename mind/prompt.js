@@ -113,7 +113,9 @@ export function buildSystemPrompt(bot, options = {}) {
   // Part 2: Anti-hallucination constraint — ground the bot in what it can actually see
   parts.push(`Never mention items you don't have, places you haven't been, or events that didn't happen.
 Only reference what appears in the game state below. If uncertain, stay silent or say so briefly.
-Keep chat brief and natural -- you only speak when you have something real to say.`)
+Keep chat brief and natural -- you only speak when you have something real to say.
+
+When a player asks you to build something "here" or "at this spot", use !design with their description — your current position will be the build site. When a player asks to change materials on the current build, use !material. When a player asks what's around or what you've built, use !scan first.`)
 
   // Part 3: Memory — lessons, strategies, world knowledge from previous sessions
   if (options.memory) {
@@ -150,6 +152,8 @@ Available commands:
   !chat message:"text"                 — say something in chat
   !build blueprint:name x:N y:N z:N   — build a structure from a blueprint at coordinates
   !design description:"text"           — design a new structure from description (generates blueprint + builds)
+  !material old:block new:block        — change a material in the active build (e.g., oak_planks to stone)
+  !scan x1:N y1:N z1:N x2:N y2:N z2:N — scan a region and report what blocks exist (defaults to area around you)
   !deposit item:name count:N           — put items from inventory into nearest chest/barrel
   !withdraw item:name count:N          — take items from nearest chest/barrel into inventory
   !sethome                             -- mark current position as home base
@@ -168,6 +172,8 @@ Examples:
   !chat message:"I'm going to get some wood"
   !build blueprint:small_cabin x:120 y:64 z:200
   !design description:"a small wooden dock extending over the water"
+  !material old:oak_planks new:stone
+  !scan x1:100 y1:60 z1:200 x2:116 y2:68 z2:216
   !deposit item:cobblestone count:32
   !withdraw item:iron_ingot count:5
   !sethome
