@@ -33,10 +33,11 @@ Agents must feel and play like real people — creative, emotional, with desires
 - ✓ Sustained action timeout self-clear: prevents permanent action lock — v1.1 Phase 5
 - ✓ Crafting chain solver: BFS dependency resolver with minecraft-data, variant selection, 3x3 table detection — v1.1 Phase 6
 - ✓ Planner auto-expands craft X into dependency-ordered steps at queue-write time — v1.1 Phase 6
+- ✓ Freestyle building: LLM designs ## BUILD: plans, agent executes block-by-block with 200-block cap — v1.1 Phase 7
+- ✓ Block placement tracking: persistent placed_blocks.json with 1000-entry truncation — v1.1 Phase 7
+- ✓ Post-build verification: placed_count:N deterministic check with 10% tolerance — v1.1 Phase 7
 
 ### Active
-- [ ] Freestyle building (LLM designs in markdown, executes block-by-block with placement tracking)
-- [ ] Block placement tracking (persistent record of where agent placed blocks)
 - [ ] Spatial memory (persistent world map of discovered locations, chests, resources)
 - [ ] Task completion verification (agent checks own work against intent)
 - [ ] Base tether (auto-return when wandering too far from home)
@@ -116,4 +117,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-21 after Phase 6 completion*
+*Last updated: 2026-03-21 after Phase 7 completion*
