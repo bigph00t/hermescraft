@@ -95,11 +95,12 @@ function selectBestVariant(recipes, inventory) {
  *
  * @param {string} targetItem - Normalized item name (e.g. 'wooden_pickaxe')
  * @param {Object} inventory - { itemName: count, ... } current inventory
+ * @param {number} [targetCount=1] - how many of the target item to craft
  * @returns {{ steps: Array, missing: Array }}
  *   steps: ordered leaf-to-root craft operations
  *   missing: raw materials not in inventory
  */
-export function solveCraft(targetItem, inventory) {
+export function solveCraft(targetItem, inventory, targetCount = 1) {
   const steps = []
   const missing = []
 
@@ -180,7 +181,7 @@ export function solveCraft(targetItem, inventory) {
   }
 
   const normalizedTarget = normalizeItemName(targetItem)
-  resolve(normalizedTarget, 1)
+  resolve(normalizedTarget, Math.max(1, targetCount))
 
   return { steps, missing }
 }

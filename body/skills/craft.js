@@ -110,9 +110,11 @@ export async function craft(bot, itemName, count = 1) {
 
   const normalizedName = normalizeItemName(itemName)
 
-  // Snapshot inventory and resolve the full dependency chain
+  // Snapshot inventory and resolve the full dependency chain.
+  // Pass `count` so the solver plans for the correct number of output items —
+  // without this, solveCraft always plans for 1 regardless of what was requested.
   const inventory = getInventorySnapshot(bot)
-  const { steps, missing } = solveCraft(normalizedName, inventory)
+  const { steps, missing } = solveCraft(normalizedName, inventory, count)
 
   if (missing.length > 0) {
     return { success: false, reason: 'missing_materials', missing, item: normalizedName }
@@ -182,18 +184,29 @@ export async function craft(bot, itemName, count = 1) {
       return { success: false, reason: 'no_craftable_recipe', item: step.item }
     }
 
+    // bot.craft(recipe, count, table) — 'count' is times to repeat the craft operation,
+    // which is exactly what the BFS solver puts in step.count.
+    // step.count is already Math.ceil(neededItems / outputPerCraft) from crafter.js.
+    const craftTimes = step.count
+    console.log(`[craft] attempting ${craftTimes}x craft of ${step.item} (recipe yields ${recipes[0].result?.count ?? 1} per craft)`)
+
     try {
-      await bot.craft(recipes[0], step.count, tableBlock)
+      await bot.craft(recipes[0], craftTimes, tableBlock)
     } catch (err) {
       return { success: false, reason: err.message || 'craft_failed', item: step.item }
     }
+
+    // Wait for the server to sync the inventory window — without this the next step's
+    // inventory check may see stale slot data and incorrectly report missing materials.
+    await bot.waitForTicks(2)
 
     // Check interrupt after craft
     if (isInterrupted(bot)) {
       return { success: false, item: normalizedName, reason: 'interrupted' }
     }
 
-    console.log(`[craft] crafted ${step.count}x ${step.item}`)
+    const produced = (recipes[0].result?.count ?? 1) * craftTimes
+    console.log(`[craft] crafted ${produced}x ${step.item} (${craftTimes} craft ops)`)
   }
 
   return { success: true, item: normalizedName, count }
