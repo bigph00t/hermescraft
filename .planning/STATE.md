@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Mineflayer Rewrite
-status: Ready to plan
-last_updated: "2026-03-22T18:35:10.766Z"
+status: Ready to execute
+last_updated: "2026-03-22T18:51:40.302Z"
 progress:
   total_phases: 6
   completed_phases: 3
-  total_plans: 7
-  completed_plans: 7
+  total_plans: 9
+  completed_plans: 8
 ---
 
 # Project State
@@ -18,12 +18,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-22)
 
 **Core value:** Agents feel and play like real people — creative, emotional, able to interact with the world
-**Current focus:** Phase 03 — mind-loop-llm
+**Current focus:** Phase 04 — survival-modes
 
 ## Current Position
 
-Phase: 4
-Plan: Not started
+Phase: 04 (survival-modes) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -47,6 +47,7 @@ Plan: Not started
 | Phase 02-crafting-inventory P02 | 3min | 3 tasks | 3 files |
 | Phase 03-mind-loop-llm P03-01 | 2m 23s | 2 tasks | 3 files |
 | Phase 03-mind-loop-llm P03-02 | 1m 30s | 2 tasks | 3 files |
+| Phase 04-survival-modes P04-01 | 2min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -78,6 +79,9 @@ Plan: Not started
 - [03-01] Mind boundary: only mind/registry.js imports from body/; mind/llm.js and mind/prompt.js are boundary-clean; enforced by code structure
 - [03-01] parseCommand uses matchAll with capture groups for named/quoted args + positional fallback for bare !gather oak_log 10 style
 - [03-01] registry.js parseInt() wraps all numeric args — parseCommand produces strings, body/ skills expect numbers
+- [04-01] Two-export combat design: attackTarget (body tick, non-blocking single action) + combatLoop (LLM dispatch, blocking sustained loop) — separates reactive body behaviors from blocking LLM-dispatched skills
+- [04-01] HOSTILE_MOBS exported from combat.js for body/modes.js reuse — single source of truth, 42 entries for MC 1.21.1
+- [04-01] Registry !combat uses nearestEntity(e.type === 'mob') not HOSTILE_MOBS filter — LLM explicitly chose to attack, any nearby mob is valid
 
 ### Critical Pitfalls (from research)
 
@@ -110,3 +114,4 @@ None currently.
 - 2026-03-22: Completed 02-01 — body/crafter.js (BFS solver) and body/skills/craft.js (craft skill) created; SKILL-03 complete
 - 2026-03-22: Completed 02-02 — body/skills/smelt.js, body/skills/chest.js, body/skills/inventory.js created; SKILL-04, SKILL-07, SKILL-08 complete; Phase 2 complete
 - 2026-03-22: Completed 03-01 — mind/llm.js, mind/prompt.js, mind/registry.js created; LLM client + history + !command parser + prompt builder + command dispatch bridge; MIND-02, MIND-03 complete
+- 2026-03-22: Completed 04-01 — body/skills/combat.js created (attackTarget + combatLoop + HOSTILE_MOBS 42-entry Set); !combat wired into mind/registry.js; SKILL-06, MODE-02 complete

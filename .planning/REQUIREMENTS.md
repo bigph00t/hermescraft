@@ -22,21 +22,21 @@ Requirements for Mineflayer Rewrite milestone.
 - [x] **SKILL-03**: Craft skill — resolve full dependency chain and craft (BFS solver)
 - [x] **SKILL-04**: Smelt skill — place/find furnace, load fuel + input, wait for output
 - [ ] **SKILL-05**: Build skill — place blocks from a structured plan, verify each placement
-- [ ] **SKILL-06**: Combat skill — attack hostile mobs, flee when low health
+- [x] **SKILL-06**: Combat skill — attack hostile mobs, flee when low health
 - [x] **SKILL-07**: Chest skill — deposit/withdraw items from chests, remember chest locations
 - [x] **SKILL-08**: Inventory management — equip best tools/armor, eat when hungry
 
 ### Mind Loop
 
-- [ ] **MIND-01**: Event-driven LLM — fires on idle (2s no action), chat received, or skill completion
+- [x] **MIND-01**: Event-driven LLM — fires on idle (2s no action), chat received, or skill completion
 - [x] **MIND-02**: Command registry — LLM calls skills by name (!command pattern)
 - [x] **MIND-03**: Conversation history — 40-turn rolling window with graduated trimming
-- [ ] **MIND-04**: Self-prompter — when idle with no goal, LLM re-evaluates and picks next action
+- [x] **MIND-04**: Self-prompter — when idle with no goal, LLM re-evaluates and picks next action
 
 ### Autonomous Modes
 
 - [ ] **MODE-01**: Self-preservation — auto-eat, flee fire/lava/drowning, no LLM needed
-- [ ] **MODE-02**: Self-defense — attack hostile mobs targeting the bot
+- [x] **MODE-02**: Self-defense — attack hostile mobs targeting the bot
 - [ ] **MODE-03**: Unstuck detection — detect and recover from pathfinder hangs or wall-stuck
 - [ ] **MODE-04**: Idle behaviors — look at nearby entities randomly, feel alive
 - [ ] **MODE-05**: Item collection — auto-pickup nearby dropped items
@@ -91,15 +91,15 @@ Requirements for Mineflayer Rewrite milestone.
 | SKILL-03 | Phase 2 | Complete |
 | SKILL-04 | Phase 2 | Complete |
 | SKILL-05 | Phase 6 | Pending |
-| SKILL-06 | Phase 4 | Pending |
+| SKILL-06 | Phase 4 | Complete |
 | SKILL-07 | Phase 2 | Complete |
 | SKILL-08 | Phase 2 | Complete |
-| MIND-01 | Phase 3 | Pending |
+| MIND-01 | Phase 3 | Complete |
 | MIND-02 | Phase 3 | Complete |
 | MIND-03 | Phase 3 | Complete |
-| MIND-04 | Phase 3 | Pending |
+| MIND-04 | Phase 3 | Complete |
 | MODE-01 | Phase 4 | Pending |
-| MODE-02 | Phase 4 | Pending |
+| MODE-02 | Phase 4 | Complete |
 | MODE-03 | Phase 4 | Pending |
 | MODE-04 | Phase 4 | Pending |
 | MODE-05 | Phase 4 | Pending |

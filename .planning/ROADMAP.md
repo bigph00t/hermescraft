@@ -101,9 +101,9 @@ Plans:
   3. Bot detects pathfinder hang or wall-stuck state and recovers without human intervention
   4. Bot looks at nearby entities naturally when idle, giving the appearance of awareness
   5. Bot automatically collects dropped items in its vicinity
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
-- [ ] 04-01-PLAN.md — Combat skill (attackTarget + combatLoop) and !combat registry wiring (SKILL-06, MODE-02)
+- [x] 04-01-PLAN.md — Combat skill (attackTarget + combatLoop) and !combat registry wiring (SKILL-06, MODE-02)
 - [ ] 04-02-PLAN.md — 300ms body tick with 5-priority behavior cascade + start.js wiring (MODE-01, MODE-03, MODE-04, MODE-05)
 
 ### Phase 5: Personality + Social
@@ -138,7 +138,7 @@ v2.0 phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 1. Bot Foundation + Core Skills | v2.0 | 3/3 | Complete   | 2026-03-22 |
 | 2. Crafting + Inventory | v2.0 | 2/2 | Complete   | 2026-03-22 |
 | 3. Mind Loop + LLM | v2.0 | 1/2 | In Progress|  |
-| 4. Survival Modes | v2.0 | 0/2 | Not started | - |
+| 4. Survival Modes | v2.0 | 1/2 | In Progress|  |
 | 5. Personality + Social | v2.0 | 0/? | Not started | - |
 | 6. Creative Building | v2.0 | 0/? | Not started | - |
 
