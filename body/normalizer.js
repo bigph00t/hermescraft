@@ -4,7 +4,12 @@ import minecraftData from 'minecraft-data'
 
 const mcData = minecraftData('1.21.1')
 
-// Known LLM hallucination corrections — common wrong names the model generates
+// Shorthand references for registry identity comparison in _normalize
+const BLOCK_REGISTRY = mcData.blocksByName
+const ITEM_REGISTRY = mcData.itemsByName
+
+// Known LLM hallucination corrections — common wrong names the model generates.
+// These aliases apply to BOTH item and block normalization.
 const ALIASES = {
   'sticks': 'stick',
   'oak_planks_4': 'oak_planks',
@@ -22,6 +27,14 @@ const ALIASES = {
   'wooden_door': 'oak_door',
   'oak_door_3': 'oak_door',
   'cobble': 'cobblestone',
+  // NOTE: iron_ore/gold_ore are item-only aliases — see ITEM_ONLY_ALIASES below
+}
+
+// Aliases that only apply when normalizing item names (crafting, smelting, inventory).
+// iron_ore and gold_ore ARE valid block names in MC 1.21.1 (blocksByName has them).
+// raw_iron and raw_gold are NOT valid block names — only in itemsByName.
+// Applying these aliases during block normalization would break !mine and !gather.
+const ITEM_ONLY_ALIASES = {
   'iron_ore': 'raw_iron',
   'gold_ore': 'raw_gold',
 }
@@ -64,8 +77,14 @@ function _normalize(name, registry) {
   }
 
   // Step 5: check ALIASES map
+  // COMMON_ALIASES apply to both items and blocks
   if (ALIASES[result]) {
     return ALIASES[result]
+  }
+  // ITEM_ONLY_ALIASES apply only when normalizing items (iron_ore → raw_iron, etc.)
+  // When normalizing block names, iron_ore IS a valid block — do not remap it
+  if (registry === ITEM_REGISTRY && ITEM_ONLY_ALIASES[result]) {
+    return ITEM_ONLY_ALIASES[result]
   }
 
   // Step 6: try plural stripping
