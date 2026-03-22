@@ -68,7 +68,7 @@ Plans:
 **Depends on**: Phase 1
 **Requirements**: SKILL-03, SKILL-04, SKILL-07, SKILL-08
 **Success Criteria** (what must be TRUE):
-  1. Bot crafts a wooden pickaxe from raw oak logs by resolving the full dependency chain (logs → planks → sticks → pickaxe) without manual recipe decomposition
+  1. Bot crafts a wooden pickaxe from raw oak logs by resolving the full dependency chain (logs -> planks -> sticks -> pickaxe) without manual recipe decomposition
   2. Bot smelts raw iron by placing it in a furnace with fuel and collecting the output when done
   3. Bot deposits items into a chest and later withdraws them, remembering the chest's location
   4. Bot equips best available tool before digging and eats food when hunger drops below threshold without being told to
@@ -86,7 +86,10 @@ Plans:
   2. LLM fires after a skill completes and picks the next action without human intervention
   3. Bot re-evaluates and selects a new goal when idle for 2+ seconds with no active task
   4. Conversation history stays at or below 40 turns; oldest turns are compressed, not dropped, when the cap is reached
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 03-01-PLAN.md — LLM client, prompt builder, command registry (MIND-02, MIND-03)
+- [ ] 03-02-PLAN.md — Event-driven Mind loop + v2 entry point (MIND-01, MIND-04)
 
 ### Phase 4: Survival Modes
 **Goal**: Autonomous reactive behaviors run on a 300ms Body tick entirely independent of the LLM — the bot survives hostile mobs, avoids environmental hazards, recovers from stuck pathfinding, picks up nearby items, and feels alive between decisions
@@ -125,13 +128,13 @@ Plans:
 ## Progress
 
 **Execution Order:**
-v2.0 phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
+v2.0 phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1. Bot Foundation + Core Skills | v2.0 | 3/3 | Complete   | 2026-03-22 |
 | 2. Crafting + Inventory | v2.0 | 2/2 | Complete   | 2026-03-22 |
-| 3. Mind Loop + LLM | v2.0 | 0/? | Not started | - |
+| 3. Mind Loop + LLM | v2.0 | 0/2 | In progress | - |
 | 4. Survival Modes | v2.0 | 0/? | Not started | - |
 | 5. Personality + Social | v2.0 | 0/? | Not started | - |
 | 6. Creative Building | v2.0 | 0/? | Not started | - |
