@@ -33,10 +33,13 @@ Agents must feel and play like real people — creative, emotional, with desires
 
 ### Active
 
+- [ ] Natural language directed building — "build a dock here", "make a sailboat"
+- [ ] Material specification — "use stone on this wall", "glowstone for lights"
 - [ ] LLM-generated blueprints — agents design their own structures creatively
 - [ ] Build area scanning — bot inspects what it built via bot.blockAt() region scan
 - [ ] Reference blueprint library — large catalog of designs for LLM inspiration
-- [ ] Gameplay progression — tier advancement, exploration, base improvement
+- [ ] Cross-session build memory — build history and expansion plans persist
+- [ ] v2.0 bug fixes — live testing fixes for wiring issues
 
 ### Out of Scope
 
@@ -56,7 +59,18 @@ The v2.0 rewrite is complete. 24 JavaScript modules across `body/` (skills, prim
 
 Architecture: `start.js` → `createBot()` → init subsystems → `initMind(bot, config)` → `initModes(bot, isSkillRunning)`. Event-driven Mind loop (chat/skill_complete/idle triggers). 9 registry commands (!gather, !mine, !craft, !smelt, !navigate, !chat, !idle, !combat, !build, !deposit, !withdraw). 300ms body tick with 6-priority survival cascade.
 
-**Next milestone:** v2.1 — Creative gameplay, LLM-generated building, and gameplay features.
+## Current Milestone: v2.1 Creative Building + Bug Fixes
+
+**Goal:** Agents understand natural language building instructions, design their own structures, specify materials, and remember/expand builds across sessions.
+
+**Target features:**
+- Directed building from natural language ("build a dock here", "make a sailboat")
+- Material specification ("use stone on this wall", "glowstone for lights")
+- LLM-generated blueprints — agent designs JSON from description
+- Reference blueprint library — large catalog for LLM inspiration
+- Build area scanning — bot inspects builds via blockAt() region scan
+- Cross-session build memory and expansion planning
+- v2.0 bug fixes from live testing
 
 ## Context
 
@@ -105,4 +119,4 @@ Architecture: `start.js` → `createBot()` → init subsystems → `initMind(bot
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-03-22 after v2.0 milestone completion*
+*Last updated: 2026-03-22 after v2.1 milestone start*
