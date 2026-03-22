@@ -17,6 +17,8 @@ const BLUEPRINTS_DIR = join(__dirname, '..', 'blueprints')
 
 let _stateFile = ''
 let _activeBuild = null
+// Full block queue for the current build — needed by updatePalette to remap remaining entries
+let _buildQueue = []
 
 // ── Helpers ──
 
@@ -171,6 +173,9 @@ export async function build(bot, blueprintName, originX, originY, originZ) {
     return { success: false, reason: 'empty_queue', message: 'Blueprint has no blocks to place after palette resolution' }
   }
 
+  // Store full queue in module state so updatePalette can remap remaining entries
+  _buildQueue = queue
+
   // ── Pre-flight Area Check ──
   // Scan ground level footprint. If >50% non-air, abort — site is occupied.
   const footprintBlocks = blueprint.size.x * blueprint.size.z
@@ -219,6 +224,8 @@ export async function build(bot, blueprintName, originX, originY, originZ) {
     paused: false,
     missingMaterials: [],
     startedAt: Date.now(),
+    // resolvedPalette stored so updatePalette can remap mid-build material changes
+    resolvedPalette,
   }
   _saveState()
 
@@ -349,9 +356,54 @@ export async function build(bot, blueprintName, originX, originY, originZ) {
 
   // ── Completion ──
   _activeBuild = null
+  _buildQueue = []
   try {
     if (existsSync(_stateFile)) unlinkSync(_stateFile)
   } catch {}
 
   return { success: true, placed: totalPlaced, total: queue.length, blueprintName }
+}
+
+/**
+ * Swap one block material for another in the remaining build queue mid-build.
+ *
+ * Remaps every remaining queue entry whose .block matches oldBlock to newBlock.
+ * Also updates the resolvedPalette in _activeBuild so the change is reflected
+ * in saved state and future getBuildProgress() calls.
+ *
+ * @param {string} oldBlock - current block name in active palette (e.g. 'cobblestone')
+ * @param {string} newBlock - replacement block name (e.g. 'stone_bricks')
+ * @returns {{ success: true, old: string, new: string }
+ *         | { success: false, reason: string }}
+ */
+export function updatePalette(oldBlock, newBlock) {
+  if (!_activeBuild) return { success: false, reason: 'no_active_build' }
+  if (!_activeBuild.resolvedPalette) return { success: false, reason: 'no_palette_data' }
+
+  // Validate newBlock exists in minecraft-data
+  if (!mcData.blocksByName[newBlock]) {
+    return { success: false, reason: `unknown_block: ${newBlock}` }
+  }
+
+  // Find palette char(s) that map to oldBlock and remap to newBlock
+  let found = false
+  for (const [char, blockName] of Object.entries(_activeBuild.resolvedPalette)) {
+    if (blockName === oldBlock) {
+      _activeBuild.resolvedPalette[char] = newBlock
+      found = true
+      // Don't break — multiple chars might use the same block
+    }
+  }
+  if (!found) return { success: false, reason: `"${oldBlock}" not found in active build palette` }
+
+  // Remap remaining queue entries (from completedIndex onward)
+  const startIdx = _activeBuild.completedIndex || 0
+  for (let i = startIdx; i < _buildQueue.length; i++) {
+    if (_buildQueue[i].block === oldBlock) {
+      _buildQueue[i].block = newBlock
+    }
+  }
+
+  _saveState()
+  return { success: true, old: oldBlock, new: newBlock }
 }
