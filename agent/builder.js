@@ -113,6 +113,7 @@ export async function resumeBuild(inventory) {
   // Check proximity — agent must be within ~8 blocks of build site
   const nearSite = await isNearBuildSite()
   if (!nearSite) {
+    _activeBuild.tooFar = true
     const o = _activeBuild.origin
     return {
       active: true,
@@ -123,6 +124,7 @@ export async function resumeBuild(inventory) {
       message: `Too far from build site. Navigate to ${o.x}, ${o.y}, ${o.z} first.`,
     }
   }
+  _activeBuild.tooFar = false
 
   // If paused, re-check inventory — auto-unpause if materials now available
   if (_activeBuild.paused) {
@@ -247,7 +249,11 @@ export function cancelBuild() {
 }
 
 export function isBuildActive() {
-  return _activeBuild !== null
+  if (!_activeBuild) return false
+  // Paused (need materials) or too far — planner needs to generate actions to fix it
+  if (_activeBuild.paused) return false
+  if (_activeBuild.tooFar) return false
+  return true
 }
 
 export function unpauseBuild() {

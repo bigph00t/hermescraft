@@ -12,26 +12,33 @@ const MOD_URL = process.env.MOD_URL || 'http://localhost:3001'
 // ── Anthropic Vision Client ──
 
 function getAnthropicKey() {
-  // 1. Explicit VISION_API_KEY
-  if (process.env.VISION_API_KEY) return process.env.VISION_API_KEY
-  // 2. ANTHROPIC_API_KEY
-  if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY
-  // 3. Read from Claude CLI credentials
+  // 1. Always prefer fresh OAuth token from Claude CLI credentials (auto-refreshed)
   try {
     const credPath = join(process.env.HOME || '/root', '.claude', '.credentials.json')
     const creds = JSON.parse(readFileSync(credPath, 'utf-8'))
     const token = creds?.claudeAiOauth?.accessToken
     if (token) return token
   } catch {}
+  // 2. Fallback to env vars
+  if (process.env.VISION_API_KEY) return process.env.VISION_API_KEY
+  if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY
   return ''
 }
 
-const anthropicKey = getAnthropicKey()
 let visionClient = null
-if (anthropicKey) {
-  visionClient = new Anthropic({
-    apiKey: anthropicKey,
+
+// Rebuild client each call — OAuth tokens expire and get refreshed by Claude Code
+function getVisionClient() {
+  const key = getAnthropicKey()
+  if (!key) return null
+  const isOAuth = key.startsWith('sk-ant-oat')
+  return new Anthropic({
+    apiKey: isOAuth ? undefined : key,
+    authToken: isOAuth ? key : undefined,
     timeout: 20000,
+    defaultHeaders: isOAuth ? {
+      'anthropic-beta': 'oauth-2025-04-20',
+    } : {},
   })
 }
 
@@ -92,13 +99,16 @@ async function visionTick(agentConfig) {
     _lastScreenshotB64 = b64
 
     // 3. Send to Claude Haiku for vision analysis
-    if (!visionClient) {
+    // Rebuild client each call (OAuth tokens refresh)
+    const client = getVisionClient()
+    if (!client) {
       // No Anthropic key — just capture screenshots silently
       return
     }
 
-    const response = await visionClient.messages.create({
+    const response = await client.messages.create({
       model: VISION_MODEL,
+      max_tokens: 300,
       messages: [{
         role: 'user',
         content: [
@@ -163,7 +173,7 @@ export function startVisionLoop(agentConfig) {
   const intervalMs = agentConfig.visionIntervalMs || 10000
   _running = true
 
-  if (visionClient) {
+  if (getVisionClient()) {
     console.log(`[Vision] Starting vision loop (interval: ${intervalMs}ms, model: ${VISION_MODEL})`)
   } else {
     console.log(`[Vision] Starting screenshot capture only (no Anthropic key found)`)

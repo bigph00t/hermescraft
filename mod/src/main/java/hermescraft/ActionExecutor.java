@@ -552,7 +552,7 @@ public class ActionExecutor {
         }
     }
 
-    // --- Mine blocks using Baritone (auto-stops after 10 seconds) ---
+    // --- Mine blocks using Baritone (auto-stops after 30 seconds) ---
     private static String handleMine(JsonObject action, MinecraftClient client) {
         if (!action.has("blockName")) {
             return errorResult("Mine requires 'blockName'");
@@ -564,16 +564,16 @@ public class ActionExecutor {
             return errorResult("Failed to start mining (Baritone not available)");
         }
 
-        // Auto-stop Baritone after 10 seconds so agent can think again
+        // Auto-stop Baritone after 30 seconds — gives time to pathfind to distant blocks
         new Thread(() -> {
-            try { Thread.sleep(10000); } catch (InterruptedException ignored) {}
+            try { Thread.sleep(30000); } catch (InterruptedException ignored) {}
             client.execute(() -> {
                 BaritoneIntegration.stop();
-                HermesBridgeMod.LOGGER.info("[HermesBridge] Auto-stopped mining {} after 10s", blockName);
+                HermesBridgeMod.LOGGER.info("[HermesBridge] Auto-stopped mining {} after 30s", blockName);
             });
         }).start();
 
-        return successResult("Mining " + blockName + " (auto-stops in 10s)");
+        return successResult("Mining " + blockName + " (auto-stops in 30s)");
     }
 
     // --- Approach block (sustained) — walk toward block until close, then aim ---
@@ -716,6 +716,7 @@ public class ActionExecutor {
     private static void tickPickupItems(MinecraftClient client, SustainedAction sa) {
         ClientPlayerEntity player = client.player;
         if (player == null) {
+            client.options.forwardKey.setPressed(false); // Release key before disconnect
             completeSustained(errorResult("Player disconnected"));
             return;
         }
@@ -1041,10 +1042,14 @@ public class ActionExecutor {
         return successResult("Waiting...");
     }
 
-    // --- Close current screen ---
+    // --- Close current screen (including pause menu) ---
     private static String handleCloseScreen(MinecraftClient client) {
         if (client.player != null) {
             client.player.closeHandledScreen();
+        }
+        // Also dismiss pause menu / any overlay screen
+        if (client.currentScreen != null) {
+            client.setScreen(null);
         }
         return successResult("Closed screen");
     }
@@ -1182,11 +1187,45 @@ public class ActionExecutor {
         }
 
         BlockPos targetPos = new BlockPos(x, y, z);
+
+        // Validate: target position must be air/replaceable
+        BlockState targetState = client.world.getBlockState(targetPos);
+        if (!targetState.isAir() && !targetState.isReplaceable()) {
+            String blockName = Registries.BLOCK.getId(targetState.getBlock()).getPath();
+            return errorResult("Cannot place at " + x + "," + y + "," + z + " — occupied by " + blockName);
+        }
+
+        // Validate: don't place inside player's body (feet or head level)
+        BlockPos playerFeet = player.getBlockPos();
+        BlockPos playerHead = playerFeet.up();
+        if (targetPos.equals(playerFeet) || targetPos.equals(playerHead)) {
+            return errorResult("Cannot place at " + x + "," + y + "," + z + " — you are standing there. Move first.");
+        }
+
+        // Find an actual solid adjacent block for a valid BlockHitResult
+        // MC placement: right-click a solid block face → place on the adjacent empty space
+        Direction placeDir = Direction.UP;
+        BlockPos supportBlock = null;
+        Direction[] directions = {Direction.DOWN, Direction.NORTH, Direction.SOUTH, Direction.EAST, Direction.WEST, Direction.UP};
+        for (Direction dir : directions) {
+            BlockPos adjacent = targetPos.offset(dir);
+            BlockState adjState = client.world.getBlockState(adjacent);
+            if (!adjState.isAir()) {
+                supportBlock = adjacent;
+                placeDir = dir.getOpposite(); // face from support toward target
+                break;
+            }
+        }
+
+        if (supportBlock == null) {
+            return errorResult("Cannot place at " + x + "," + y + "," + z + " — no adjacent block to place against (floating)");
+        }
+
         Vec3d targetVec = Vec3d.ofCenter(targetPos);
         lookAtPos(player, targetVec);
 
         BlockHitResult hitResult = new BlockHitResult(
-                targetVec, Direction.UP, targetPos.down(), false
+                targetVec, placeDir, supportBlock, false
         );
         client.interactionManager.interactBlock(player, Hand.MAIN_HAND, hitResult);
         player.swingHand(Hand.MAIN_HAND);
@@ -1249,7 +1288,7 @@ public class ActionExecutor {
         return successResult("Look direction set to yaw=" + player.getYaw() + " pitch=" + player.getPitch());
     }
 
-    // --- Chat message ---
+    // --- Chat message (auto-splits long messages) ---
     private static String handleChat(JsonObject action, MinecraftClient client) {
         if (!action.has("message")) {
             return errorResult("Chat requires 'message'");
@@ -1258,17 +1297,51 @@ public class ActionExecutor {
         ClientPlayerEntity player = client.player;
         if (player == null) return errorResult("Player not available");
 
-        // Cap at MC limit minus safety margin
-        if (message.length() > 200) {
-            message = message.substring(0, 200);
-        }
-
         if (message.startsWith("/")) {
             client.getNetworkHandler().sendCommand(message.substring(1));
-        } else {
-            client.getNetworkHandler().sendChatMessage(message);
+            return successResult("Sent: " + message);
         }
-        return successResult("Sent: " + message);
+
+        // Auto-split long messages at sentence/word boundaries
+        if (message.length() <= 200) {
+            client.getNetworkHandler().sendChatMessage(message);
+            return successResult("Sent: " + message);
+        }
+
+        // Split into chunks of ~200 chars at word boundaries
+        java.util.List<String> chunks = new java.util.ArrayList<>();
+        String remaining = message;
+        while (remaining.length() > 200) {
+            int splitAt = remaining.lastIndexOf(". ", 200);
+            if (splitAt < 80) splitAt = remaining.lastIndexOf("! ", 200);
+            if (splitAt < 80) splitAt = remaining.lastIndexOf("? ", 200);
+            if (splitAt < 80) splitAt = remaining.lastIndexOf(", ", 200);
+            if (splitAt < 80) splitAt = remaining.lastIndexOf(" ", 200);
+            if (splitAt < 80) splitAt = 200;
+            chunks.add(remaining.substring(0, splitAt + 1).trim());
+            remaining = remaining.substring(splitAt + 1).trim();
+        }
+        if (!remaining.isEmpty()) chunks.add(remaining);
+
+        // Send each chunk with a small delay via scheduled tasks
+        for (int i = 0; i < chunks.size() && i < 3; i++) {
+            final String chunk = chunks.get(i);
+            final int delay = i * 15; // 15 ticks (~750ms) between messages
+            if (delay == 0) {
+                client.getNetworkHandler().sendChatMessage(chunk);
+            } else {
+                final int d = delay;
+                new Thread(() -> {
+                    try { Thread.sleep(d * 50L); } catch (InterruptedException ignored) {}
+                    client.execute(() -> {
+                        if (client.getNetworkHandler() != null) {
+                            client.getNetworkHandler().sendChatMessage(chunk);
+                        }
+                    });
+                }).start();
+            }
+        }
+        return successResult("Sent: " + message.substring(0, Math.min(message.length(), 80)) + "...");
     }
 
     // --- Use held item ---

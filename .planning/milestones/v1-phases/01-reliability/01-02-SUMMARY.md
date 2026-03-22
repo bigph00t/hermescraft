@@ -98,6 +98,16 @@ None - no external service configuration required.
 - Agent auto-reconnects after kicks — no manual restart needed for transient server disconnects
 - Ready for Plan 01-03 (history trimming boundary fix) or subsequent reliability work
 
+## Self-Check: PASSED
+
+- FOUND: .planning/phases/01-reliability/01-02-SUMMARY.md
+- FOUND: agent/skills.js (modified)
+- FOUND: agent/index.js (modified)
+- FOUND: HermesBridgeMod.java (modified)
+- FOUND commit: 54919b7 (Task 1)
+- FOUND commit: d9d2d83 (Task 2)
+- FOUND commit: e6e1fd8 (metadata)
+
 ---
 *Phase: 01-reliability*
 *Completed: 2026-03-20*

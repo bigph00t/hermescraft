@@ -14,11 +14,16 @@ import net.minecraft.client.util.ScreenshotRecorder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import javax.imageio.ImageIO;
 
 public class HermesBridgeMod implements ClientModInitializer {
 
@@ -52,17 +57,36 @@ public class HermesBridgeMod implements ClientModInitializer {
             try {
                 Framebuffer fb = client.getFramebuffer();
                 NativeImage image = ScreenshotRecorder.takeScreenshot(fb);
-                // NativeImage.writeTo(Path) writes PNG — use temp file then read bytes
+                // Write full-res PNG to temp file
                 tempFile = Files.createTempFile("hermescraft-screenshot-", ".png");
                 image.writeTo(tempFile);
                 image.close();
                 byte[] pngBytes = Files.readAllBytes(tempFile);
-                future.complete(pngBytes);
+
+                // Scale down to 320x180 JPEG for smaller transfer to agent
+                try {
+                    BufferedImage fullImage = ImageIO.read(new ByteArrayInputStream(pngBytes));
+                    if (fullImage != null) {
+                        BufferedImage scaled = new BufferedImage(320, 180, BufferedImage.TYPE_INT_RGB);
+                        Graphics2D g = scaled.createGraphics();
+                        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                        g.drawImage(fullImage, 0, 0, 320, 180, null);
+                        g.dispose();
+                        ByteArrayOutputStream jpegOut = new ByteArrayOutputStream();
+                        ImageIO.write(scaled, "JPEG", jpegOut);
+                        future.complete(jpegOut.toByteArray());
+                    } else {
+                        // Fallback: send raw PNG if ImageIO fails
+                        future.complete(pngBytes);
+                    }
+                } catch (Exception scaleErr) {
+                    LOGGER.warn("[HermesBridge] Screenshot scale failed, sending raw PNG");
+                    future.complete(pngBytes);
+                }
             } catch (Exception e) {
                 LOGGER.error("[HermesBridge] Screenshot capture failed", e);
                 future.complete(null);
             } finally {
-                // Clean up temp file
                 if (tempFile != null) {
                     try { Files.deleteIfExists(tempFile); } catch (Exception ignored) {}
                 }
@@ -128,6 +152,11 @@ public class HermesBridgeMod implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             tickCounter++;
+
+            // Auto-dismiss pause menu — bots don't need it, and it blocks gameplay
+            if (client.player != null && client.currentScreen instanceof net.minecraft.client.gui.screen.GameMenuScreen) {
+                client.setScreen(null);
+            }
 
             // Detect player disconnect — reset auto-connect flag so we can reconnect
             if (wasConnected && client.player == null) {

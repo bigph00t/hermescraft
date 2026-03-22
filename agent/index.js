@@ -1481,7 +1481,8 @@ async function main() {
       logError('Unexpected error in tick', err);
       currentTickPromise = null;
     }
-    if (running) await sleep(TICK_INTERVAL);
+    // Minimal yield — run as fast as possible, don't throttle the action loop
+    if (running) await sleep(100);
   }
 }
 

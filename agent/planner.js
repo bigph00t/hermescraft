@@ -17,13 +17,13 @@ import { getRelationshipSummary } from './social.js'
 import { getHome, getLocationsForPrompt, getNearbyDangers, getUnexploredDirection, getExplorationStats } from './locations.js'
 import { detectBehaviorMode, calculateNeeds, formatNeedsForPrompt } from './needs.js'
 import { updateAgentState, getOtherAgentsContext, getSharedLocations, getActiveProjects } from './shared-state.js'
-import { setQueue, getQueueLength } from './action-queue.js'
+import { setQueue, getQueueLength, clearQueue, getQueueSummary } from './action-queue.js'
 import { isBuildActive } from './builder.js'
 import { isFarmActive } from './farming.js'
 
 const __dirname_planner = dirname(fileURLToPath(import.meta.url))
 
-const PLANNER_INTERVAL_MS = parseInt(process.env.PLANNER_INTERVAL_MS || '30000', 10)
+const PLANNER_INTERVAL_MS = parseInt(process.env.PLANNER_INTERVAL_MS || '5000', 10)
 const PLANNER_MODEL = process.env.PLANNER_MODEL || process.env.MODEL_NAME || 'Doradus/Hermes-4.3-36B-FP8'
 
 // Separate OpenAI client for planner — prevents interference with action loop's conversation state
@@ -48,7 +48,11 @@ let _lastPlanText = ''
 let _running = false
 let _agentConfig = null
 let _tickCount = 0
-let _recentChatsSent = []  // Track last 5 messages to prevent spam
+let _recentChatsSent = []  // Track sent messages for dedup
+let _seenChatMessages = new Set() // Track all chat messages we've already processed
+let _pendingHumanMessages = []   // Human messages that haven't been responded to yet
+let _plannerHistory = []  // Rolling conversation history — planner remembers across cycles
+const MAX_PLANNER_HISTORY = 500  // MiniMax has 200k context — use it. Graduated trim handles overflow.
 const REFLECTION_INTERVAL = 15  // Every 15 planner ticks (~5 minutes at 20s interval)
 
 // D-09 / D-12 / D-15: Persistent plugin state — updated by index.js each planner cycle
@@ -413,32 +417,66 @@ async function plannerTick() {
   try {
     // 1. Fetch current game state
     const state = await fetchState()
-    const stateSummary = summarizeState(state)
 
-    // 1a. Skip if queue is still long or build/farm active
-    if (getQueueLength() > 5) {
-      console.log(`[Planner] Queue still has ${getQueueLength()} items, skipping this cycle`)
-      return
+    // ── CHAT PROCESSING (single pass, bulletproof) ──
+    const ownMcName = process.env.MC_USERNAME || _agentConfig?.name || ''
+    const ownName = _agentConfig?.name || ''
+    const agentNames = ['JeffEnderstein', 'JohnKwon', 'Jeffrey', 'John']
+    const allChat = state.recentChat || []
+
+    // Single pass: classify every message as new/seen, own/other/human/system
+    let newAgentChat = []    // New messages from other agents
+    let newHumanChat = []    // New messages from real players — NEVER dropped
+    for (const msg of allChat) {
+      const s = typeof msg === 'string' ? msg : ''
+      // Skip own messages always
+      if (s.startsWith(`<${ownName}>`) || s.startsWith(`<${ownMcName}>`)) { _seenChatMessages.add(s); continue }
+      // Skip system junk always
+      if (s.startsWith('You ') || s.includes("don't have permission") || s.startsWith('No ') || s.startsWith('Set ') || s.includes('issued server')) { _seenChatMessages.add(s); continue }
+      // Classify sender
+      const senderMatch = s.match(/^<([^>]+)>/)
+      const isHuman = senderMatch && !agentNames.includes(senderMatch[1])
+      const isPrivate = s.includes('-> me]')
+      if (isHuman || isPrivate) {
+        // Human messages: add to pending, NOT to seen — stays pending until responded to
+        if (!_seenChatMessages.has(s)) {
+          _pendingHumanMessages.push(s)
+        }
+      } else if (senderMatch) {
+        // Agent messages: normal seen tracking
+        if (_seenChatMessages.has(s)) continue
+        _seenChatMessages.add(s)
+        newAgentChat.push(s)
+      }
+    }
+    // Pending human messages always flow through
+    newHumanChat.push(..._pendingHumanMessages)
+    // Cap seen set
+    if (_seenChatMessages.size > 500) {
+      _seenChatMessages = new Set([..._seenChatMessages].slice(-250))
+    }
+
+    const hasHumanChat = newHumanChat.length > 0
+
+    // Only show new messages to stateSummary
+    state.recentChat = [...newHumanChat, ...newAgentChat]
+
+    // ── PLANNER ALWAYS RUNS — never skip, always reassess ──
+    if (hasHumanChat) {
+      console.log(`[Planner] ⚠ Human spoke: ${newHumanChat[0].slice(0, 60)}`)
     }
     if (isBuildActive() || isFarmActive()) {
-      console.log('[Planner] Build/farm active, skipping queue generation')
-      _creativityDebtCycles = 0  // D-07: building/farming IS creative activity
-      // Still update shared state but skip LLM call
-      try {
-        updateAgentState(_agentConfig.name, {
-          activity: isBuildActive() ? 'building' : 'farming',
-          position: state.position,
-          mood: detectBehaviorMode(state),
-        })
-      } catch {}
-      return
+      _creativityDebtCycles = 0
     }
 
-    // 1b. Compute behavior mode and needs
+    // ── BUILD STATE SUMMARY ──
+    const stateSummary = summarizeState(state)
+
+    // 1d. Compute behavior mode and needs
     const behaviorMode = detectBehaviorMode(state)
     const nearbyPlayers = (state.nearbyEntities || []).filter(e => e.type?.includes('player'))
     let lastChatTimestamp = 0
-    if (state.recentChat && state.recentChat.length > 0) {
+    if (newHumanChat.length > 0 || newAgentChat.length > 0) {
       lastChatTimestamp = Date.now()
     }
     const home = getHome()
@@ -462,7 +500,8 @@ async function plannerTick() {
     const buildingKnowledge = loadBuildingKnowledge()
 
     // 4. Build planner prompt
-    let systemPrompt = `You are the inner voice of ${_agentConfig.name}. You guide strategy — what to do, what to build, where to go, what to say.
+    const mcUsername = process.env.MC_USERNAME || _agentConfig.name
+    let systemPrompt = `You are the inner voice of ${_agentConfig.name}. Your in-game name is ${mcUsername}. When someone says "${_agentConfig.name}" or "${mcUsername}" or "${_agentConfig.name.split(' ')[0]}" they are talking to YOU. Only respond to messages addressed to you or to everyone — do NOT respond to messages clearly meant for someone else.
 
 Consider:
 - What resources do we have? What do we need next?
@@ -492,44 +531,45 @@ Use the memories below to:
 
 Your output becomes the CURRENT STRATEGY for the action loop.
 
-FORMAT — Start your response with Say: lines FIRST, then strategy:
+FORMAT:
 
-Say: "short natural message here" (MUST be first lines of your response)
-Say: "optional second message"
+You are a constantly-running inner voice. Every few seconds you reassess reality and adjust the plan.
 
-Then 3-5 actionable steps with coordinates.
+If a CURRENT PLAN is shown above, review it:
+- Still makes sense? Output "QUEUE: keep" to keep it as-is.
+- Needs adjustment? Output a new QUEUE that replaces it.
+- Human spoke? Drop everything and respond + replan.
 
-RULES for Say: lines:
-- Put them at the VERY TOP of your response, before anything else
-- Keep each under 80 characters — like real speech, not essays
-- Sound like a real person, not a gamer: "found a good flat spot by the water" not "navigating to coordinates"
-- NEVER mention: baritone, pathfinding, auto-stop, pipeline, action loop, mod, API. These don't exist in your world.
-- Include 1-2 per strategy. Natural and human.
-
-End with a creative thought about what to build or try next.
-
-After your strategy, generate a CONCRETE ACTION QUEUE — specific actions to execute IN ORDER.
-Format: one action per line after "QUEUE:"
+When generating a new queue, format one action per line after "QUEUE:"
 
 QUEUE:
 look_at_block 5 65 3 | see oak tree on surface
 break_block | chop the log (Timber fells whole tree)
 craft oak_planks | convert logs to planks
-craft sticks | need for tools
+craft stick | need for tools
 craft wooden_pickaxe | first tool
 
 Valid types: mine, navigate, craft, smelt, equip, place, attack, eat, interact_block, look_at_block, break_block, chat, pickup_items, build, farm, harvest, fish, stop, scan_blocks, go_home, set_home, share_location, check_skills, use_ability, query_shops, create_shop
 Format: "type args | reason"  (mine block_name, navigate x y z, craft item, equip item, place item x y z, chat message)
+
+CHAT RULES — Say: lines go AFTER the QUEUE, and ONLY when:
+- A real person spoke to you (you MUST respond)
+- You discovered something worth sharing (ore, danger, a good spot)
+- You haven't spoken in a while and want to coordinate
+- Do NOT chat every cycle. Most cycles should be WORK ONLY with no Say: line.
+- If someone sent you a PRIVATE message (shows as "[Player -> me]"), reply privately: Say: "/msg PlayerName your reply here"
+- Keep under 150 characters. Sound like a real person, not a narrator.
+- NEVER mention: baritone, pathfinding, auto-stop, pipeline, action loop, mod, API.
 Rules: 3-15 items. Put gathering BEFORE crafting. Check inventory before queueing crafts. Be specific with item IDs.
 
 == BEHAVIOR MODE: ${behaviorMode.toUpperCase()} ==
 ${needsLine}
 
 Behavior rules:
-- WORK mode: Be productive but creative. Mix gathering with building. Try something new between tasks.
-- SHELTER mode: It's getting dark. Get home or build shelter. Safety first.
-- SOCIAL mode: Night, safe inside. Chat genuinely about the day. Share what you built, what you found. Make plans for tomorrow. Be a real person — tired, proud, curious, or worried.
-- SLEEP mode: Late night. Wind down. Write tomorrow's plan. Think about what you want to try next.
+- WORK mode: Be productive. Gather, craft, build. Chat only to coordinate.
+- SHELTER mode: Getting dark. Navigate to shelter or build one NOW. Actions only.
+- SOCIAL mode: Night, safe inside. You can chat more freely — share what happened today, make plans. But still queue useful actions (organize inventory, craft, place torches).
+- SLEEP mode: Wind down. Write notes in notepad about tomorrow's plan. Minimal chat.
 
 ${needs.priority === 'hunger' ? 'URGENT: You are hungry. Get food before anything else.' : needs.priority === 'safety' ? 'URGENT: You feel unsafe. Get to shelter.' : needs.priority === 'social' ? 'You feel lonely. Find the other person. Talk to them.' : needs.priority === 'creative' ? 'You feel restless. Try something NEW — build something different, explore, fish, make art with blocks.' : ''}
 
@@ -548,7 +588,18 @@ Write a concise strategy (5-8 sentences). Be specific about coordinates, items, 
       systemPrompt += `\n\nCREATIVE PRESSURE: You have been gathering resources for a while. You feel restless. Your next plan MUST include something creative — build something, explore somewhere new, set up a shop, try fishing, or decorate your base. Do NOT queue more gathering.${exploreHint}`
     }
 
-    let userContent = `== GAME STATE ==\n${stateSummary}`
+    let userContent = ''
+    // Human player spoke — force a response and full replan (no QUEUE: keep)
+    if (hasHumanChat) {
+      const msgs = newHumanChat.join('\n')
+      userContent += `⚠ A REAL PERSON just spoke to you. You MUST:\n1. Include a Say: line responding to them\n2. Generate a NEW QUEUE (do NOT use "QUEUE: keep")\nTheir message:\n${msgs}\n\n`
+    }
+    // Show current queue so LLM can adjust — but NOT if human spoke (force fresh plan)
+    const currentQueue = getQueueSummary()
+    if (currentQueue && !hasHumanChat) {
+      userContent += `== CURRENT PLAN (${getQueueLength()} actions remaining) ==\n${currentQueue}\nReview this plan against current state. Keep it if still good, adjust if situation changed, or replace entirely.\n\n`
+    }
+    userContent += `== GAME STATE ==\n${stateSummary}`
     if (visionContext) {
       userContent += `\n\n${visionContext}`
     }
@@ -619,20 +670,39 @@ Write a concise strategy (5-8 sentences). Be specific about coordinates, items, 
       }
     }
 
-    // 5. Call LLM — vision context is already included as text from Haiku analysis
-    // Don't send raw images to MiniMax (it can't process them)
+    // 5. Call LLM with conversation history — planner remembers across cycles
     const userMessage = { role: 'user', content: userContent }
 
-    const response = await plannerClient.chat.completions.create({
-      model: PLANNER_MODEL,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        userMessage,
-      ],
-      temperature: 0.5,
-    })
+    let planText = null
+    let retries = 0
+    while (retries < 3) {
+      try {
+        const response = await plannerClient.chat.completions.create({
+          model: PLANNER_MODEL,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            ..._plannerHistory,
+            userMessage,
+          ],
+          temperature: 0.5,
+        })
+        planText = response.choices?.[0]?.message?.content?.trim()
+        break
+      } catch (err) {
+        const msg = err?.message || String(err)
+        if (msg.includes('token') || msg.includes('context') || msg.includes('too long') || msg.includes('maximum')) {
+          // Context overflow — trim oldest 25% and retry
+          const trimCount = Math.max(2, Math.floor(_plannerHistory.length * 0.25))
+          _plannerHistory.splice(0, trimCount)
+          console.log(`[Planner] Context overflow — trimmed ${trimCount} oldest messages (${_plannerHistory.length} remaining). Retrying...`)
+          retries++
+        } else {
+          console.log('[Planner] LLM error: ' + msg.slice(0, 100))
+          return
+        }
+      }
+    }
 
-    let planText = response.choices?.[0]?.message?.content?.trim()
     if (!planText) {
       console.log('[Planner] Empty response from planner model')
       return
@@ -642,6 +712,14 @@ Write a concise strategy (5-8 sentences). Be specific about coordinates, items, 
     if (!planText) {
       console.log('[Planner] Response was only <think> tags, skipping')
       return
+    }
+
+    // Save to conversation history — planner remembers what it planned and what was said
+    _plannerHistory.push(userMessage)
+    _plannerHistory.push({ role: 'assistant', content: planText })
+    // Trim to keep context manageable
+    while (_plannerHistory.length > MAX_PLANNER_HISTORY) {
+      _plannerHistory.shift()
     }
 
     // 6. Write to file and update cached state
@@ -657,7 +735,11 @@ Write a concise strategy (5-8 sentences). Be specific about coordinates, items, 
 
     // 6b. Parse and write action queue from QUEUE: block + update creative debt (D-07)
     try {
-      const queueItems = parseQueueFromPlan(planText)
+      // "QUEUE: keep" means the LLM reviewed the plan and it's still good — don't replace
+      if (planText.includes('QUEUE: keep') || planText.includes('QUEUE:keep')) {
+        console.log('[Planner] Plan reviewed — keeping current queue')
+      }
+      const queueItems = planText.includes('QUEUE: keep') ? [] : parseQueueFromPlan(planText)
       if (queueItems.length > 0) {
         const goal = planText.split('\n').find(l => l.trim().length > 5)?.trim().slice(0, 80) || 'planner strategy'
         setQueue(queueItems, goal, 'planner')
@@ -703,7 +785,8 @@ Write a concise strategy (5-8 sentences). Be specific about coordinates, items, 
         }
       }
 
-      for (const msg of sayLines.slice(0, 2)) {
+      // Max 1 chat message per planner cycle — prevents spam
+      for (const msg of sayLines.slice(0, 1)) {
         // D-26: Block meta-game language from reaching chat
         if (META_GAME_REGEX.test(msg)) {
           META_GAME_REGEX.lastIndex = 0  // reset stateful regex
@@ -712,12 +795,27 @@ Write a concise strategy (5-8 sentences). Be specific about coordinates, items, 
         }
         META_GAME_REGEX.lastIndex = 0  // reset even on non-match (stateful /g regex)
 
+        // Clip long messages at last sentence boundary before 180 chars
+        // (MC chat limit is 256, mod splits at 200, but chunks still get cut — prevent it here)
+        let clipped = msg
+        if (clipped.length > 180) {
+          const cutPoints = ['. ', '! ', '? ', ', ']
+          let best = 180
+          for (const cp of cutPoints) {
+            const idx = clipped.lastIndexOf(cp, 180)
+            if (idx > 80) { best = idx + 1; break }
+          }
+          clipped = clipped.slice(0, best).trim()
+          if (!'.!?'.includes(clipped[clipped.length - 1])) clipped += '.'
+        }
         // Skip truncated messages (no ending punctuation = likely cut off by token limit)
-        const lastChar = msg[msg.length - 1]
-        if (msg.length > 10 && !'.!?)"…'.includes(lastChar) && !msg.endsWith('...')) {
-          console.log('[Planner] Skipped truncated chat: ' + msg.slice(0, 40) + '...')
+        const lastChar = clipped[clipped.length - 1]
+        if (clipped.length > 10 && !'.!?)"…'.includes(lastChar) && !clipped.endsWith('...')) {
+          console.log('[Planner] Skipped truncated chat: ' + clipped.slice(0, 40) + '...')
           continue
         }
+        // Use the clipped version
+        const finalMsg = clipped
 
         // Skip if too similar to something we recently said (prevent spam)
         const msgWords = new Set(msg.toLowerCase().split(/\s+/).filter(w => w.length > 3))
@@ -735,15 +833,22 @@ Write a concise strategy (5-8 sentences). Be specific about coordinates, items, 
         await fetch(`${MOD_URL}/action`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ type: 'chat', message: msg }),
+          body: JSON.stringify({ type: 'chat', message: finalMsg }),
           signal: AbortSignal.timeout(5000),
         })
-        _recentChatsSent.push(msg)
-        if (_recentChatsSent.length > 5) _recentChatsSent.shift()
-        console.log('[Planner] Chatted: ' + msg.slice(0, 60))
+        _recentChatsSent.push(finalMsg)
+        if (_recentChatsSent.length > 20) _recentChatsSent.shift()
+        console.log('[Planner] Chatted: ' + finalMsg.slice(0, 60))
         if (sayLines.length > 1) await new Promise(r => setTimeout(r, 800))
       }
     } catch {}
+
+    // Clear pending human messages — planner has processed this cycle
+    // (even if no Say: was generated, the LLM saw them and chose not to respond)
+    if (_pendingHumanMessages.length > 0) {
+      for (const m of _pendingHumanMessages) _seenChatMessages.add(m)
+      _pendingHumanMessages = []
+    }
 
     // 8. Update shared coordination file — tell other agents what we're doing
     try {

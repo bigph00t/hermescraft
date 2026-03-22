@@ -337,9 +337,32 @@ export function recordSkillOutcome(phase, success) {
       `success_rate: "${newRate.toFixed(1)}"`
     );
     writeFileSync(skill.path, content, 'utf-8');
+
+    // Promote high-performing experience skills to shared directory
+    if (newRate >= 0.85) {
+      promoteToShared(skillName)
+    }
   } catch {
     // Skill file missing or unwritable — skip update
   }
+}
+
+// ── Promote Per-Agent Skill to Shared ──
+
+export function promoteToShared(skillName) {
+  // Only promote experience skills
+  if (!skillName.startsWith('exp-')) return false
+  const agentSkillPath = join(SKILLS_DIR, skillName, 'SKILL.md')
+  const sharedSkillPath = join(SHARED_SKILLS_DIR, `shared-${skillName}`, 'SKILL.md')
+  if (!existsSync(agentSkillPath)) return false
+  if (existsSync(sharedSkillPath)) return false // already promoted
+  try {
+    mkdirSync(join(SHARED_SKILLS_DIR, `shared-${skillName}`), { recursive: true })
+    const content = readFileSync(agentSkillPath, 'utf-8')
+    writeFileSync(sharedSkillPath, content)
+    console.log(`[Skills] Promoted ${skillName} to shared skills`)
+    return true
+  } catch { return false }
 }
 
 // ── Experience-Based Skill Creation ──

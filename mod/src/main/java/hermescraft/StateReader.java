@@ -432,7 +432,14 @@ public class StateReader {
                     BlockState blockState = world.getBlockState(pos);
                     String blockId = Registries.BLOCK.getId(blockState.getBlock()).toString();
 
-                    if (SURFACE_BLOCKS.contains(blockId) && world.isSkyVisible(pos.up())) {
+                    // Logs: include if above sea level (Y >= 60) regardless of sky visibility
+                    // (tree logs have leaves above them, so isSkyVisible fails)
+                    // Other surface blocks: require sky visibility
+                    boolean isLog = blockId.endsWith("_log");
+                    boolean isSurface = isLog
+                            ? pos.getY() >= 60
+                            : world.isSkyVisible(pos.up());
+                    if (SURFACE_BLOCKS.contains(blockId) && isSurface) {
                         JsonObject obj = new JsonObject();
                         obj.addProperty("block", blockId);
                         obj.addProperty("x", pos.getX());

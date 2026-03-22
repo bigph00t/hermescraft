@@ -33,6 +33,11 @@ export async function fetchState() {
   if (!res.ok) throw new Error(`GET /state returned ${res.status}`);
   const state = await res.json();
 
+  // Normalize field names (mod sends "chat", agent expects "recentChat")
+  if (state.chat && !state.recentChat) {
+    state.recentChat = state.chat
+  }
+
   stateHistory.push(state);
   if (stateHistory.length > MAX_HISTORY) stateHistory.shift();
 
@@ -150,11 +155,11 @@ export function summarizeState(state) {
     lines.push(`Looking at: ${state.lookingAt} (dist: ${state.lookingAtDist || '?'})`);
   }
 
-  // Recent chat messages
+  // Recent chat messages (strings like "<JohnKwon> hello")
   if (state.recentChat && state.recentChat.length > 0) {
-    lines.push('Recent chat:');
+    lines.push('New chat:');
     for (const msg of state.recentChat.slice(-5)) {
-      lines.push(`  <${msg.sender || 'Player'}> ${msg.text}`);
+      lines.push(`  ${typeof msg === 'string' ? msg : msg.text || msg}`);
     }
   }
 

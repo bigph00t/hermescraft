@@ -12,8 +12,17 @@ command /scan <text> [<integer=50>]:
             if loop-block is not air:
                 set {_name} to "%type of loop-block%"
                 if {_name} contains {_blockType}:
-                    set {_above} to block 1 above loop-block
-                    if {_above} is air:
+                    # For logs: accept if Y >= 60 (above ground, under tree canopy is fine)
+                    # For other blocks: require air above (surface visible)
+                    set {_ok} to false
+                    if {_name} contains "log":
+                        if y-coordinate of loop-block >= 60:
+                            set {_ok} to true
+                    else:
+                        set {_above} to block 1 above loop-block
+                        if {_above} is air:
+                            set {_ok} to true
+                    if {_ok} is true:
                         set {_dist} to distance between player's location and location of loop-block
                         set {_x} to x-coordinate of loop-block
                         set {_y} to y-coordinate of loop-block
