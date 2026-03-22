@@ -22,6 +22,19 @@ const REGISTRY = new Map([
   ['smelt',    (bot, args) => smelt(bot, args.item, args.fuel || 'coal', parseInt(args.count) || 1)],
   ['navigate', (bot, args) => navigateTo(bot, parseInt(args.x), parseInt(args.y), parseInt(args.z))],
   ['chat',     (bot, args) => { bot.chat(args.message || ''); return { success: true } }],
+  ['drop',     async (bot, args) => {
+    const name = args.item
+    const count = parseInt(args.count) || 1
+    if (!name) return { success: false, reason: 'specify item name. Usage: !drop item:oak_log count:1' }
+    const item = bot.inventory.items().find(i => i.name === name || i.name.includes(name))
+    if (!item) return { success: false, reason: `no ${name} in inventory` }
+    try {
+      await bot.tossStack(item)
+      return { success: true, reason: `dropped ${item.name}` }
+    } catch (err) {
+      return { success: false, reason: err.message }
+    }
+  }],
   ['idle',     (_bot, _args) => Promise.resolve({ success: true, reason: 'idle' })],
   ['combat',   (bot, _args) => {
     const target = bot.nearestEntity(e => e.type === 'mob' && e.position.distanceTo(bot.entity.position) < 16)
