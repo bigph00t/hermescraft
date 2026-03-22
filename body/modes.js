@@ -104,6 +104,32 @@ async function checkSurvival(bot, getSkillRunning) {
     await equipBestArmor(bot)
   }
 
+  // Water detection — swim up immediately if underwater, regardless of health
+  if (bot.entity.isInWater && bot.oxygenLevel < 15) {
+    if (getSkillRunning()) requestInterrupt(bot)
+    // Jump repeatedly to swim up — more reliable than pathfinder in water
+    bot.setControlState('jump', true)
+    bot.setControlState('forward', true)
+    // Also try to find land and navigate there
+    const pos = bot.entity.position
+    const landSearch = bot.findBlock({
+      matching: b => b.name !== 'water' && b.name !== 'air' && b.boundingBox === 'block',
+      maxDistance: 16,
+      count: 1,
+    })
+    if (landSearch) {
+      console.log('[modes] underwater — swimming toward land at', landSearch.position.x, landSearch.position.z)
+      await navigateTo(bot, landSearch.position.x, landSearch.position.y + 1, landSearch.position.z, 2, 8000)
+    } else {
+      // No land found — just swim up for 3 seconds
+      console.log('[modes] underwater — swimming up')
+      await new Promise(r => setTimeout(r, 3000))
+    }
+    bot.setControlState('jump', false)
+    bot.setControlState('forward', false)
+    return true
+  }
+
   // Hazard flee: check environmental hazards
   const hazard = isInHazard(bot)
   if (hazard && bot.health < HAZARD_FLEE_HEALTH) {
@@ -113,9 +139,11 @@ async function checkSurvival(bot, getSkillRunning) {
     }
 
     if (hazard === 'drowning') {
-      // Navigate upward to surface
+      // Navigate upward to surface — jump + navigate combo
+      bot.setControlState('jump', true)
       const up = bot.entity.position.offset(0, 5, 0)
       await navigateTo(bot, Math.floor(up.x), Math.floor(up.y), Math.floor(up.z), 1, 5000)
+      bot.setControlState('jump', false)
     } else {
       // Fire/lava: run in the opposite direction from the hazard source
       // Use the bot's current velocity direction (inverted) or fall back to +X
