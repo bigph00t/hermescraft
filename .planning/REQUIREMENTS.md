@@ -22,8 +22,8 @@ Requirements for Creative Building + Bug Fixes milestone.
 
 ### Build Memory
 
-- [ ] **BMEM-01**: Build history (what was built, where, when, by whom) persists across sessions in per-agent data dir
-- [ ] **BMEM-02**: Bot returns to a previous build site and extends/modifies the structure without being told which blocks are already placed (uses scan)
+- [x] **BMEM-01**: Build history (what was built, where, when, by whom) persists across sessions in per-agent data dir
+- [x] **BMEM-02**: Bot returns to a previous build site and extends/modifies the structure without being told which blocks are already placed (uses scan)
 
 ## Future Requirements
 
@@ -56,8 +56,8 @@ Requirements for Creative Building + Bug Fixes milestone.
 | CBUILD-01 | Phase 9 | Complete |
 | CBUILD-02 | Phase 9 | Complete |
 | CBUILD-05 | Phase 9 | Complete |
-| BMEM-01 | Phase 10 | Pending |
-| BMEM-02 | Phase 10 | Pending |
+| BMEM-01 | Phase 10 | Complete |
+| BMEM-02 | Phase 10 | Complete |
 
 **Coverage:**
 - v2.1 requirements: 9 total

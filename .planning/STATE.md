@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Creative Building + Bug Fixes
-status: Ready to plan
-last_updated: "2026-03-22T21:11:22.314Z"
+status: Phase complete — ready for verification
+last_updated: "2026-03-22T21:21:08.010Z"
 progress:
   total_phases: 4
-  completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
+  completed_phases: 4
+  total_plans: 7
+  completed_plans: 7
 ---
 
 # Project State
@@ -18,12 +18,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-22)
 
 **Core value:** Agents feel and play like real people — creative, emotional, able to interact with the world
-**Current focus:** Phase 09 — directed-building (COMPLETE)
+**Current focus:** Phase 10 — build-memory
 
 ## Current Position
 
-Phase: 10
-Plan: Not started
+Phase: 10 (build-memory) — EXECUTING
+Plan: 1 of 1
 
 ## Performance Metrics
 
@@ -44,6 +44,7 @@ Plan: Not started
 
 *Updated after each plan completion*
 | Phase 09-directed-building P02 | 2min | 1 tasks | 3 files |
+| Phase 10-build-memory P01 | 8min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,9 @@ Plan: Not started
 - !scan and !material use normal dispatch() path — no pre-dispatch handling needed (09-02)
 - !scan defaults to 16x8x16 box centered on bot (±8 x/z, ±4 y) when no coords given (09-02)
 - !material accepts old/from and new/to as synonym arg names for ergonomic LLM output (09-02)
+- build-history.js mirrors memory.js/locations.js module pattern: init/load/save/getForPrompt, 20-entry cap (10-01)
+- getBuildHistoryForPrompt() injected as Part 5.6 between buildContext and command reference in system prompt (10-01)
+- Return-and-extend guidance placed in Part 2 alongside existing directed building behavior guidance (10-01)
 
 ### Critical Pitfalls (from v2.0)
 
@@ -108,3 +112,5 @@ None currently.
 - 2026-03-22: Plan 09-01 complete — scanArea() + updatePalette() body skills, 213 smoke tests pass
 - 2026-03-22: Plan 09-02 complete — !scan + !material registry wiring, directed building guidance in prompt, 220 smoke tests pass
 - 2026-03-22: Phase 09 complete — directed building fully shipped (CBUILD-01/02/05)
+- 2026-03-22: Plan 10-01 complete — build history module + wiring, return-and-extend prompt guidance, 227 smoke tests pass
+- 2026-03-22: Phase 10 complete — cross-session build memory shipped (BMEM-01, BMEM-02)

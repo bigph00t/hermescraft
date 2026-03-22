@@ -75,10 +75,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. After a session ends and a new one begins, the bot can describe what it built, where, and when — without the player re-specifying the build
   2. Bot navigates to a previous build site, scans the region, identifies existing blocks, and places only the missing ones to extend or repair the structure
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 10-01-PLAN.md — Build history module + wiring into init/record/prompt/periodic-save + return-and-extend guidance
+- [x] 10-01-PLAN.md — Build history module + wiring into init/record/prompt/periodic-save + return-and-extend guidance
 
 ## Progress
 
@@ -89,4 +89,4 @@ Plans:
 | 7. Live Testing + Bug Fixes | v2.1 | 2/2 | Complete   | 2026-03-22 |
 | 8. Blueprint Intelligence | v2.1 | 2/2 | Complete   | 2026-03-22 |
 | 9. Directed Building | v2.1 | 2/2 | Complete   | 2026-03-22 |
-| 10. Build Memory | v2.1 | 0/1 | Not started | - |
+| 10. Build Memory | v2.1 | 1/1 | Complete   | 2026-03-22 |
