@@ -4,13 +4,45 @@ import { join, dirname } from 'path';
 
 let LOCATIONS_FILE = '';
 let locations = {};
+// Resource patches: typed world features (ore veins, tree clusters, build sites, etc.)
+let resources = {};
+
+const VALID_RESOURCE_TYPES = new Set(['ore_vein', 'tree_cluster', 'build_site', 'chest', 'poi'])
+
+// ── Helpers ──
+
+function horizDist(ax, az, bx, bz) {
+  const dx = ax - bx
+  const dz = az - bz
+  return Math.sqrt(dx * dx + dz * dz)
+}
+
+function cardinalDir(dx, dz) {
+  if (Math.abs(dx) >= Math.abs(dz)) {
+    return dx >= 0 ? 'E' : 'W'
+  }
+  return dz >= 0 ? 'S' : 'N'
+}
 
 export function initLocations(agentConfig) {
   LOCATIONS_FILE = join(agentConfig.dataDir, 'locations.json');
   const dir = dirname(LOCATIONS_FILE);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   if (existsSync(LOCATIONS_FILE)) {
-    try { locations = JSON.parse(readFileSync(LOCATIONS_FILE, 'utf-8')); } catch { locations = {}; }
+    try {
+      const raw = JSON.parse(readFileSync(LOCATIONS_FILE, 'utf-8'));
+      // Extract _resources sub-key before populating locations
+      if (raw._resources && typeof raw._resources === 'object') {
+        resources = raw._resources;
+        delete raw._resources;
+      } else {
+        resources = {};
+      }
+      locations = raw;
+    } catch {
+      locations = {};
+      resources = {};
+    }
   }
 }
 
@@ -60,10 +92,86 @@ export function autoDetectLocations(state) {
       saveLocation('storage', b.x, b.y, b.z, 'chest');
     }
   }
+
+  // Auto-detect resource patches from surfaceBlocks
+  const surface = state.surfaceBlocks || [];
+  if (surface.length === 0) return;
+
+  const ORE_BLOCKS = new Set([
+    'iron_ore', 'coal_ore', 'gold_ore', 'diamond_ore',
+    'copper_ore', 'lapis_ore', 'redstone_ore', 'emerald_ore',
+    'deepslate_iron_ore', 'deepslate_coal_ore', 'deepslate_gold_ore',
+    'deepslate_diamond_ore', 'deepslate_copper_ore', 'deepslate_lapis_ore',
+    'deepslate_redstone_ore', 'deepslate_emerald_ore',
+  ]);
+  const LOG_SUFFIX = '_log';
+
+  // Count block types in surfaceBlocks
+  const oreCounts = {};
+  const logCounts = {};
+  for (const b of surface) {
+    const bn = (b.block || '').replace('minecraft:', '');
+    if (ORE_BLOCKS.has(bn)) {
+      oreCounts[bn] = (oreCounts[bn] || 0) + 1;
+    }
+    if (bn.endsWith(LOG_SUFFIX)) {
+      logCounts[bn] = (logCounts[bn] || 0) + 1;
+    }
+  }
+
+  // Save ore veins (2+ of same ore type)
+  for (const [blockType, count] of Object.entries(oreCounts)) {
+    if (count < 2) continue;
+    // Deduplicate: skip if a same-type resource entry already exists within 15 blocks
+    const alreadyNear = Object.values(resources).some(r =>
+      r.type === 'ore_vein' && r.metadata && r.metadata.blockType === blockType &&
+      horizDist(pos.x, pos.z, r.x, r.z) <= 15
+    );
+    if (alreadyNear) continue;
+    const base = blockType.replace('_ore', '').replace('deepslate_', '');
+    const existingNums = Object.keys(resources)
+      .filter(k => k.startsWith(`${base}_vein_`))
+      .map(k => parseInt(k.split('_').pop(), 10))
+      .filter(n => !isNaN(n));
+    const nextN = existingNums.length > 0 ? Math.max(...existingNums) + 1 : 1;
+    saveResourcePatch(`${base}_vein_${nextN}`, 'ore_vein', pos.x, pos.y, pos.z, { blockType, count });
+  }
+
+  // Save tree clusters (3+ of same log type)
+  for (const [blockType, count] of Object.entries(logCounts)) {
+    if (count < 3) continue;
+    const alreadyNear = Object.values(resources).some(r =>
+      r.type === 'tree_cluster' && r.metadata && r.metadata.blockType === blockType &&
+      horizDist(pos.x, pos.z, r.x, r.z) <= 15
+    );
+    if (alreadyNear) continue;
+    const treeName = blockType.replace('_log', '');
+    const existingNums = Object.keys(resources)
+      .filter(k => k.startsWith(`${treeName}_cluster_`))
+      .map(k => parseInt(k.split('_').pop(), 10))
+      .filter(n => !isNaN(n));
+    const nextN = existingNums.length > 0 ? Math.max(...existingNums) + 1 : 1;
+    saveResourcePatch(`${treeName}_cluster_${nextN}`, 'tree_cluster', pos.x, pos.y, pos.z, { blockType, count });
+  }
 }
 
-export function getLocationsForPrompt() {
-  const entries = Object.entries(locations);
+export function getLocationsForPrompt(position) {
+  let entries = Object.entries(locations);
+  if (entries.length === 0) return '';
+
+  if (position) {
+    // Filter to within 150 blocks (horizontal), sort by distance, cap at 10
+    entries = entries
+      .map(([name, loc]) => {
+        const dist = horizDist(position.x, position.z, loc.x, loc.z)
+        return { name, loc, dist }
+      })
+      .filter(e => e.dist <= 150)
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, 10)
+      .map(e => [e.name, e.loc])
+  }
+
   if (entries.length === 0) return '';
   const lines = entries.map(([name, loc]) => `${name}: (${loc.x}, ${loc.y}, ${loc.z})`);
   return 'Known locations: ' + lines.join(', ');
@@ -119,7 +227,11 @@ export function getNearbyDangers(position, radius = 30) {
 }
 
 export function saveLocations() {
-  try { writeFileSync(LOCATIONS_FILE, JSON.stringify(locations, null, 2)); } catch {}
+  try {
+    // Merge _resources into the JSON under _resources key
+    const toWrite = Object.assign({}, locations, { _resources: resources })
+    writeFileSync(LOCATIONS_FILE, JSON.stringify(toWrite, null, 2));
+  } catch {}
 }
 
 // ── Exploration Tracking ──
@@ -200,6 +312,103 @@ export function getExplorationStats(currentPos) {
   }
 
   return result
+}
+
+// ── Resource Patches ──
+
+/**
+ * Prune resource entries when total exceeds 500.
+ * Removes oldest same-type duplicates within 10 blocks until under 500.
+ */
+function pruneResources() {
+  const MAX_RESOURCES = 500
+  const entries = Object.entries(resources)
+  if (entries.length <= MAX_RESOURCES) return
+
+  // Sort by timestamp ascending (oldest first)
+  entries.sort((a, b) => (a[1].timestamp || '').localeCompare(b[1].timestamp || ''))
+
+  let pruned = true
+  while (Object.keys(resources).length > MAX_RESOURCES && pruned) {
+    pruned = false
+    const current = Object.entries(resources)
+    for (let i = 0; i < current.length; i++) {
+      const [nameA, entA] = current[i]
+      for (let j = i + 1; j < current.length; j++) {
+        const [nameB, entB] = current[j]
+        if (entA.type !== entB.type) continue
+        const dist = horizDist(entA.x, entA.z, entB.x, entB.z)
+        if (dist > 10) continue
+        // Both are same type within 10 blocks — delete the older one
+        const older = (entA.timestamp || '') <= (entB.timestamp || '') ? nameA : nameB
+        delete resources[older]
+        pruned = true
+        break
+      }
+      if (pruned) break
+    }
+  }
+}
+
+/**
+ * Save a typed resource patch to persistent spatial memory.
+ * @param {string} name - Unique name for this resource
+ * @param {string} type - One of: ore_vein, tree_cluster, build_site, chest, poi
+ * @param {number} x
+ * @param {number} y
+ * @param {number} z
+ * @param {object} metadata - Optional extra data (e.g. { blockType, count })
+ */
+export function saveResourcePatch(name, type, x, y, z, metadata = {}) {
+  const validType = VALID_RESOURCE_TYPES.has(type) ? type : 'poi'
+  resources[name] = {
+    name,
+    type: validType,
+    x: Math.round(x),
+    y: Math.round(y),
+    z: Math.round(z),
+    dimension: 'overworld',
+    timestamp: new Date().toISOString(),
+    metadata,
+  }
+  if (Object.keys(resources).length > 500) pruneResources()
+  saveLocations()
+}
+
+/**
+ * Get nearby resource patches for prompt injection.
+ * Filters to within 150 blocks (horizontal), sorted by distance, capped at 20.
+ * @param {object} position - { x, y, z }
+ * @returns {string}
+ */
+export function getResourcesForPrompt(position) {
+  const entries = Object.entries(resources)
+  if (entries.length === 0) return ''
+  if (!position) {
+    // Fallback: no position provided, return up to 20
+    const parts = entries.slice(0, 20).map(([name, r]) => `${name} (${r.type})`)
+    return 'Nearby resources: ' + parts.join(', ')
+  }
+
+  const nearby = entries
+    .map(([name, r]) => {
+      const dist = horizDist(position.x, position.z, r.x, r.z)
+      return { name, r, dist }
+    })
+    .filter(e => e.dist <= 150)
+    .sort((a, b) => a.dist - b.dist)
+    .slice(0, 20)
+
+  if (nearby.length === 0) return ''
+
+  const parts = nearby.map(({ name, r, dist }) => {
+    const dx = r.x - position.x
+    const dz = r.z - position.z
+    const dir = cardinalDir(dx, dz)
+    return `${name} (${r.type}, ${Math.round(dist)} blocks ${dir})`
+  })
+
+  return 'Nearby resources: ' + parts.join(', ')
 }
 
 /**

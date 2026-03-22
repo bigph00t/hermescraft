@@ -32,12 +32,36 @@ export function getChestContents(x, y, z) {
   return entry ? entry.contents : null
 }
 
-export function getChestsForPrompt() {
+export function getChestsForPrompt(position) {
   const keys = Object.keys(chests)
   if (keys.length === 0) return ''
 
-  const parts = keys.map(key => {
-    const items = chests[key].contents
+  let filteredKeys = keys
+
+  if (position) {
+    // Parse "x,y,z" key and filter to within 150 blocks (horizontal), cap at 10
+    filteredKeys = keys
+      .map(key => {
+        const parts = key.split(',')
+        const cx = parseFloat(parts[0])
+        const cz = parseFloat(parts[2])
+        if (isNaN(cx) || isNaN(cz)) return { key, dist: Infinity }
+        const dx = position.x - cx
+        const dz = position.z - cz
+        return { key, dist: Math.sqrt(dx * dx + dz * dz) }
+      })
+      .filter(e => e.dist <= 150)
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, 10)
+      .map(e => e.key)
+  }
+
+  if (filteredKeys.length === 0) return ''
+
+  const parts = filteredKeys.map(key => {
+    const entry = chests[key]
+    if (!entry || !entry.contents) return `(${key}): empty`
+    const items = entry.contents
       .map(i => `${i.item}x${i.count}`)
       .join(', ')
     return `(${key}): ${items}`
