@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Mineflayer Rewrite
-status: Phase 03 Complete — Ready for Phase 04
-last_updated: "2026-03-22T18:29:48Z"
+status: Ready to plan
+last_updated: "2026-03-22T18:35:10.766Z"
 progress:
   total_phases: 6
   completed_phases: 3
@@ -22,8 +22,8 @@ See: .planning/PROJECT.md (updated 2026-03-22)
 
 ## Current Position
 
-Phase: 03 (mind-loop-llm) — COMPLETE
-Plan: 2 of 2 — done
+Phase: 4
+Plan: Not started
 
 ## Performance Metrics
 
@@ -78,9 +78,6 @@ Plan: 2 of 2 — done
 - [03-01] Mind boundary: only mind/registry.js imports from body/; mind/llm.js and mind/prompt.js are boundary-clean; enforced by code structure
 - [03-01] parseCommand uses matchAll with capture groups for named/quoted args + positional fallback for bare !gather oak_log 10 style
 - [03-01] registry.js parseInt() wraps all numeric args — parseCommand produces strings, body/ skills expect numbers
-- [03-02] skill_complete re-think uses setTimeout(0) not direct recursion — ensures thinkingInFlight is cleared in finally before next think() fires
-- [03-02] skillRunning reset in both normal path and finally block — catches dispatch() throws that exit before explicit reset
-- [03-02] chat filter: bot.players?.[sender]?.username fallback to sender.toString().slice(0,8) — handles UUID vs username sender formats
 
 ### Critical Pitfalls (from research)
 
@@ -113,4 +110,3 @@ None currently.
 - 2026-03-22: Completed 02-01 — body/crafter.js (BFS solver) and body/skills/craft.js (craft skill) created; SKILL-03 complete
 - 2026-03-22: Completed 02-02 — body/skills/smelt.js, body/skills/chest.js, body/skills/inventory.js created; SKILL-04, SKILL-07, SKILL-08 complete; Phase 2 complete
 - 2026-03-22: Completed 03-01 — mind/llm.js, mind/prompt.js, mind/registry.js created; LLM client + history + !command parser + prompt builder + command dispatch bridge; MIND-02, MIND-03 complete
-- 2026-03-22: Completed 03-02 — mind/index.js (event-driven loop) + start.js (v2 entry point) created; Phase 03 complete; MIND-01, MIND-04 complete
