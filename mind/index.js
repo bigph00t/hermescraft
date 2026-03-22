@@ -1,11 +1,14 @@
 // index.js -- Event-driven Mind loop: chat/skill/idle -> think() -> dispatch()
 
 import { queryLLM, clearConversation } from './llm.js'
-import { buildSystemPrompt, buildUserMessage } from './prompt.js'
+import { buildSystemPrompt, buildUserMessage, getBuildContextForPrompt } from './prompt.js'
 import { dispatch } from './registry.js'
-import { getMemoryForPrompt, recordDeath, writeSessionEntry } from './memory.js'
+import { getMemoryForPrompt, addWorldKnowledge, recordDeath, writeSessionEntry } from './memory.js'
 import { trackPlayer, getPlayersForPrompt, getPartnerLastChat, savePlayers } from './social.js'
-import { getLocationsForPrompt, setHome, getHome } from './locations.js'
+import { getLocationsForPrompt, saveLocation, setHome, getHome } from './locations.js'
+// Direct getters from body/ — pure data queries with no side effects.
+// Pragmatic boundary crossing: mind/index.js is the wiring layer (like start.js).
+import { getActiveBuild, listBlueprints } from '../body/skills/build.js'
 
 // ── Module-level Guard State ──
 
@@ -34,11 +37,16 @@ async function think(bot, context) {
   thinkingInFlight = true
 
   try {
+    const activeBuild = getActiveBuild()
+    const blueprintCatalog = listBlueprints()
+    const buildContext = getBuildContextForPrompt(activeBuild, blueprintCatalog)
+
     const systemPrompt = buildSystemPrompt(bot, {
       soul: _config?.soulContent,
       memory: getMemoryForPrompt(),
       players: getPlayersForPrompt(bot),
       locations: getLocationsForPrompt(bot.entity?.position),
+      buildContext,
     })
 
     // Inject partner's last chat into user message if available
@@ -85,6 +93,16 @@ async function think(bot, context) {
 
     console.log('[mind] skill result:', result.command, skillResult.success ? 'OK' : skillResult.reason)
     lastActionTime = Date.now()
+
+    // Record build completion to world knowledge and locations for cross-session recall (BUILD-03)
+    if (result.command === 'build' && skillResult.success) {
+      const bpName = result.args.blueprint || result.args.blueprintName || result.args.name
+      const bx = result.args.x
+      const by = result.args.y
+      const bz = result.args.z
+      addWorldKnowledge(`Built ${bpName} at ${bx},${by},${bz}. Consider expanding or adding nearby.`)
+      saveLocation(`${bpName}_site`, parseInt(bx), parseInt(by), parseInt(bz), 'build')
+    }
 
     // Schedule skill_complete think on the next event loop tick so:
     //   a) finally block runs and clears thinkingInFlight first

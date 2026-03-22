@@ -8,6 +8,7 @@ import { smelt } from '../body/skills/smelt.js'
 import { navigateTo } from '../body/navigate.js'
 import { requestInterrupt, clearInterrupt } from '../body/interrupt.js'
 import { combatLoop } from '../body/skills/combat.js'
+import { build } from '../body/skills/build.js'
 
 // REGISTRY maps !command names to async handler functions.
 // Args come in as strings from parseCommand — registry must parseInt() numeric args.
@@ -24,6 +25,15 @@ const REGISTRY = new Map([
     const target = bot.nearestEntity(e => e.type === 'mob' && e.position.distanceTo(bot.entity.position) < 16)
     if (!target) return Promise.resolve({ success: false, reason: 'no_hostile_nearby' })
     return combatLoop(bot, target)
+  }],
+  ['build',    (bot, args) => {
+    const name = args.blueprint || args.blueprintName || args.name
+    const x = parseInt(args.x)
+    const y = parseInt(args.y)
+    const z = parseInt(args.z)
+    if (!name) return Promise.resolve({ success: false, reason: 'missing blueprint name. Usage: !build blueprint:small_cabin x:N y:N z:N' })
+    if (isNaN(x) || isNaN(y) || isNaN(z)) return Promise.resolve({ success: false, reason: 'missing coordinates. Usage: !build blueprint:small_cabin x:N y:N z:N' })
+    return build(bot, name, x, y, z)
   }],
 ])
 

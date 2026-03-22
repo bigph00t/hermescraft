@@ -7,6 +7,7 @@ import { initSocial } from './mind/social.js'
 import { initLocations, getHome } from './mind/locations.js'
 import { initMind, isSkillRunning } from './mind/index.js'
 import { initModes } from './body/modes.js'
+import { initBuild } from './body/skills/build.js'
 
 async function main() {
   console.log('[hermescraft] v2 starting...')
@@ -24,6 +25,9 @@ async function main() {
   loadMemory()
   initSocial(config)
   initLocations(config)
+
+  // 3.5. Init build state (load any persisted build plan from prior session)
+  initBuild(config)
 
   // 4. Set bot.homeLocation for body/modes.js night shelter (mind/body boundary: property on bot, not import)
   const home = getHome()

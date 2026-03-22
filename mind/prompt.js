@@ -1,5 +1,32 @@
 // prompt.js — System prompt builder and game state summary formatter for v2 Mind layer
 
+// ── Build Context ──
+
+// Pure formatting function — takes data, no body/ imports.
+// Called from mind/index.js which passes getActiveBuild() and listBlueprints() results.
+//
+// activeBuild — result of getActiveBuild() from body/skills/build.js (or null)
+// blueprintCatalog — result of listBlueprints() from body/skills/build.js
+export function getBuildContextForPrompt(activeBuild, blueprintCatalog) {
+  const lines = []
+  if (activeBuild) {
+    const pct = Math.round(100 * activeBuild.completedIndex / activeBuild.totalBlocks)
+    if (activeBuild.paused) {
+      lines.push(`Active build: ${activeBuild.blueprintName} — PAUSED at ${activeBuild.completedIndex}/${activeBuild.totalBlocks} blocks (${pct}%). Need: ${activeBuild.missingMaterials.join(', ')}. Gather materials then !build again to resume.`)
+    } else {
+      lines.push(`Active build: ${activeBuild.blueprintName} — ${activeBuild.completedIndex}/${activeBuild.totalBlocks} blocks placed (${pct}%).`)
+    }
+  }
+  if (blueprintCatalog && blueprintCatalog.length > 0) {
+    lines.push('Available blueprints:')
+    for (const bp of blueprintCatalog) {
+      lines.push(`  ${bp.name} — ${bp.description} (${bp.size.x}x${bp.size.z}, ${bp.size.y} tall)`)
+    }
+    lines.push('To build: !build blueprint:name x:N y:N z:N')
+  }
+  return lines.length > 0 ? lines.join('\n') : ''
+}
+
 // ── Time Label ──
 
 // Rich time-of-day label with shelter guidance.
@@ -51,6 +78,11 @@ Keep chat brief and natural -- you only speak when you have something real to sa
     parts.push(options.locations)
   }
 
+  // Part 5.5: Build context — active build progress and available blueprints
+  if (options.buildContext) {
+    parts.push(options.buildContext)
+  }
+
   // Part 6: !command reference — all available commands with argument syntax
   parts.push(`
 When you decide to act, respond with a SINGLE line in this exact format:
@@ -64,6 +96,7 @@ Available commands:
   !smelt item:name fuel:name count:N   — smelt items in a furnace
   !navigate x:N y:N z:N               — walk to coordinates
   !chat message:"text"                 — say something in chat
+  !build blueprint:name x:N y:N z:N   — build a structure from a blueprint at coordinates
   !sethome                             -- mark current position as home base
   !combat                              -- attack nearest hostile mob
   !idle                                — wait and observe; do nothing this turn`)
@@ -78,6 +111,7 @@ Examples:
   !smelt item:raw_iron fuel:coal count:5
   !navigate x:100 y:64 z:200
   !chat message:"I'm going to get some wood"
+  !build blueprint:small_cabin x:120 y:64 z:200
   !sethome
   !idle`)
 
