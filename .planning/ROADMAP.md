@@ -54,11 +54,11 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Agent successfully crafts a wooden_pickaxe starting from only oak_log — the full chain (log → planks → sticks → pickaxe) executes without manual intervention or mid-chain failures
   2. Crafting a recipe that requires a crafting table issues two actions (open table, then craft) correctly — no single-call 3x3 recipe failure
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 06-01: crafter.js — BFS recipe chain solver using minecraft-data 3.105.0; declare minecraft-data in package.json
-- [ ] 06-02: Planner integration — expand abstract `craft X` queue entries into dependency-ordered action steps
+- [ ] 06-01-PLAN.md — crafter.js: BFS recipe chain solver using minecraft-data 3.105.0; declare minecraft-data in package.json
+- [ ] 06-02-PLAN.md — Planner integration: expand abstract `craft X` queue entries into dependency-ordered action steps via solveCraft
 
 ### Phase 7: Building Intelligence
 **Goal**: Agent generates an LLM-designed building plan, executes it block-by-block, tracks every placed block, and verifies the result against the original design
