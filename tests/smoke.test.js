@@ -148,7 +148,7 @@ assert('body/skills/chest: withdrawFromChest exported', typeof chest.withdrawFro
 section('Registry Completeness')
 
 const commands = registry.listCommands()
-assert('registry has 23 commands', commands.length === 23)
+assert('registry has 24 commands', commands.length === 24)
 
 const expectedCmds = ['gather', 'mine', 'craft', 'smelt', 'navigate', 'chat', 'drop', 'idle', 'combat', 'deposit', 'withdraw', 'build', 'design', 'scan', 'farm', 'breed', 'mount', 'dismount', 'look', 'give', 'material', 'wiki', 'see']
 for (const cmd of expectedCmds) {
@@ -611,7 +611,7 @@ assert('minimap.js does NOT use default export', !_minimapSrc.includes('export d
 // !see in registry
 const visionCommands = registry.listCommands()
 assert('registry has !see command', visionCommands.includes('see'))
-assert('registry has 23 commands after Phase 16', visionCommands.length === 23)
+assert('registry has 24 commands after Phase 16/19', visionCommands.length === 24)
 
 // !see stub returns failure (handled in mind/index.js think(), not dispatch)
 const seeResult = await registry.dispatch({}, 'see', {})
@@ -828,6 +828,69 @@ section('SPA-04 Area Familiarity Verification')
 
 const minimapSpa04 = await import('../mind/minimap.js')
 assert('mind/minimap: getMinimapSummary exported', typeof minimapSpa04.getMinimapSummary === 'function')
+
+// ── Section 25: Plan 02 Wiring — Build System Integration (SPA-02, BLD-04, BLD-05) ──
+
+section('Plan 02 Wiring — Build System Integration (SPA-02, BLD-04, BLD-05)')
+
+// Verify !plan is in the registry
+const registryP02 = await import('../mind/registry.js')
+const commandsP02 = registryP02.listCommands()
+assert('registry: !plan command registered', commandsP02.includes('plan'))
+
+// Verify !plan stub returns failure (handled by Mind loop, not dispatch)
+const planStubResult = await registryP02.dispatch({}, 'plan', {})
+assert('registry: plan dispatch returns failure', planStubResult.success === false)
+assert('registry: plan dispatch mentions Mind loop', planStubResult.reason.includes('Mind loop') || planStubResult.reason.includes('handled'))
+
+// Verify prompt.js accepts buildPlanContext option (Part 5.12)
+const promptP02 = await import('../mind/prompt.js')
+const mockBotP02 = {
+  username: 'test',
+  entity: { position: { x: 0, y: 64, z: 0 } },
+  time: { timeOfDay: 6000 },
+  health: 20,
+  food: 20,
+  inventory: { items: () => [] },
+  game: { dimension: 'overworld' },
+  oxygenLevel: 300,
+  isInWater: false,
+  experience: { level: 0 }
+}
+const sysPromptP02 = promptP02.buildSystemPrompt(mockBotP02, {
+  buildPlanContext: 'ACTIVE BUILD PLAN: "test castle" — 2/6 sections done.',
+})
+assert('prompt includes buildPlanContext content', sysPromptP02.includes('Build Plan'))
+assert('prompt includes !plan command', sysPromptP02.includes('!plan'))
+assert('prompt includes Part 5.12 marker (source-level)', _readFileSync(_join(_here, '../mind/prompt.js'), 'utf-8').includes('Part 5.12'))
+assert('prompt buildPlanContext is empty when no plan', !promptP02.buildSystemPrompt(mockBotP02, {}).includes('Build Plan\n'))
+
+// Verify build.js accepts blueprintPath parameter (BLD-04)
+const buildModuleP02 = await import('../body/skills/build.js')
+assert('body/skills/build: build function exported', typeof buildModuleP02.build === 'function')
+// build accepts 6 params (bot, blueprintName, x, y, z, blueprintPath)
+assert('body/skills/build: build function accepts blueprintPath (6th param)', buildModuleP02.build.length >= 5)
+
+// Source-level: blueprintPath and failedPlacements present in build.js (BLD-04, BLD-05)
+const _buildSrc = _readFileSync(_join(_here, '../body/skills/build.js'), 'utf-8')
+assert('body/skills/build.js has blueprintPath parameter', _buildSrc.includes('blueprintPath'))
+assert('body/skills/build.js has failedPlacements tracking', _buildSrc.includes('failedPlacements'))
+assert('body/skills/build.js returns failedPlacements in result', _buildSrc.includes('failedPlacements }') || _buildSrc.includes('failedPlacements,'))
+
+// Source-level: mind/index.js has blueprint diff and repairAttempts (SPA-02, BLD-04, BLD-05)
+const _indexSrcP02 = _readFileSync(_join(_here, '../mind/index.js'), 'utf-8')
+assert('mind/index.js imports planBuild from buildPlanner', _indexSrcP02.includes('planBuild'))
+assert('mind/index.js imports getBuildPlanForPrompt from buildPlanner', _indexSrcP02.includes('getBuildPlanForPrompt'))
+assert('mind/index.js imports buildExpectedBlockMap from buildPlanner', _indexSrcP02.includes('buildExpectedBlockMap'))
+assert('mind/index.js has !plan command handler', _indexSrcP02.includes("result.command === 'plan'"))
+assert('mind/index.js passes buildPlanContext to buildSystemPrompt', _indexSrcP02.includes('buildPlanContext'))
+assert('mind/index.js has repairAttempts tracking (BLD-05)', _indexSrcP02.includes('repairAttempts'))
+assert('mind/index.js has max 3 repair attempts (BLD-05)', _indexSrcP02.includes('>= 3'))
+
+// Source-level: start.js imports and calls initBuildPlanner
+const _startSrcP02 = _readFileSync(_join(_here, '../start.js'), 'utf-8')
+assert('start.js imports initBuildPlanner', _startSrcP02.includes('initBuildPlanner'))
+assert('start.js calls initBuildPlanner(config)', _startSrcP02.includes('initBuildPlanner(config)'))
 
 // ── Final Summary ──
 

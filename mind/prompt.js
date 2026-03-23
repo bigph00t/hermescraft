@@ -235,6 +235,11 @@ Use !look target:horizon to scout locations. Use !design with rich, detailed des
     parts.push(`## Build Verification\n${options.postBuildScan}`)
   }
 
+  // Part 5.12: Build plan context — active build plan progress, material gaps, next section (BLD-01/02/03)
+  if (options.buildPlanContext) {
+    parts.push(`## Build Plan\n${options.buildPlanContext}`)
+  }
+
   // Part 6: !command reference — all available commands with argument syntax
   parts.push(`
 When you decide to act, respond with a SINGLE line in this exact format:
@@ -248,7 +253,8 @@ Available commands:
   !smelt item:name fuel:name count:N   — smelt items in a furnace
   !navigate x:N y:N z:N               — walk to coordinates
   !chat message:"text"                 — say something in chat
-  !design description:"text"           — design and build a new structure from your description
+  !design description:"text"           — small immediate builds (under ~100 blocks). Generates and places in one call.
+  !plan description:"text"             — large structures (100+ blocks). Creates a multi-session build plan with sections. Gather materials first, then !build each section.
   !material old:block new:block        — change a material in the active build (e.g., oak_planks to stone)
   !scan x1:N y1:N z1:N x2:N y2:N z2:N — scan a region and report what blocks exist (defaults to area around you)
   !drop item:name count:N              — drop an item on the ground (for sharing with others)
