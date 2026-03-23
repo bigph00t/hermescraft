@@ -14,7 +14,7 @@ import { depositToChest, withdrawFromChest } from '../body/skills/chest.js'
 import { farm } from '../body/skills/farm.js'
 import { breed } from '../body/skills/breed.js'
 import { mountBoat, dismountBoat } from '../body/skills/boat.js'
-import { lookChest, lookInventory } from '../body/skills/look.js'
+import { lookChest, lookInventory, lookHorizon } from '../body/skills/look.js'
 import { give } from '../body/skills/give.js'
 
 // REGISTRY maps !command names to async handler functions.
@@ -100,6 +100,7 @@ const REGISTRY = new Map([
   ['look',     (bot, args) => {
     const target = args.target || args.at || 'inventory'
     if (target === 'chest') return lookChest(bot)
+    if (target === 'horizon' || target === 'far') return Promise.resolve(lookHorizon(bot, args.direction || args.dir))
     return lookInventory(bot)
   }],
   ['give',     (bot, args) => give(bot, args.player || args.to, args.item, parseInt(args.count) || 1)],

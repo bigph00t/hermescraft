@@ -1,5 +1,7 @@
 // prompt.js — System prompt builder, game state summary, and blueprint design prompt for v2 Mind layer
 
+import { buildSpatialAwareness } from './spatial.js'
+
 // ── Design Prompt ──
 
 // Build a dedicated system prompt for blueprint generation — used only in the !design LLM call.
@@ -290,6 +292,7 @@ Available commands:
   !mount                               — get into a nearby boat
   !dismount                            — get out of current vehicle
   !look target:inventory               — see what's in your inventory (or target:chest for nearest chest)
+  !look target:horizon direction:north — survey terrain 64 blocks in a direction (north/south/east/west, or omit for 360°)
   !deposit item:name count:N           — put items from inventory into nearest chest/barrel
   !withdraw item:name count:N          — take items from nearest chest/barrel into inventory
   !sethome                             -- mark current position as home base
@@ -361,15 +364,19 @@ export function buildStateText(bot) {
     }
   }
 
+  // Spatial awareness — terrain, blocks, hazards, stuck detection
+  const spatial = buildSpatialAwareness(bot)
+
   const lines = [
     pos ? `pos: ${Math.round(pos.x)},${Math.round(pos.y)},${Math.round(pos.z)}` : 'pos: unknown',
+    spatial,  // terrain, ground, hazards, nearby blocks — injected automatically
     `health: ${health}/20  food: ${food}/20`,
     `time: ${timeLbl} (${timeOfDay})`,
     `inventory: ${items}`,
-  ]
+  ].filter(Boolean)
   if (nearbyPlayers > 0 || nearbyHostile > 0) {
     const playersStr = playerNames.length > 0 ? playerNames.join(', ') : nearbyPlayers
-    lines.push(`nearby: ${playersStr} (players), ${nearbyHostile} hostile mob(s)`)
+    lines.push(`entities: ${playersStr} (players), ${nearbyHostile} hostile mob(s)`)
   }
 
   return lines.join('\n')

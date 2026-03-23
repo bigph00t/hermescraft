@@ -82,8 +82,9 @@ export async function breed(bot, animalType) {
     }
     if (isInterrupted(bot)) break
 
-    // Activate (right-click) the entity to feed it
+    // Face the animal, then activate (right-click) to feed it
     try {
+      await bot.lookAt(entity.position.offset(0, entity.height / 2, 0), true)
       await bot.activateEntity(entity)
     } catch (err) {
       return { success: false, reason: `activate entity failed: ${err.message}` }

@@ -127,6 +127,9 @@ export async function depositToChest(bot, chestBlock, itemName, count) {
     return { success: false, reason: 'no_items_to_deposit', item: normalized }
   }
 
+  // Face the chest before opening
+  await bot.lookAt(chestBlock.position, true)
+
   // Use openContainer (mineflayer 4.x) with fallback to deprecated openChest
   const chest = typeof bot.openContainer === 'function'
     ? await bot.openContainer(chestBlock)
@@ -180,6 +183,9 @@ export async function withdrawFromChest(bot, chestBlock, itemName, count) {
   if (bot.inventory.emptySlotCount() === 0) {
     return { success: false, reason: 'inventory_full', item: normalized }
   }
+
+  // Face the chest before opening
+  await bot.lookAt(chestBlock.position, true)
 
   // Use openContainer (mineflayer 4.x) with fallback to deprecated openChest
   const chest = typeof bot.openContainer === 'function'

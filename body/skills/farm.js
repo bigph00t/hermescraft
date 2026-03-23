@@ -88,6 +88,7 @@ export async function farm(bot, seedName, count = 1) {
     if (!target || (target.name !== 'grass_block' && target.name !== 'dirt')) continue
 
     try {
+      await bot.lookAt(target.position, true)
       await bot.activateBlock(target)
     } catch {
       // Till failed (e.g. water block above, already farmland) — skip
@@ -108,6 +109,7 @@ export async function farm(bot, seedName, count = 1) {
           // Plant on the farmland surface (face = up = 0,1,0)
           const farmland = bot.blockAt(new Vec3(pos.x, pos.y, pos.z))
           if (farmland && farmland.name === 'farmland') {
+            await bot.lookAt(farmland.position, true)
             await bot.placeBlock(farmland, new Vec3(0, 1, 0))
             planted++
             console.log(`[farm] planted ${normalizedSeed} at ${pos.x},${pos.y},${pos.z}`)

@@ -354,7 +354,8 @@ export async function build(bot, blueprintName, originX, originY, originZ) {
       continue
     }
 
-    // ── Place Block ──
+    // ── Place Block ── (face the reference block first — ensures directional blocks orient correctly)
+    await bot.lookAt(refBlock.position, true)
     const placed = await placeBlock(bot, refBlock, faceVector)
 
     if (isInterrupted(bot)) {

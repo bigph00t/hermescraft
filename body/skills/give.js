@@ -70,6 +70,8 @@ export async function give(bot, playerName, itemName, count = 1) {
   const toGive = Math.min(count, invItem.count)
 
   try {
+    // Face the player so items toss toward them
+    if (playerEntity) await bot.lookAt(playerEntity.position, true)
     await bot.toss(itemEntry.id, null, toGive)
   } catch (err) {
     return { success: false, reason: err.message || 'toss_failed' }
