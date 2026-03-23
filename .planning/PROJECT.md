@@ -33,13 +33,11 @@ Agents must feel and play like real people — creative, emotional, with desires
 
 ### Active
 
-- [ ] Natural language directed building — "build a dock here", "make a sailboat"
-- [ ] Material specification — "use stone on this wall", "glowstone for lights"
-- [ ] LLM-generated blueprints — agents design their own structures creatively
-- [ ] Build area scanning — bot inspects what it built via bot.blockAt() region scan
-- [ ] Reference blueprint library — large catalog of designs for LLM inspiration
-- [ ] Cross-session build memory — build history and expansion plans persist
-- [ ] v2.0 bug fixes — live testing fixes for wiring issues
+- [ ] Minecraft RAG — full game knowledge (recipes, blocks, mobs, biomes) queryable on demand
+- [ ] Tool/command RAG — agents understand their own !commands deeply via indexed documentation
+- [ ] Auto-lookup on failure — when skills fail, automatically retrieve correct approach
+- [ ] Context-aware knowledge injection — inject relevant MC info based on current activity
+- [ ] !wiki command — agents query MC knowledge mid-gameplay
 
 ### Out of Scope
 
@@ -59,18 +57,17 @@ The v2.0 rewrite is complete. 24 JavaScript modules across `body/` (skills, prim
 
 Architecture: `start.js` → `createBot()` → init subsystems → `initMind(bot, config)` → `initModes(bot, isSkillRunning)`. Event-driven Mind loop (chat/skill_complete/idle triggers). 9 registry commands (!gather, !mine, !craft, !smelt, !navigate, !chat, !idle, !combat, !build, !deposit, !withdraw). 300ms body tick with 6-priority survival cascade.
 
-## Current Milestone: v2.1 Creative Building + Bug Fixes
+## Current Milestone: v2.2 Minecraft RAG
 
-**Goal:** Agents understand natural language building instructions, design their own structures, specify materials, and remember/expand builds across sessions.
+**Goal:** Agents get deep Minecraft knowledge via RAG — recipes, blocks, mobs, biomes, building techniques, plus understanding of their own tool/command structure. All queryable on demand.
 
-**Target features:**
-- Directed building from natural language ("build a dock here", "make a sailboat")
-- Material specification ("use stone on this wall", "glowstone for lights")
-- LLM-generated blueprints — agent designs JSON from description
-- Reference blueprint library — large catalog for LLM inspiration
-- Build area scanning — bot inspects builds via blockAt() region scan
-- Cross-session build memory and expansion planning
-- v2.0 bug fixes from live testing
+**Target:**
+- Index minecraft-data (1.21.1 recipes, blocks, items, mobs, biomes)
+- Index MC gameplay knowledge (building, farming, survival strategies)
+- Auto-document and index all !commands with args, patterns, failure modes
+- !wiki command for on-demand queries
+- Context injection: relevant MC knowledge per-call based on current activity
+- Auto-lookup: when skills fail, retrieve correct approach automatically
 
 ## Context
 
