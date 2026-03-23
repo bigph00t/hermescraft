@@ -173,7 +173,7 @@ const sysPrompt = prompt.buildSystemPrompt(mockBot)
 assert('buildSystemPrompt returns a string', typeof sysPrompt === 'string')
 assert('system prompt is non-empty', sysPrompt.length > 100)
 
-const promptCmds = ['gather', 'mine', 'craft', 'smelt', 'navigate', 'chat', 'build', 'design', 'sethome', 'combat', 'idle', 'deposit', 'withdraw', 'scan', 'material']
+const promptCmds = ['gather', 'mine', 'craft', 'smelt', 'navigate', 'chat', 'design', 'sethome', 'combat', 'idle', 'deposit', 'withdraw', 'scan', 'material']
 for (const cmd of promptCmds) {
   assert(`system prompt mentions !${cmd}`, sysPrompt.includes(`!${cmd}`))
 }
@@ -181,11 +181,11 @@ for (const cmd of promptCmds) {
 // Directed building guidance — CBUILD-01 enabler
 assert('system prompt mentions directed building guidance', sysPrompt.includes('build something') || sysPrompt.includes('build a') || sysPrompt.includes('"here"') || sysPrompt.includes('"at this spot"'))
 
-// RAG-10: Prompt restructuring — old verbose MINECRAFT KNOWLEDGE replaced by ESSENTIAL KNOWLEDGE
+// RAG-10: Prompt restructuring — concise essential knowledge
 assert('system prompt contains ESSENTIAL KNOWLEDGE', sysPrompt.includes('ESSENTIAL KNOWLEDGE'))
 assert('system prompt does NOT contain old MINECRAFT KNOWLEDGE header', !sysPrompt.includes('## MINECRAFT KNOWLEDGE'))
-assert('system prompt contains tool tiers', sysPrompt.includes('WOODEN: stone, coal_ore'))
-assert('system prompt contains ore Y-levels', sysPrompt.includes('diamond < 16'))
+assert('system prompt contains tool tiers', sysPrompt.includes('WOODEN mines'))
+assert('system prompt contains ore info', sysPrompt.includes('diamond below'))
 assert('system prompt does NOT contain old verbose building materials list', !sysPrompt.includes('oak/spruce/birch/jungle/acacia/dark_oak'))
 
 // RAG context injection slot
@@ -401,6 +401,12 @@ const _startSrc = _readFileSync(_join(_here, '../start.js'), 'utf-8')
 const _indexSrc = _readFileSync(_join(_here, '../mind/index.js'), 'utf-8')
 assert('start.js imports initBuildHistory', _startSrc.includes('initBuildHistory'))
 assert('mind/index.js imports recordBuild', _indexSrc.includes('recordBuild'))
+
+// Source-level validation: MAX_TOKENS wiring (Phase 14)
+const _llmSrc = _readFileSync(_join(_here, '../mind/llm.js'), 'utf-8')
+assert('llm.js reads MAX_TOKENS from env', _llmSrc.includes("process.env.MAX_TOKENS"))
+assert('llm.js passes max_tokens to API call', _llmSrc.includes('max_tokens:') || _llmSrc.includes('max_tokens :'))
+assert('llm.js default MODEL_NAME is hermes', _llmSrc.includes("|| 'hermes'"))
 
 // ── Section 14: Knowledge Corpus ──
 

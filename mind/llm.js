@@ -1,11 +1,12 @@
 // llm.js — LLM client with conversation memory, graduated trimming, and !command parser
-// TEXT MODE ONLY — no OpenAI tool_choice; !command pattern is the reliable path for MiniMax M2.7
+// Targets Qwen3.5-27B (heretic fine-tune) via llama-server; compatible with any OpenAI-compat endpoint
 
 import OpenAI from 'openai'
 
 const VLLM_URL = process.env.VLLM_URL || 'http://localhost:8000/v1'
-const MODEL_NAME = process.env.MODEL_NAME || 'MiniMaxAI/MiniMax-M2.7'
+const MODEL_NAME = process.env.MODEL_NAME || 'hermes'
 const BASE_TEMPERATURE = parseFloat(process.env.TEMPERATURE || '0.6')
+const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '128', 10)
 const MAX_RETRIES = 3
 const RETRY_BASE_MS = 1000
 const MAX_HISTORY_MESSAGES = 80  // 40 turns — MIND-03 requirement
@@ -145,9 +146,9 @@ export async function queryLLM(systemPrompt, userMessage) {
         model: MODEL_NAME,
         messages,
         temperature: BASE_TEMPERATURE,
-        // No tool_choice — TEXT MODE ONLY per research: MiniMax M2.7 !command text is
-        // more reliable than tool_choice:'required'; thinking model ignores brevity
-        // constraints and may not produce tool calls on every turn.
+        max_tokens: MAX_TOKENS,
+        // No tool_choice — TEXT MODE ONLY per research: !command text is
+        // more reliable than tool_choice:'required'
       })
 
       const msg = response.choices?.[0]?.message

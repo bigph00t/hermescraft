@@ -9,24 +9,29 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MC_HOST="${1:-localhost}"
 MC_PORT="${2:-25565}"
 
-# ── Load env ──
+# ── Load env (try Glass path first, then local) ──
+if [ -f /opt/hermescraft/agent/.env ]; then
+    set -a
+    source /opt/hermescraft/agent/.env
+    set +a
+    echo "[launch-duo] Loaded env from /opt/hermescraft/agent/.env (Glass)"
+fi
 if [ -f "$SCRIPT_DIR/.env" ]; then
     set -a
     source "$SCRIPT_DIR/.env"
     set +a
-    echo "[launch-duo] Loaded .env"
+    echo "[launch-duo] Loaded env from $SCRIPT_DIR/.env (local override)"
 fi
 
-VLLM_URL="${VLLM_URL:-https://api.minimaxi.chat/v1}"
-VLLM_API_KEY="${VLLM_API_KEY:-}"
-MODEL_NAME="${MODEL_NAME:-MiniMax-M2.7-highspeed}"
+VLLM_URL="${VLLM_URL:-http://localhost:8000/v1}"
+VLLM_API_KEY="${VLLM_API_KEY:-not-needed}"
+MODEL_NAME="${MODEL_NAME:-hermes}"
 TICK_MS="${TICK_MS:-3000}"
-TEMPERATURE="${TEMPERATURE:-0.7}"
-MAX_TOKENS="${MAX_TOKENS:-384}"
+TEMPERATURE="${TEMPERATURE:-0.6}"
+MAX_TOKENS="${MAX_TOKENS:-128}"
 
-if [ -z "$VLLM_API_KEY" ]; then
-    echo "ERROR: VLLM_API_KEY not set. Add it to .env"
-    exit 1
+if [ "$VLLM_URL" = "http://localhost:8000/v1" ]; then
+    echo "[launch-duo] Using localhost LLM — ensure model servers are running"
 fi
 
 # ── Install deps if needed ──
@@ -98,8 +103,8 @@ tmux new-window -t "$SESSION" -n "max"
 
 MAX_CMD="$(cat <<'HEREDOC'
 echo '=== Max — The Engineer ==='
-echo 'Waiting 15s for Luna to connect first...'
-sleep 15
+echo 'Starting in 3s...'
+sleep 3
 while true; do
     AGENT_NAME='max' \
     MC_USERNAME='max' \
