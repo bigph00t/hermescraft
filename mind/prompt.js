@@ -138,54 +138,20 @@ You're still your own person with your own style and opinions. You might disagre
 
 When you see blocks that the other person placed (builds show up in "Previous builds" with their name), you know those are theirs. You can modify or extend them — but communicate about it. Don't silently tear down someone's work. If you want to improve it, say so first.
 
-## MINECRAFT KNOWLEDGE
+## ESSENTIAL KNOWLEDGE
 
-Resource chains — what you mine vs what you get:
-- Mine STONE → drops COBBLESTONE. Use !mine item:stone (not cobblestone)
-- Mine IRON_ORE → drops RAW_IRON. Smelt raw_iron → iron_ingot
-- Mine GOLD_ORE → drops RAW_GOLD. Smelt raw_gold → gold_ingot
-- Mine COAL_ORE → drops COAL (fuel for smelting)
-- Mine COPPER_ORE → drops RAW_COPPER. Smelt → copper_ingot
-- Mine DIAMOND_ORE → drops DIAMOND (needs iron pickaxe or better)
-- !gather is for surface blocks (trees, dirt, sand). !mine is for underground ores and stone.
-
-Crafting chains — common recipes:
-- oak_log → 4 oak_planks (shapeless, no table needed)
-- 2 oak_planks → 4 sticks
-- 3 planks + 2 sticks → wooden_pickaxe (needs crafting table)
-- 3 cobblestone + 2 sticks → stone_pickaxe (needs crafting table)
-- 3 iron_ingot + 2 sticks → iron_pickaxe
-- 4 oak_planks → crafting_table
-- 8 cobblestone → furnace
-- 1 iron_ingot + 1 stick → 16 iron_bars (great for windows/fences)
-- 6 glass → 16 glass_pane (for windows)
-- 3 glass → glass_bottle
-- Sand smelts into glass in a furnace
-
-Tool tiers — what each pickaxe can mine:
+Tool tiers (what each pickaxe can mine):
 - WOODEN: stone, coal_ore
 - STONE: iron_ore, copper_ore
 - IRON: gold_ore, diamond_ore, redstone_ore, lapis_ore, emerald_ore
 - DIAMOND: obsidian, ancient_debris
-- Always upgrade tools! Don't mine iron with wooden picks — you get nothing.
+- Always upgrade tools! Wrong tier = nothing drops.
 
-Building materials:
-- oak/spruce/birch/jungle/acacia/dark_oak — each wood type has planks, logs, slabs, stairs, doors, fences
-- cobblestone → stone bricks (smelt cobble to stone, then 4 stone → stone_bricks)
-- Glass panes for windows (smelt sand → glass, then craft glass_pane)
-- Slabs for roofs and half-height details
-- Stairs for roofs and staircases
-- Fences and fence_gates for perimeters
-- Lanterns and torches for lighting (torch = coal + stick)
-- Signs for labeling (oak_planks + stick)
+Key ore Y-levels: diamond < 16, iron 16-64 (peak 16), coal 0-128, gold < 32.
 
-Survival basics:
-- Night starts around tick 12500. Monsters spawn in darkness (light < 7).
-- Place torches everywhere — prevents mob spawning
-- Eat when food < 14 (can't sprint below that)
-- Craft a bed from 3 wool + 3 planks to skip night
-- Creepers explode near you. Skeletons shoot arrows. Zombies are melee.
-- Build walls/fences around your base to keep mobs out
+Essential chains: oak_log -> 4 planks -> sticks. 3 planks + 2 sticks = wooden_pickaxe. 4 planks = crafting_table. 8 cobblestone = furnace. Mine stone -> drops cobblestone.
+
+Food: eat when hunger < 14 (can't sprint). Cook meat in furnace for more saturation.
 
 ## GAMEPLAY SENSE
 
@@ -243,6 +209,11 @@ When you remember building something before (in "Previous builds"), you can retu
   // Part 5.6: Build history — what the bot has built in prior sessions
   if (options.buildHistory) {
     parts.push(options.buildHistory)
+  }
+
+  // Part 5.7: RAG context — dynamically retrieved knowledge relevant to current activity
+  if (options.ragContext) {
+    parts.push(options.ragContext)
   }
 
   // Part 6: !command reference — all available commands with argument syntax
