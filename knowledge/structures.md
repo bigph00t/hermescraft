@@ -1,6 +1,4 @@
-// structures.md — Minecraft 1.21.1 structures, loot, hazards, and building knowledge for RAG retrieval
-
-# Minecraft 1.21.1 Structures & World Knowledge
+# Structure Knowledge
 
 ---
 
@@ -352,31 +350,16 @@ Gravity blocks fall when unsupported: sand, red sand, gravel, concrete powder, a
 
 ---
 
-## Redstone Basics
+## Finding Structures
 
-### Repeaters
-Redstone repeaters boost a signal back to full strength (signal strength 15) and add a configurable delay: 1, 2, 3, or 4 ticks (0.1–0.4 seconds). Right-click to increase delay. Repeaters are directional — they only carry signal in the direction of the arrow on the top face. Use repeaters every 15 blocks in long redstone lines to prevent signal decay. Repeaters also lock signals: power the side of a repeater to prevent it from updating, holding its current state.
+### Exploration Strategy for Structures
+Travel in expanding spirals from your base to locate structures efficiently. Structures generate based on biome and region seed — some areas have no structures for hundreds of blocks. Use cartographer villager maps (buy an "explorer map" for emeralds) to locate woodland mansions and ocean monuments. Use shipwreck treasure maps to locate buried treasure. Travel by boat along coastlines to spot ocean structures. Explore underground at Y=10-50 for dungeons, mineshafts, and strongholds.
 
-### Comparators
-Redstone comparators read container fill levels and signal strength. Placed behind a chest, barrel, furnace, or hopper, a comparator outputs a signal proportional to how full the container is. Comparator in subtraction mode (right-click, front torch lit) subtracts the side input from the rear input. Use comparators to detect when a chest is full, when a furnace is done smelting, or to build logic gates (XOR, XNOR). Comparators are essential for item-detection circuits and auto-smelting systems.
+### Cartographer Villager Trading
+Cure a zombie villager (splash weakness potion + golden apple) near a cartography table to get a discounted cartographer. Buy "Ocean Explorer Map" (locates nearest ocean monument) and "Woodland Explorer Map" (locates nearest mansion) from Expert-level cartographers. Maps show an "X" at the target structure. Navigate to the X to find the structure. Cartographer maps are the most efficient way to find end-game structures without random exploration.
 
-### Pistons
-Regular pistons push up to 12 blocks in their extension direction and pull nothing back. Sticky pistons push one block and pull it back when deactivated. Pistons cannot push obsidian, ender chests, or slime blocks with more than 12-block chains. Use pistons for doors, elevators (piston column), flying machines (observer-driven), and item sorting (sticky piston block-pushers). A BUD (block update detector) piston fires when an adjacent block is updated.
-
-### Observers
-Observers detect block state changes on the face they look at and emit a 1-tick pulse on their output side. Use observers to detect: crop growth, furnace state, dispenser activation, piston movement, and player block placement/breaking. Chain observers by placing them in a row (each detects the output pulse of the previous) to create chain reactions. Observer clocks: two observers facing each other create a fast clock (4-tick cycle) for high-speed automation.
-
-### Hoppers
-Hoppers transfer items between containers: they pull items from above (or from the front of any container whose output faces the hopper) and push items downward into the container below or in the direction the hopper spout points. Hoppers process one item per 8 game ticks (0.4 seconds). Use hopper lines for item transport, hopper minecarts for collection (they collect items from 1 block above), and hopper locks (power a hopper with redstone to pause it). Every item sorter, auto-farm, and storage system relies on hoppers.
-
-### Basic Doors and Pressure Plates
-Wooden pressure plates activate from any player or mob. Stone pressure plates activate from players and mobs only (not items). Heavy weighted pressure plates (iron blocks) activate from items and mobs based on count. Light weighted pressure plates (gold blocks) activate from items with a signal strength proportional to the number of items. Wire a pressure plate to a door for auto-open. Use stone plates inside your base (activated by you) and wooden plates outside (activated by mobs too — risky). Place a pressure plate on both sides of a door for auto-open-and-close on approach.
-
-### Clocks and Pulse Generators
-A simple clock: two repeaters facing each other with redstone dust, set to 2 ticks each (4-tick clock). A torch clock: alternating redstone torches and solid blocks in a loop — burns out on short cycles; use repeaters instead. A monostable circuit produces a single short pulse from a longer signal: use a repeater feeding into a block with a torch on the side pointing back at the wire (torch turns off when wire is powered, producing a 1-tick pulse on torch OFF state).
-
-### Dispensers and Droppers
-Dispensers fire projectiles, spawn mobs from spawn eggs, activate flint and steel, place water/lava, and dispense items when activated by redstone. Droppers simply drop items as entities or push them into adjacent containers. Use dispensers for: automatic arrow dispensers, water-activated farms, fire-spreading, and splash potion launchers. Use droppers for: item pipe networks where dispensing behavior is undesired, and moving items between containers at different heights.
+### Looting Priority by Structure
+Top tier (always raid): Ocean Monument (prismarine, sponge, gold blocks), Woodland Mansion (evoker = totem of undying), Ancient City (swift sneak books, echo shards, disc fragments, enchanted golden apples). Mid tier: Bastion Remnant (netherite scraps, gold), Nether Fortress (blaze rods, nether wart). Accessible tier: Villages (food, beds, trades), Desert Temple (gold, diamonds chance), Buried Treasure (heart of the sea, diamonds). Early tier: Dungeons (spawner, basic loot), Shipwrecks (maps, food, emeralds).
 
 ---
 
@@ -396,3 +379,16 @@ Small dungeons are 5×5×5 rooms made of cobblestone and mossy cobblestone that 
 
 ### Coral Reefs
 Coral reefs generate in warm ocean biomes (lukewarm and warm). They contain: tube coral, brain coral, bubble coral, fire coral, horn coral — each with block, fan, and dead variants. Mine with Silk Touch to collect live coral — coral dies (turns grey) immediately if not in water. Live coral is decorative only. Fish, sea pickles, and sea turtles spawn near reefs.
+
+## Structure Raiding Safety
+
+### Gear Up Before Raiding Any Structure
+Never raid a structure without: full iron armor minimum, iron sword, food (20+ cooked items), torches (64+), and a water bucket. Ocean monuments additionally require: Potion of Water Breathing (3+ minutes), Potion of Night Vision, and an Aqua Affinity helmet. Woodland mansions require full diamond armor with Protection IV — evokers have a lethal curse attack. Bastions require full diamond armor + gold helmet to avoid immediate piglin aggro. Ancient cities require full diamond armor + sneak movement the entire time.
+
+## Village Trading Economy
+
+### Iron Golem Farming Near Villages
+Iron golems spawn naturally in villages (one per 10 villagers). Golems attack hostile mobs and protect villagers. Do not attack iron golems — killing one earns you "Village Hero" or "Gossip" negative reputation and causes all villagers to refuse trades. Iron golems drop 3-5 iron ingots when killed by the player — build an iron golem farm (trap golems in a lava blade) for passive iron ingot production. Each golem kill = 3-5 iron; well-designed farms produce 200+ iron/hour.
+
+### Village Raid Mechanic
+Kill a pillager patrol captain (banner on its back) anywhere in the world to receive "Bad Omen" status effect. Entering a village with Bad Omen active triggers a Raid — waves of pillagers, vindicators, ravagers, evokers, and witches attack the village. Survive all waves (5–7 waves on normal) to get the "Hero of the Village" effect: 50% discount on all villager trades for several minutes. This is the fastest way to unlock cheap villager trades. Bring full iron+ armor, a shield, and a bow for raids.

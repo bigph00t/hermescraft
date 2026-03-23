@@ -1,4 +1,4 @@
-# Minecraft 1.21.1 Farming Knowledge
+# Farming Knowledge
 
 ## Crop Farming Basics
 

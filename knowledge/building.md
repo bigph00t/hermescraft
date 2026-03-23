@@ -1,4 +1,4 @@
-# Minecraft 1.21.1 Building Knowledge
+# Building Knowledge
 
 Comprehensive building reference for AI agents. Each section is self-contained and actionable.
 
@@ -456,6 +456,25 @@ Ceiling height of 2 blocks (normal "safe" minimum) feels claustrophobic. Always 
 
 ### Doors Without Lighting
 A doorway without exterior lighting is a mob funnel. Mobs walk to doors and wait or attack. Place a lantern, torch, or glowstone above every doorway — inside and outside. A lit doorway also reads as welcoming and active.
+
+## Agent Build Commands
+
+### Using !design for Structured Building
+Use the !design command with a detailed description to generate and execute a building plan. Provide: dimensions (e.g., "10x8 two-story house"), material preferences ("oak wood with stone brick foundation"), style ("medieval"), and special features ("basement storage room, roof terrace"). The more detail in the description, the better the output. Example: `!design "Build a 12x10 oak wood house with stone foundations, gabled roof, basement, and a front porch"`. Review the plan before approving execution.
+
+### Using !scan to Survey Before Building
+Run !scan before placing any permanent blocks on a new site. !scan reads the terrain blocks, elevation changes, and nearby structures within the scan radius. Use the scan output to: identify where to level the ground, find cave openings that need filling, locate existing structures to match or avoid, and understand what materials are locally available. Scanning prevents unpleasant surprises like building over a mineshaft or on unstable gravel.
+
+### Using !material to Substitute Blocks
+When planned materials are unavailable, use !material to substitute similar blocks while preserving the design intent. Specify the original material and the desired replacement: `!material "replace oak planks with spruce planks in current build"`. The command applies substitutions across the in-progress structure. Use this to adapt designs to available resources without restarting.
+
+## Material Estimation
+
+### Block Count Formula
+Estimate wall block requirements before starting: Wall blocks = 2 × (Length + Width) × Height. For a 10x8 house, 4 blocks tall: 2 × (10 + 8) × 4 = 144 wall blocks (minus door and window openings, approximately -20 to -30 blocks). Add 20% buffer for mistakes and variations. Roof blocks = 0.5 × Length × Width for a flat roof, more for pitched. Floor blocks = Length × Width. Total material: wall + roof + floor + foundation layer.
+
+### Wood Harvesting Efficiency
+One oak tree yields 4-7 logs. A 10x8 house uses approximately 100-150 oak planks (25-38 logs, 6-10 trees). Plant saplings immediately after felling any tree — replant ratio 1:1 to maintain your wood supply. Bamboo smelts 0.25 items per bamboo block — only use as bulk fuel, not wood substitute. Dark oak requires 2x2 sapling arrangement and yields 20-40 logs per tree — most efficient wood tree for large projects.
 
 ### Mixing Too Many Materials
 Using 5+ different block types on one build surface creates visual chaos. Limit primary structural materials to 2-3 types. Use accent materials (stairs, slabs, fences, glass) freely since they are visually subordinate. A single primary material with 1 accent (oak planks + stone brick trim) is more effective than 4 competing materials.
