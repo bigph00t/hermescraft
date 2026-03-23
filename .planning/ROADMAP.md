@@ -173,7 +173,7 @@ Plans:
 | 16. Vision System | 2/2 | Complete    | 2026-03-23 |
 | 17. Memory Foundation | 1/1 | Complete    | 2026-03-23 |
 | 18. Memory Integration | 1/1 | Complete    | 2026-03-23 |
-| 19. Enhanced Spatial + Building | 2/2 | Complete   | 2026-03-23 |
+| 19. Enhanced Spatial + Building | 2/2 | Complete    | 2026-03-23 |
 | 20. Gameplay Loops | 0/TBD | Not started | - |
 | 21. Multi-Agent Coordination | 0/TBD | Not started | - |
 | 22. Polish & Tool Fixes | 0/TBD | Not started | - |
