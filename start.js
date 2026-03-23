@@ -11,6 +11,7 @@ import { initBuild } from './body/skills/build.js'
 import { initChestMemory } from './body/skills/chest.js'
 import { initBuildHistory, loadBuildHistory, saveBuildHistory } from './mind/build-history.js'
 import { initKnowledge, loadKnowledge } from './mind/knowledge.js'
+import { initKnowledgeStore } from './mind/knowledgeStore.js'
 
 async function main() {
   console.log('[hermescraft] v2 starting...')
@@ -37,7 +38,10 @@ async function main() {
 
   // 3.6. Init knowledge corpus (build all chunks at startup)
   initKnowledge(config)
-  loadKnowledge()
+  const knowledgeChunks = loadKnowledge()
+
+  // 3.7. Build retrieval indexes — BM25 + vector (async, ~2-5s first run for model download)
+  await initKnowledgeStore(knowledgeChunks)
 
   // 4. Set bot.homeLocation for body/modes.js night shelter (mind/body boundary: property on bot, not import)
   const home = getHome()

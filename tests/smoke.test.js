@@ -438,6 +438,28 @@ assert('start.js imports initKnowledge', _startSrc.includes('initKnowledge'))
 assert('start.js imports loadKnowledge', _startSrc.includes('loadKnowledge'))
 assert('start.js calls loadKnowledge()', _startSrc.includes('loadKnowledge()'))
 
+// ── Section 15: KnowledgeStore Module ──
+
+section('KnowledgeStore Module')
+
+const knowledgeStore = await import('../mind/knowledgeStore.js')
+assert('mind/knowledgeStore: initKnowledgeStore exported', typeof knowledgeStore.initKnowledgeStore === 'function')
+assert('mind/knowledgeStore: retrieveKnowledge exported', typeof knowledgeStore.retrieveKnowledge === 'function')
+assert('mind/knowledgeStore: only 2 exports', Object.keys(knowledgeStore).length === 2)
+
+// Wiring assertions — start.js must import and call initKnowledgeStore
+assert('start.js imports initKnowledgeStore', _startSrc.includes('initKnowledgeStore'))
+assert('start.js calls initKnowledgeStore', _startSrc.includes('await initKnowledgeStore('))
+
+// Source file contains key implementation patterns (grep-style validation)
+const _ksSrc = _readFileSync(_join(_here, '../mind/knowledgeStore.js'), 'utf-8')
+assert('knowledgeStore uses Xenova/all-MiniLM-L6-v2', _ksSrc.includes('Xenova/all-MiniLM-L6-v2'))
+assert('knowledgeStore uses RRF k=60', _ksSrc.includes('k = 60') || _ksSrc.includes('k=60'))
+assert('knowledgeStore uses .cache/models for model cache', _ksSrc.includes('.cache'))
+assert('knowledgeStore imports vectra', _ksSrc.includes('vectra'))
+assert('knowledgeStore imports minisearch', _ksSrc.includes('minisearch'))
+assert('knowledgeStore boosts id field', _ksSrc.includes('id: 3') || _ksSrc.includes("id: 3"))
+
 // ── Final Summary ──
 
 console.log(`\n${'='.repeat(40)}`)
