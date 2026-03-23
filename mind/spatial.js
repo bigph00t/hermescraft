@@ -38,6 +38,21 @@ const PASSABLE = new Set([
 
 const INTERESTING = new Set([...HAZARD_BLOCKS, ...ORE_BLOCKS, ...TREE_LOGS, ...WATER_BLOCKS, ...CONTAINER_BLOCKS])
 
+// ── Entity classification sets (Tier 4: entity awareness) ──
+
+const HOSTILE_MOBS_SPATIAL = new Set([
+  'zombie', 'skeleton', 'creeper', 'spider', 'enderman', 'witch',
+  'blaze', 'ghast', 'phantom', 'drowned', 'pillager', 'ravager',
+  'husk', 'stray', 'wither_skeleton', 'piglin_brute', 'vindicator',
+  'evoker', 'vex', 'guardian', 'elder_guardian', 'shulker',
+])
+
+const PASSIVE_MOBS = new Set([
+  'cow', 'pig', 'sheep', 'chicken', 'horse', 'villager', 'wolf',
+  'cat', 'donkey', 'mule', 'rabbit', 'fox', 'bee', 'goat',
+  'turtle', 'axolotl', 'frog', 'camel', 'sniffer', 'armadillo',
+])
+
 // ── Near vision cache ──
 
 let _cachedNearVision = null
@@ -94,11 +109,17 @@ function getImmediate(bot) {
   const ceilingBlocked = isSolid(ceiling)
   const floorSolid = isSolid(ground)
 
+  // Count open directions (passable blocks at foot level)
+  const openCount = cardinals.filter(c => !isSolid(c.block)).length
+
   let trapped = null
   if (feet && isSolid(feet) && feet.name !== 'water') {
     trapped = 'buried in solid block — dig ANY direction immediately'
   } else if (wallCount >= 4 && ceilingBlocked && floorSolid) {
     trapped = 'walled in on all sides — dig sideways or pillar up'
+  } else if (wallCount >= 3 && openCount === 1) {
+    // One open direction = tunnel or dead end, not trapped — just turn around
+    trapped = null  // not trapped, just in a tunnel — walk back the open direction
   } else if (wallCount >= 3 && ceilingBlocked) {
     trapped = 'cornered — turn around or dig through a wall'
   }
@@ -215,6 +236,39 @@ function getTerrainContext(bot) {
   return 'surface'
 }
 
+// ── Tier 4: Entity awareness (<1ms) ──
+
+function getEntityAwareness(bot) {
+  if (!bot.entities || !bot.entity?.position) return { hostile: [], passive: [], players: [] }
+  const botPos = bot.entity.position
+  const hostile = [], passive = [], players = []
+
+  for (const entity of Object.values(bot.entities)) {
+    if (!entity?.position || entity === bot.entity) continue
+    const dist = Math.round(entity.position.distanceTo(botPos))
+    if (dist > 16) continue
+    const name = entity.name || entity.type || 'unknown'
+    const dir = cardinalDir(
+      entity.position.x - botPos.x,
+      entity.position.z - botPos.z
+    )
+    const health = entity.health ? ` hp:${Math.round(entity.health)}` : ''
+    const desc = `${name} ${dist}b ${dir}${health}`
+
+    if (entity.type === 'player') players.push(desc)
+    else if (HOSTILE_MOBS_SPATIAL.has(name)) hostile.push(desc)
+    else if (PASSIVE_MOBS.has(name)) passive.push(desc)
+  }
+
+  // Sort by distance (closest first) for each category
+  const byDist = (a, b) => parseInt(a.split(' ')[1]) - parseInt(b.split(' ')[1])
+  hostile.sort(byDist)
+  passive.sort(byDist)
+  players.sort(byDist)
+
+  return { hostile, passive, players }
+}
+
 // ── Main export ──
 
 export function buildSpatialAwareness(bot) {
@@ -276,6 +330,18 @@ export function buildSpatialAwareness(bot) {
 
   if (around.length > 0) {
     lines.push(`around: ${around.join(', ')}`)
+  }
+
+  // Line 5: Entity awareness (Tier 4)
+  const entities = getEntityAwareness(bot)
+  if (entities.hostile.length > 0) {
+    lines.push(`HOSTILE: ${entities.hostile.slice(0, 4).join(', ')}`)
+  }
+  if (entities.passive.length > 0) {
+    lines.push(`animals: ${entities.passive.slice(0, 4).join(', ')}`)
+  }
+  if (entities.players.length > 0) {
+    lines.push(`players: ${entities.players.join(', ')}`)
   }
 
   return lines.join('\n')
