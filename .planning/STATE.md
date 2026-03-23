@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Persistent Memory & Ambitious Building
-status: Ready to execute
-stopped_at: Completed 21-01-PLAN.md — taskRegistry.js, coordination.js, buildPlanner section claiming
-last_updated: "2026-03-23T23:01:17.370Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 21-02-PLAN.md — coordination wiring + smoke tests. Phase 21 complete.
+last_updated: "2026-03-23T23:07:47.876Z"
 progress:
   total_phases: 9
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 14
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # Project State
@@ -89,6 +89,7 @@ Plan: 2 of 2
 | Phase 20-gameplay-loops P01 | 480 | 2 tasks | 6 files |
 | Phase 20-gameplay-loops P02 | 12 | 3 tasks | 3 files |
 | Phase 21 P01 | 4 | 2 tasks | 3 files |
+| Phase 21-multi-agent-coordination P02 | 184 | 2 tasks | 4 files |
 
 ### Decisions (Phase 21)
 
@@ -97,6 +98,9 @@ Plan: 2 of 2
 - Optimistic concurrency: re-read after claimTask write to verify claim survived racing writes from two agents
 - getPartnerActivityForPrompt returns null for both ENOENT and age > 120s — single null signal regardless of cause
 - claimBuildSection only claims 'pending' sections (not 'active'/'done') to avoid interrupting in-progress builds
+- Broadcast fires twice per dispatch: 'running' before and 'complete/failed' after — real-time partner visibility
+- chatLimitWarning injects into user message (not system prompt) — per-turn override signal, not persistent identity
+- claimBuildSection only triggers when activePlan.sections.length > 1 — single-section plans are atomic
 
 ### Decisions (Phase 20)
 
@@ -141,6 +145,6 @@ Plan: 2 of 2
 
 ## Session Continuity
 
-Last session: 2026-03-23T23:01:17.368Z
-Stopped at: Completed 21-01-PLAN.md — taskRegistry.js, coordination.js, buildPlanner section claiming
+Last session: 2026-03-23T23:07:47.874Z
+Stopped at: Completed 21-02-PLAN.md — coordination wiring + smoke tests. Phase 21 complete.
 Resume: `/gsd:execute-phase 14` or `/gsd:autonomous`

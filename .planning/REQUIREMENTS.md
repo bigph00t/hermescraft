@@ -31,10 +31,10 @@ Requirements for Persistent Memory & Ambitious Building milestone.
 
 ### Multi-Agent Coordination
 
-- [ ] **COO-01**: Shared task registry — agents claim tasks to prevent duplicate work
-- [ ] **COO-02**: Chat deduplication limiter — prevent conversation loops between agents
-- [ ] **COO-03**: Spatial task splitting for builds — decompose builds into sections assigned to each agent
-- [ ] **COO-04**: Activity broadcasting — agents see what partner is doing without asking
+- [x] **COO-01**: Shared task registry — agents claim tasks to prevent duplicate work
+- [x] **COO-02**: Chat deduplication limiter — prevent conversation loops between agents
+- [x] **COO-03**: Spatial task splitting for builds — decompose builds into sections assigned to each agent
+- [x] **COO-04**: Activity broadcasting — agents see what partner is doing without asking
 
 ### Gameplay Loops
 
@@ -84,10 +84,10 @@ Requirements for Persistent Memory & Ambitious Building milestone.
 | SPA-02 | Phase 16 | Complete |
 | SPA-03 | Phase 14 | Complete |
 | SPA-04 | Phase 16 | Complete |
-| COO-01 | Phase 19 | Pending |
-| COO-02 | Phase 19 | Pending |
-| COO-03 | Phase 19 | Pending |
-| COO-04 | Phase 19 | Pending |
+| COO-01 | Phase 19 | Complete |
+| COO-02 | Phase 19 | Complete |
+| COO-03 | Phase 19 | Complete |
+| COO-04 | Phase 19 | Complete |
 | GPL-01 | Phase 18 | Complete |
 | GPL-02 | Phase 18 | Complete |
 | GPL-03 | Phase 18 | Complete |
