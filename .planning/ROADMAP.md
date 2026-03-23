@@ -166,7 +166,10 @@ Plans:
   2. Agents run 12+ hours without crashes or disconnects
   3. Prompt tuning: chat frequency, building ambition, exploration drive all feel natural
   4. Memory, brain-state, and spatial database all persist correctly across restarts
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 22-01-PLAN.md — Tool auto-equip fix (shared canHarvestWith utility, gather.js requireHarvest, mine.js refactor) + chat count reset fix (POLISH-EQUIP, POLISH-CHATCOUNT)
+- [ ] 22-02-PLAN.md — Graceful shutdown (SIGTERM/SIGINT), scheduled restart (ONNX leak, exit code 42), launch-duo.sh loop fix, smoke tests (POLISH-STABILITY, POLISH-PERSISTENCE)
 
 ## Progress
 
@@ -182,4 +185,4 @@ Plans:
 | 19. Enhanced Spatial + Building | 2/2 | Complete    | 2026-03-23 |
 | 20. Gameplay Loops | 2/2 | Complete    | 2026-03-23 |
 | 21. Multi-Agent Coordination | 2/2 | Complete    | 2026-03-23 |
-| 22. Polish & Tool Fixes | 0/TBD | Not started | - |
+| 22. Polish & Tool Fixes | 0/2 | Not started | - |
