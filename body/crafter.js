@@ -60,25 +60,42 @@ function getIngredients(recipe) {
 
 /**
  * Select the best recipe variant for a target item based on what's already in inventory.
- * Scores each variant by how many distinct ingredient types the inventory has.
- * Tie-breaks by preferring variants at the END of the array (oak variants last = most common early-game).
+ * Scores each variant by how many distinct ingredient types are OBTAINABLE —
+ * either directly in inventory OR craftable in one step from inventory items.
+ * This ensures acacia_log → acacia_planks → wooden_pickaxe works even when
+ * the default variant wants oak_planks.
  */
 function selectBestVariant(recipes, inventory) {
   let bestScore = -1
-  let bestVariant = recipes[recipes.length - 1] // default: last (oak variant)
+  let bestVariant = recipes[recipes.length - 1] // default: last variant
 
   for (let i = 0; i < recipes.length; i++) {
     const recipe = recipes[i]
     const ingredients = getIngredients(recipe)
 
-    // Count how many distinct ingredient types are in inventory
+    // Score: count how many ingredients are obtainable
     let score = 0
     for (const ing of ingredients) {
       const have = inventory[ing.item] || 0
-      if (have > 0) score++
+      if (have > 0) {
+        score += 2  // direct match is best
+      } else {
+        // Check if this ingredient is craftable from what we have (one step deep)
+        const ingEntry = mcData.itemsByName[ing.item]
+        if (ingEntry) {
+          const ingRecipes = mcData.recipes[ingEntry.id]
+          if (ingRecipes && ingRecipes.length > 0) {
+            // Check if ANY variant of this ingredient has its raw materials in inventory
+            const canCraft = ingRecipes.some(ir => {
+              const subIngs = getIngredients(ir)
+              return subIngs.every(si => (inventory[si.item] || 0) > 0)
+            })
+            if (canCraft) score += 1  // craftable in one step
+          }
+        }
+      }
     }
 
-    // Prefer higher score; tie-break: prefer end of array (i closer to length-1)
     if (score > bestScore || (score === bestScore && i >= recipes.indexOf(bestVariant))) {
       bestScore = score
       bestVariant = recipe
