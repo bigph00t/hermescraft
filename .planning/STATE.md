@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Minecraft RAG
-status: Ready to plan
-stopped_at: Completed 12-01-PLAN.md
-last_updated: "2026-03-23T04:16:06.839Z"
+status: Ready to execute
+stopped_at: Completed 13-01-PLAN.md
+last_updated: "2026-03-23T04:48:15.172Z"
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 6
+  completed_plans: 5
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** Agents feel and play like real people — with deep game knowledge
-**Current focus:** Phase 12 — KnowledgeStore
+**Current focus:** Phase 13 — Prompt Integration
 
 ## Current Position
 
-Phase: 13
-Plan: Not started
+Phase: 13 (Prompt Integration) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -45,6 +45,7 @@ Plan: Not started
 | Phase 11-knowledge-corpus P02 | 35 | 2 tasks | 7 files |
 | Phase 11-knowledge-corpus P03 | 10 | 2 tasks | 3 files |
 | Phase 12-knowledgestore P01 | 5m | 2 tasks | 5 files |
+| Phase 13-prompt-integration P01 | 2m | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -60,6 +61,8 @@ Plan: Not started
 - [11-01] Hardcode SMELT_FROM table (20 pairs) — minecraft-data v3.105.0 has no furnace recipe data for 1.21.1
 - [11-01] Pass new Set(visited) to each recursive sub-call so siblings do not falsely block each other in DFS
 - [11-01] Recipe tiebreak: prefer cobblestone/oak variants — mcData returns cobbled_deepslate first for furnace by coincidence
+- [13-01] ESSENTIAL KNOWLEDGE core: tool tiers + ore Y-levels + essential chains + food priority (~150 tokens); crafting chains/building materials/survival details moved to RAG
+- [13-01] ragContext slot (Part 5.7) in buildSystemPrompt between buildHistory and command reference; caller formats with ## RELEVANT KNOWLEDGE header
 
 ### Pending Todos
 
@@ -72,6 +75,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-23T04:13:09.861Z
-Stopped at: Completed 12-01-PLAN.md
+Last session: 2026-03-23T04:48:15.170Z
+Stopped at: Completed 13-01-PLAN.md
 Resume file: None

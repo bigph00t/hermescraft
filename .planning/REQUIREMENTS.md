@@ -24,7 +24,7 @@ Requirements for Minecraft RAG milestone.
 - [ ] **RAG-07**: !wiki command — agent queries MC knowledge mid-gameplay, answer injected into next LLM call
 - [ ] **RAG-08**: Auto-lookup on skill failure — when craft/mine/build fails, automatically retrieve and inject correct approach
 - [ ] **RAG-09**: Context-aware injection — relevant MC knowledge added to system prompt based on current activity (mining? ore info. building? material info)
-- [ ] **RAG-10**: Replace hardcoded MINECRAFT KNOWLEDGE prompt section with dynamic retrieval, reducing base prompt size
+- [x] **RAG-10**: Replace hardcoded MINECRAFT KNOWLEDGE prompt section with dynamic retrieval, reducing base prompt size
 
 ## Future Requirements
 
@@ -59,7 +59,7 @@ Requirements for Minecraft RAG milestone.
 | RAG-07 | Phase 13 | Pending |
 | RAG-08 | Phase 13 | Pending |
 | RAG-09 | Phase 13 | Pending |
-| RAG-10 | Phase 13 | Pending |
+| RAG-10 | Phase 13 | Complete |
 
 **Coverage:**
 - v2.2 requirements: 10 total

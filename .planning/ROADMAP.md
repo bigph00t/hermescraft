@@ -62,10 +62,10 @@ Plans:
   2. An agent given `!wiki how do I find diamonds` responds with accurate depth and tool information drawn from the knowledge corpus
   3. An agent currently mining has ore/depth information in its context; an agent currently building has material/technique information in its context
   4. The base system prompt is smaller than before v2.2 (GAMEPLAY_INSTRUCTIONS replaced by always-present core + dynamic retrieval)
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
-- [ ] 13-01-PLAN.md — Prompt restructuring (RAG-10): Replace MINECRAFT KNOWLEDGE with distilled always-present core, add ragContext option to buildSystemPrompt
+- [x] 13-01-PLAN.md — Prompt restructuring (RAG-10): Replace MINECRAFT KNOWLEDGE with distilled always-present core, add ragContext option to buildSystemPrompt
 - [ ] 13-02-PLAN.md — RAG wiring + !wiki (RAG-07, RAG-08, RAG-09): Wire retrieveKnowledge into think() and respondToChat(), failure auto-lookup, context-aware injection, !wiki command
 
 ---
@@ -76,4 +76,4 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 11. Knowledge Corpus | v2.2 | 3/3 | Complete    | 2026-03-23 |
 | 12. KnowledgeStore | v2.2 | 1/1 | Complete    | 2026-03-23 |
-| 13. Prompt Integration | v2.2 | 0/2 | In progress | - |
+| 13. Prompt Integration | v2.2 | 1/2 | In Progress|  |
