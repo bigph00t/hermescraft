@@ -9,7 +9,7 @@ Requirements for Minecraft RAG milestone.
 
 ### Knowledge Corpus
 
-- [ ] **RAG-01**: All MC 1.21.1 recipes auto-generated from minecraft-data into retrievable chunks with full dependency chains
+- [x] **RAG-01**: All MC 1.21.1 recipes auto-generated from minecraft-data into retrievable chunks with full dependency chains
 - [ ] **RAG-02**: All blocks, items, mobs, biomes, foods from minecraft-data indexed with properties and relationships
 - [ ] **RAG-03**: Hand-authored strategic knowledge: building techniques, farming, mining (ore depths/tools), combat/mobs, exploration/biomes, redstone basics, survival strategies, creative architecture (~300 chunks)
 - [ ] **RAG-04**: All !commands auto-documented from registry with args, usage patterns, failure modes, and examples
@@ -50,7 +50,7 @@ Requirements for Minecraft RAG milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| RAG-01 | Phase 11 | Pending |
+| RAG-01 | Phase 11 | Complete |
 | RAG-02 | Phase 11 | Pending |
 | RAG-03 | Phase 11 | Pending |
 | RAG-04 | Phase 11 | Pending |
