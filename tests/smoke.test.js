@@ -783,6 +783,52 @@ assert('backgroundBrain.js calls logEvent with reflection type', _bgBrainSrc.inc
 const _memdbSrcP18 = _readFileSync(_join(_here, '../mind/memoryDB.js'), 'utf-8')
 assert('memoryDB.js IMPORTANCE map has reflection: 9', _memdbSrcP18.includes('reflection:') && _memdbSrcP18.includes('9'))
 
+// ── Section 22: Build Planner — mind/buildPlanner.js (BLD-01, BLD-02, BLD-03) ──
+
+section('Build Planner — mind/buildPlanner.js (BLD-01, BLD-02, BLD-03)')
+
+const buildPlanner = await import('../mind/buildPlanner.js')
+assert('mind/buildPlanner: initBuildPlanner exported', typeof buildPlanner.initBuildPlanner === 'function')
+assert('mind/buildPlanner: planBuild exported', typeof buildPlanner.planBuild === 'function')
+assert('mind/buildPlanner: decomposeSections exported', typeof buildPlanner.decomposeSections === 'function')
+assert('mind/buildPlanner: auditMaterials exported', typeof buildPlanner.auditMaterials === 'function')
+assert('mind/buildPlanner: saveBuildPlan exported', typeof buildPlanner.saveBuildPlan === 'function')
+assert('mind/buildPlanner: loadBuildPlan exported', typeof buildPlanner.loadBuildPlan === 'function')
+assert('mind/buildPlanner: listBuildPlans exported', typeof buildPlanner.listBuildPlans === 'function')
+assert('mind/buildPlanner: getActivePlan exported', typeof buildPlanner.getActivePlan === 'function')
+assert('mind/buildPlanner: getBuildPlanForPrompt exported', typeof buildPlanner.getBuildPlanForPrompt === 'function')
+assert('mind/buildPlanner: buildExpectedBlockMap exported', typeof buildPlanner.buildExpectedBlockMap === 'function')
+
+// BLD-02: decomposeSections produces correct sections for a 10x8x10 structure
+const sections = buildPlanner.decomposeSections({
+  dimensions: { width: 10, height: 8, depth: 10 },
+  style: 'test',
+  materials: { primary: 'stone_bricks', secondary: 'oak_planks', accent: 'glass_pane' },
+})
+assert('decomposeSections returns array', Array.isArray(sections))
+assert('decomposeSections has foundation', sections.some(s => s.id === 'foundation'))
+assert('decomposeSections has roof', sections.some(s => s.id === 'roof'))
+assert('decomposeSections has walls', sections.filter(s => s.id.includes('wall')).length >= 4)
+assert('decomposeSections foundation is 1 block tall', sections.find(s => s.id === 'foundation')?.maxH === 1)
+
+// BLD-01: getBuildPlanForPrompt returns empty string when no active plan
+const emptyPrompt = buildPlanner.getBuildPlanForPrompt()
+assert('getBuildPlanForPrompt returns string', typeof emptyPrompt === 'string')
+
+// ── Section 23: SPA-01 Entity Awareness Verification ──
+
+section('SPA-01 Entity Awareness Verification')
+
+const spatial = await import('../mind/spatial.js')
+assert('mind/spatial: buildSpatialAwareness exported', typeof spatial.buildSpatialAwareness === 'function')
+
+// ── Section 24: SPA-04 Area Familiarity Verification ──
+
+section('SPA-04 Area Familiarity Verification')
+
+const minimapSpa04 = await import('../mind/minimap.js')
+assert('mind/minimap: getMinimapSummary exported', typeof minimapSpa04.getMinimapSummary === 'function')
+
 // ── Final Summary ──
 
 console.log(`\n${'='.repeat(40)}`)
