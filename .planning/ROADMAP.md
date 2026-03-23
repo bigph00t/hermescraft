@@ -48,7 +48,10 @@ Plans:
   2. `retrieveKnowledge("creeper explosion")` returns the creeper mob chunk even though "explosion" is not in the chunk title
   3. Retrieval latency is under 50ms after startup (index fully in-memory)
   4. Agent startup completes with the knowledge index built and all chunks embedded using local all-MiniLM-L6-v2 (no external API calls)
-**Plans**: TBD
+**Plans:** 1 plan
+
+Plans:
+- [ ] 12-01-PLAN.md — Hybrid retrieval engine (RAG-05, RAG-06): mind/knowledgeStore.js with BM25 + vector search + RRF fusion, npm dependencies, start.js wiring, smoke tests
 
 ### Phase 13: Prompt Integration
 **Goal**: The agent uses its knowledge automatically — injecting context on failure, answering !wiki queries, and replacing the hardcoded knowledge block with dynamic retrieval
@@ -68,5 +71,5 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 11. Knowledge Corpus | v2.2 | 3/3 | Complete    | 2026-03-23 |
-| 12. KnowledgeStore | v2.2 | 0/TBD | Not started | - |
+| 12. KnowledgeStore | v2.2 | 0/1 | In progress | - |
 | 13. Prompt Integration | v2.2 | 0/TBD | Not started | - |
