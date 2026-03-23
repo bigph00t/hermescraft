@@ -51,11 +51,11 @@ See: `.planning/milestones/v2.2-ROADMAP.md` for full details.
   2. Secondary Qwen3.5-9B running via vLLM on port 8001 on the same pod
   3. Both Luna and Max agents connect to the new model and produce coherent responses
   4. Response latency is under 3 seconds for 128-token generation (main brain)
-  5. Glass .env updated to point at RunPod endpoint instead of MiniMax
+  5. .env.runpod configured for on-pod localhost deployment; Glass .env updated if agents also run remotely
 **Plans:** 2 plans
 Plans:
-- [ ] 14-01-PLAN.md — RunPod pod provisioning + dual-model deployment
-- [ ] 14-02-PLAN.md — Agent cutover (MAX_TOKENS wiring, env updates) + coherence verification
+- [ ] 14-01-PLAN.md — All infra scripts + code changes (autonomous: setup-pod, start-models, start-stack, llm.js MAX_TOKENS, launch-duo defaults, docker-compose.runpod, .env.runpod, smoke test)
+- [ ] 14-02-PLAN.md — RunPod pod provisioning + full stack deployment + agent coherence verification (collaborative)
 
 ### Phase 15: Dual-Brain Architecture
 **Goal**: Each agent has a background brain (9B) that runs every 30-60s, producing insights, plans, and constraints that the main brain (27B) reads on each tick
