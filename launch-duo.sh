@@ -78,7 +78,8 @@ while true; do
     MAX_TOKENS='MAX_TOKENS_PLACEHOLDER' \
         node SCRIPT_DIR_PLACEHOLDER/start.js
     CODE=$?
-    [ $CODE -eq 0 ] && break
+    [ $CODE -eq 0 ] && break                    # clean shutdown — stop
+    [ $CODE -eq 42 ] && { echo "[!] Luna scheduled restart — relaunching..."; continue; }
     echo "[!] Luna crashed (exit $CODE) — restarting in 5s..."
     sleep 5
 done
@@ -119,7 +120,8 @@ while true; do
     MAX_TOKENS='MAX_TOKENS_PLACEHOLDER' \
         node SCRIPT_DIR_PLACEHOLDER/start.js
     CODE=$?
-    [ $CODE -eq 0 ] && break
+    [ $CODE -eq 0 ] && break                    # clean shutdown — stop
+    [ $CODE -eq 42 ] && { echo "[!] Max scheduled restart — relaunching..."; continue; }
     echo "[!] Max crashed (exit $CODE) — restarting in 5s..."
     sleep 5
 done

@@ -86,10 +86,48 @@ async function main() {
     saveBuildHistory()
   }, 60000)
 
+  // ── Graceful shutdown — save all state before exit ──
+  // Handles SIGTERM (kill, orchestrator stop) and SIGINT (Ctrl+C).
+  // Guard flag prevents double-shutdown on some environments.
+  let _shuttingDown = false
+  function gracefulShutdown(signal) {
+    if (_shuttingDown) return
+    _shuttingDown = true
+    console.log(`[hermescraft] ${signal} received — saving state and exiting`)
+    periodicSave()
+    savePlayers()
+    saveLocations()
+    saveBuildHistory()
+    process.exit(0)
+  }
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
+  process.on('SIGINT',  () => gracefulShutdown('SIGINT'))
+
+  // ── Scheduled restart for ONNX memory leak mitigation (transformers.js issue #860) ──
+  // Exit code 42 = scheduled restart — launch-duo.sh while-loop continues immediately on 42.
+  const RESTART_INTERVAL_MS = parseInt(process.env.RESTART_INTERVAL_MS || '43200000', 10)  // 12h default
+  if (RESTART_INTERVAL_MS > 0) {
+    function scheduleRestart() {
+      if (isSkillRunning()) {
+        setTimeout(scheduleRestart, 30000)  // defer if skill active — avoid mid-build exit
+        return
+      }
+      console.log('[hermescraft] scheduled restart — saving state')
+      periodicSave()
+      savePlayers()
+      saveLocations()
+      saveBuildHistory()
+      process.exit(42)
+    }
+    setTimeout(scheduleRestart, RESTART_INTERVAL_MS)
+    console.log(`[hermescraft] scheduled restart in ${(RESTART_INTERVAL_MS / 3600000).toFixed(1)}h`)
+  }
+
   // Global error handlers — keep the process alive on unexpected errors.
   // The bot loop is resilient enough to recover from most failures.
   process.on('uncaughtException', (err) => {
     console.error('[hermescraft] uncaught exception:', err.message)
+    try { periodicSave() } catch {}  // best-effort save on crash
     // Don't exit — let the agent recover
   })
   process.on('unhandledRejection', (err) => {
