@@ -1,15 +1,14 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.2
-milestone_name: Minecraft RAG
-status: v2.2 milestone complete
-stopped_at: Completed 13-02-PLAN.md
-last_updated: "2026-03-23T05:02:05.489Z"
+milestone: v2.3
+milestone_name: Persistent Memory & Ambitious Building
+status: ready_to_plan
+last_updated: "2026-03-23T17:00:00.000Z"
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
@@ -18,13 +17,15 @@ progress:
 
 See: .planning/PROJECT.md (updated 2026-03-23)
 
-**Core value:** Agents feel and play like real people — with deep game knowledge
-**Current focus:** Phase 13 — Prompt Integration
+**Core value:** Agents feel and play like real people — learning, growing, remembering
+**Current focus:** Defining requirements for v2.3
 
 ## Current Position
 
-Phase: 13
-Plan: Not started
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-03-23 — Milestone v2.3 started
 
 ## Performance Metrics
 

@@ -63,17 +63,18 @@ The v2.0 rewrite is complete. 24 JavaScript modules across `body/` (skills, prim
 
 Architecture: `start.js` → `createBot()` → init subsystems → `initKnowledge` → `loadKnowledge` → `initKnowledgeStore` → `initMind(bot, config)` → `initModes(bot, isSkillRunning)`. Event-driven Mind loop with RAG injection (chat/skill_complete/idle triggers). 10 registry commands (!gather, !mine, !craft, !smelt, !navigate, !chat, !idle, !combat, !build, !deposit, !withdraw, !wiki). 300ms body tick with 6-priority survival cascade.
 
-## Current Milestone: v2.2 Minecraft RAG
+## Current Milestone: v2.3 Persistent Memory & Ambitious Building
 
-**Goal:** Agents get deep Minecraft knowledge via RAG — recipes, blocks, mobs, biomes, building techniques, plus understanding of their own tool/command structure. All queryable on demand.
+**Goal:** Transform agents from session-scoped bots into truly learning, growing beings that remember everything, plan massive builds, and coordinate complex multi-phase projects together.
 
 **Target:**
-- Index minecraft-data (1.21.1 recipes, blocks, items, mobs, biomes)
-- Index MC gameplay knowledge (building, farming, survival strategies)
-- Auto-document and index all !commands with args, patterns, failure modes
-- !wiki command for on-demand queries
-- Context injection: relevant MC knowledge per-call based on current activity
-- Auto-lookup: when skills fail, retrieve correct approach automatically
+- Persistent long-term memory system (cross-session, never forget experiences)
+- Background memory agent that saves/organizes experiences automatically
+- Enhanced spatial understanding (deeper block awareness, build verification)
+- Vision system (screenshot analysis or block-based spatial intelligence)
+- Ambitious build planning (multi-structure settlements, large unique buildings)
+- Complex gameplay loops (animal farming, mob hunting, exploration, trading)
+- Multi-agent coordination for large projects (material planning, task splitting)
 
 ## Context
 
@@ -122,4 +123,4 @@ Architecture: `start.js` → `createBot()` → init subsystems → `initKnowledg
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-03-23 after Phase 13 completion — v2.2 milestone complete*
+*Last updated: 2026-03-23 after v2.3 milestone start*
