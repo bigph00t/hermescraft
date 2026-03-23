@@ -17,7 +17,7 @@
 ## Phases
 
 - [x] **Phase 11: Knowledge Corpus** - Build and generate all retrievable knowledge chunks (recipes, facts, strategy, commands) (completed 2026-03-23)
-- [ ] **Phase 12: KnowledgeStore** - Implement hybrid vector + BM25 retrieval engine with local embeddings
+- [x] **Phase 12: KnowledgeStore** - Implement hybrid vector + BM25 retrieval engine with local embeddings (completed 2026-03-23)
 - [ ] **Phase 13: Prompt Integration** - Wire retrieval into the agent mind loop, implement !wiki, auto-lookup, and context injection
 
 ## Phase Details
@@ -48,10 +48,10 @@ Plans:
   2. `retrieveKnowledge("creeper explosion")` returns the creeper mob chunk even though "explosion" is not in the chunk title
   3. Retrieval latency is under 50ms after startup (index fully in-memory)
   4. Agent startup completes with the knowledge index built and all chunks embedded using local all-MiniLM-L6-v2 (no external API calls)
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 12-01-PLAN.md — Hybrid retrieval engine (RAG-05, RAG-06): mind/knowledgeStore.js with BM25 + vector search + RRF fusion, npm dependencies, start.js wiring, smoke tests
+- [x] 12-01-PLAN.md — Hybrid retrieval engine (RAG-05, RAG-06): mind/knowledgeStore.js with BM25 + vector search + RRF fusion, npm dependencies, start.js wiring, smoke tests
 
 ### Phase 13: Prompt Integration
 **Goal**: The agent uses its knowledge automatically — injecting context on failure, answering !wiki queries, and replacing the hardcoded knowledge block with dynamic retrieval
@@ -71,5 +71,5 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 11. Knowledge Corpus | v2.2 | 3/3 | Complete    | 2026-03-23 |
-| 12. KnowledgeStore | v2.2 | 0/1 | In progress | - |
+| 12. KnowledgeStore | v2.2 | 1/1 | Complete   | 2026-03-23 |
 | 13. Prompt Integration | v2.2 | 0/TBD | Not started | - |
