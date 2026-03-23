@@ -16,8 +16,8 @@ Requirements for Minecraft RAG milestone.
 
 ### Retrieval System
 
-- [ ] **RAG-05**: Hybrid vector + BM25 search (Vectra + MiniSearch) with RRF fusion returning top-K chunks
-- [ ] **RAG-06**: Local embeddings via all-MiniLM-L6-v2 through @huggingface/transformers (no external API)
+- [x] **RAG-05**: Hybrid vector + BM25 search (Vectra + MiniSearch) with RRF fusion returning top-K chunks
+- [x] **RAG-06**: Local embeddings via all-MiniLM-L6-v2 through @huggingface/transformers (no external API)
 
 ### Integration
 
@@ -54,8 +54,8 @@ Requirements for Minecraft RAG milestone.
 | RAG-02 | Phase 11 | Complete |
 | RAG-03 | Phase 11 | Complete |
 | RAG-04 | Phase 11 | Complete |
-| RAG-05 | Phase 12 | Pending |
-| RAG-06 | Phase 12 | Pending |
+| RAG-05 | Phase 12 | Complete |
+| RAG-06 | Phase 12 | Complete |
 | RAG-07 | Phase 13 | Pending |
 | RAG-08 | Phase 13 | Pending |
 | RAG-09 | Phase 13 | Pending |
