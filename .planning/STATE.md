@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Persistent Memory & Ambitious Building
-status: Ready to plan
-stopped_at: Completed 20-02-PLAN.md — gameplay knowledge corpus, prompt sections, progression hint, 513 smoke tests passing
-last_updated: "2026-03-23T22:46:54.622Z"
+status: Ready to execute
+stopped_at: Completed 21-01-PLAN.md — taskRegistry.js, coordination.js, buildPlanner section claiming
+last_updated: "2026-03-23T23:01:17.370Z"
 progress:
   total_phases: 9
   completed_phases: 6
-  total_plans: 12
-  completed_plans: 11
+  total_plans: 14
+  completed_plans: 12
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** Agents that learn, grow, remember, and build ambitiously — playing Minecraft like real humans
-**Current focus:** Phase 20 — gameplay-loops
+**Current focus:** Phase 21 — multi-agent-coordination
 
 ## Current Position
 
-Phase: 21
-Plan: Not started
+Phase: 21 (multi-agent-coordination) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -88,6 +88,15 @@ Plan: Not started
 | Phase 19-enhanced-spatial-building P02 | 222 | 2 tasks | 6 files |
 | Phase 20-gameplay-loops P01 | 480 | 2 tasks | 6 files |
 | Phase 20-gameplay-loops P02 | 12 | 3 tasks | 3 files |
+| Phase 21 P01 | 4 | 2 tasks | 3 files |
+
+### Decisions (Phase 21)
+
+- data/shared/ lives as a sibling of data/<agent>/ — computed via dirname(config.dataDir); no extra config needed
+- Stale claim TTL is 10 minutes for task registry and build sections; partner activity stale TTL is 120s
+- Optimistic concurrency: re-read after claimTask write to verify claim survived racing writes from two agents
+- getPartnerActivityForPrompt returns null for both ENOENT and age > 120s — single null signal regardless of cause
+- claimBuildSection only claims 'pending' sections (not 'active'/'done') to avoid interrupting in-progress builds
 
 ### Decisions (Phase 20)
 
@@ -132,6 +141,6 @@ Plan: Not started
 
 ## Session Continuity
 
-Last session: 2026-03-23T22:41:47.093Z
-Stopped at: Completed 20-02-PLAN.md — gameplay knowledge corpus, prompt sections, progression hint, 513 smoke tests passing
+Last session: 2026-03-23T23:01:17.368Z
+Stopped at: Completed 21-01-PLAN.md — taskRegistry.js, coordination.js, buildPlanner section claiming
 Resume: `/gsd:execute-phase 14` or `/gsd:autonomous`

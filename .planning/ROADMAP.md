@@ -152,9 +152,9 @@ Plans:
   2. Chat loops impossible — forced non-chat action after 3 consecutive chats
   3. Large builds split spatially — each agent owns its section
   4. Each agent sees partner's current activity without asking
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
-- [ ] 21-01-PLAN.md — Core coordination modules (mind/taskRegistry.js, mind/coordination.js) + build section claiming in buildPlanner.js (COO-01, COO-03, COO-04)
+- [x] 21-01-PLAN.md — Core coordination modules (mind/taskRegistry.js, mind/coordination.js) + build section claiming in buildPlanner.js (COO-01, COO-03, COO-04)
 - [ ] 21-02-PLAN.md — Wiring: start.js init, chat loop counter, activity broadcast in dispatch, prompt injection, smoke tests (COO-01, COO-02, COO-03, COO-04)
 
 ### Phase 22: Polish & Tool Fixes
@@ -181,5 +181,5 @@ Plans:
 | 18. Memory Integration | 1/1 | Complete    | 2026-03-23 |
 | 19. Enhanced Spatial + Building | 2/2 | Complete    | 2026-03-23 |
 | 20. Gameplay Loops | 2/2 | Complete    | 2026-03-23 |
-| 21. Multi-Agent Coordination | 0/2 | Not started | - |
+| 21. Multi-Agent Coordination | 1/2 | In Progress|  |
 | 22. Polish & Tool Fixes | 0/TBD | Not started | - |
