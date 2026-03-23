@@ -148,9 +148,9 @@ assert('body/skills/chest: withdrawFromChest exported', typeof chest.withdrawFro
 section('Registry Completeness')
 
 const commands = registry.listCommands()
-assert('registry has 24 commands', commands.length === 24)
+assert('registry has 27 commands', commands.length === 27)
 
-const expectedCmds = ['gather', 'mine', 'craft', 'smelt', 'navigate', 'chat', 'drop', 'idle', 'combat', 'deposit', 'withdraw', 'build', 'design', 'scan', 'farm', 'breed', 'mount', 'dismount', 'look', 'give', 'material', 'wiki', 'see']
+const expectedCmds = ['gather', 'mine', 'craft', 'smelt', 'navigate', 'chat', 'drop', 'idle', 'combat', 'deposit', 'withdraw', 'build', 'design', 'scan', 'farm', 'breed', 'mount', 'dismount', 'look', 'give', 'material', 'wiki', 'see', 'harvest', 'hunt', 'explore', 'plan']
 for (const cmd of expectedCmds) {
   assert(`registry has !${cmd}`, commands.includes(cmd))
 }
@@ -611,7 +611,7 @@ assert('minimap.js does NOT use default export', !_minimapSrc.includes('export d
 // !see in registry
 const visionCommands = registry.listCommands()
 assert('registry has !see command', visionCommands.includes('see'))
-assert('registry has 24 commands after Phase 16/19', visionCommands.length === 24)
+assert('registry has 27 commands after Phase 20/01', visionCommands.length === 27)
 
 // !see stub returns failure (handled in mind/index.js think(), not dispatch)
 const seeResult = await registry.dispatch({}, 'see', {})

@@ -13,6 +13,9 @@ import { scanArea } from '../body/skills/scan.js'
 import { depositToChest, withdrawFromChest } from '../body/skills/chest.js'
 import { farm } from '../body/skills/farm.js'
 import { breed } from '../body/skills/breed.js'
+import { harvest } from '../body/skills/harvest.js'
+import { hunt } from '../body/skills/hunt.js'
+import { explore } from '../body/skills/explore.js'
 import { mountBoat, dismountBoat } from '../body/skills/boat.js'
 import { lookChest, lookInventory, lookHorizon } from '../body/skills/look.js'
 import { give } from '../body/skills/give.js'
@@ -105,6 +108,9 @@ const REGISTRY = new Map([
   }],
   ['farm',     (bot, args) => farm(bot, args.seed || args.item || 'wheat_seeds', parseInt(args.count) || 4)],
   ['breed',    (bot, args) => breed(bot, args.animal || args.type || 'cow')],
+  ['harvest',  (bot, args) => harvest(bot, args.crop || args.item || 'wheat', parseInt(args.count) || 8)],
+  ['hunt',     (bot, args) => hunt(bot, args.target || args.mob || null)],
+  ['explore',  (bot, args) => explore(bot, args.direction || args.dir || null, parseInt(args.distance) || 64)],
   ['mount',    (bot, _args) => mountBoat(bot)],
   ['dismount', (bot, _args) => dismountBoat(bot)],
   ['look',     (bot, args) => {

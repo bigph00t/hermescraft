@@ -211,6 +211,16 @@ function deriveRagQuery(bot, context) {
     if (skill === 'craft') return `craft ${target} recipe ingredients`
     // Combat — include mob-specific tactics
     if (skill === 'combat') return `combat fighting mobs damage armor weapons tactics`
+    // Harvest — include crop maturity and replanting
+    if (skill === 'harvest') return 'harvest mature crops wheat carrot potato replant farm bone meal'
+    // Hunt — include mob drops and combat
+    if (skill === 'hunt') return 'hunt hostile mobs drops bones string gunpowder ender pearl combat'
+    // Explore — include biomes and structures
+    if (skill === 'explore') return 'exploration biomes village temple discoveries waypoints navigation'
+    // Breed — include animal farming
+    if (skill === 'breed') return 'breed animals farming cows sheep pigs chickens food pen'
+    // Farm — include soil preparation
+    if (skill === 'farm') return 'farm hoe farmland water seeds planting crops'
 
     if (target) return `${skill} ${target}`
     return skill
@@ -244,6 +254,9 @@ function deriveFailureQuery(command, args) {
   if (command === 'gather') return `gather ${args?.item || 'block'} finding nearby location`
   if (command === 'build') return `build place blocks placement distance ${args?.description || 'structure'}`
   if (command === 'farm') return 'farm hoe farmland water seeds'
+  if (command === 'harvest') return 'harvest mature crops age growth replant seeds'
+  if (command === 'hunt') return 'hunt find hostile mobs spawn location combat'
+  if (command === 'explore') return 'exploration navigation terrain biome village'
   return `${command} ${Object.values(args || {}).join(' ')}`
 }
 
@@ -541,9 +554,15 @@ async function think(bot, context) {
 
     // Log successful dispatches to the SQLite event log (Phase 17 — MEM-01/MEM-03/SPA-03)
     if (skillResult.success) {
-      const EVT_MAP = { build: 'build', design: 'build', mine: 'discovery', gather: 'discovery', combat: 'combat', craft: 'craft', smelt: 'craft', chat: 'social', navigate: 'movement' }
+      const EVT_MAP = { build: 'build', design: 'build', mine: 'discovery', gather: 'discovery', combat: 'combat', craft: 'craft', smelt: 'craft', chat: 'social', navigate: 'movement', harvest: 'craft', hunt: 'combat', explore: 'discovery', breed: 'observation', farm: 'craft' }
       const evtType = EVT_MAP[result.command] || 'observation'
       logEvent(bot, evtType, `${result.command}: ${JSON.stringify(result.args || {}).slice(0, 120)}`, { command: result.command, success: true })
+      // Log each explore discovery as a separate spatial event (GPL-04)
+      if (result.command === 'explore' && skillResult.discoveries?.length > 0) {
+        for (const disc of skillResult.discoveries) {
+          logEvent(bot, 'discovery', `explore: found ${disc.name} at ${disc.x},${disc.z}`, { command: 'explore', type: disc.type, name: disc.name, x: disc.x, z: disc.z })
+        }
+      }
     }
 
     // Record build completion to world knowledge, locations, and build history for cross-session recall (BUILD-03)
