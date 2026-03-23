@@ -89,6 +89,33 @@ function timeLabel(timeOfDay) {
   return 'pre-dawn'
 }
 
+// ── Progression Hint ──
+
+// Dynamic gear tier detection from bot inventory — injected into system prompt Part 2.
+// Pure JS, zero LLM cost. Inspects inventory for best tool tier and suggests next upgrade.
+export function buildProgressionHint(bot) {
+  const items = bot.inventory?.items() || []
+  const names = new Set(items.map(i => i.name))
+
+  // Check tiers from best to worst
+  if (names.has('netherite_pickaxe') || names.has('netherite_sword')) {
+    return 'Gear: NETHERITE — you have endgame gear. Focus on building, enchanting, and exploring.'
+  }
+  if (names.has('diamond_pickaxe') || names.has('diamond_sword')) {
+    return 'Gear: DIAMOND — pursue enchanting (need enchanting table + 15 bookshelves + lapis). Consider nether expedition for netherite.'
+  }
+  if (names.has('iron_pickaxe') || names.has('iron_sword')) {
+    return 'Gear: IRON — mine below Y=16 for diamonds (need 3 for pickaxe, 2 for sword). Craft iron armor if you have 24+ iron ingots.'
+  }
+  if (names.has('stone_pickaxe') || names.has('stone_sword')) {
+    return 'Gear: STONE — mine at Y=16-64 for iron ore. Smelt raw_iron with !smelt. Craft iron pickaxe + iron sword.'
+  }
+  if (names.has('wooden_pickaxe') || names.has('wooden_sword')) {
+    return 'Gear: WOOD — mine cobblestone immediately. Craft stone pickaxe (3 cobblestone + 2 sticks).'
+  }
+  return 'Gear: NONE — craft a wooden pickaxe immediately (3 planks + 2 sticks). Punch a tree first for logs.'
+}
+
 // ── System Prompt ──
 
 // System prompt for the Mind layer — identity + grounding + memory + social + locations + !command reference.
@@ -178,7 +205,27 @@ Go on expeditions together or split up to cover more ground. Report back what yo
 
 Think BIG. You're not just building shelters — you're building a settlement. Town halls, workshops, houses with second floors, bridges, farms, walls, towers, gardens, roads connecting everything. Each build should be unique and ambitious. Don't build tiny 3x3 boxes — build real structures with character.
 
-Use !look target:horizon to scout locations. Use !design with rich, detailed descriptions: not "a house" but "a two-story stone house with oak trim, glass windows, a balcony facing the sunset, and a garden out front." Build into the terrain — hillsides, cliffs, waterfront. Coordinate with your partner so your builds form a real place together.`)
+Use !look target:horizon to scout locations. Use !design with rich, detailed descriptions: not "a house" but "a two-story stone house with oak trim, glass windows, a balcony facing the sunset, and a garden out front." Build into the terrain — hillsides, cliffs, waterfront. Coordinate with your partner so your builds form a real place together.
+
+## FARMING
+
+Use !farm to till soil and plant seeds. Use !harvest to collect mature crops and auto-replant. Use !breed to breed animals (need 2 of same type nearby + their food). Wheat seeds come from breaking tall grass. Farms need water within 4 blocks. Breed cows/sheep with wheat, pigs with carrots, chickens with seeds.
+
+## HUNTING
+
+Use !hunt to proactively seek hostile mobs for valuable drops. Skeletons drop bones (bone meal for farming), spiders drop string (bows), creepers drop gunpowder, endermen drop ender pearls. !hunt has 48-block search range vs !combat's 16-block reactive range. Hunt at night when mobs are plentiful. Bring a sword and food.
+
+## PROGRESSION
+
+${buildProgressionHint(bot)}
+
+## TRADING
+
+Villagers have professions based on their workstation. Librarians (bookshelf) sell enchanted books — most valuable traders. Farmers (composter) buy crops for emeralds. Blacksmiths (blast furnace) sell diamond gear. Find villages with !explore, then trade using your crops and resources.
+
+## STORAGE
+
+Use !deposit to store items in chests, !withdraw to retrieve them. Build organized storage: separate chests for ores, building blocks, food, tools. Deposit excess inventory regularly — full inventory means missed drops. Keep food and tools on you, everything else in chests.`)
 
   // Part 3: Memory — lessons, strategies, world knowledge from previous sessions
   if (options.memory) {
@@ -261,6 +308,9 @@ Available commands:
   !give player:name item:name count:N  — toss item toward a nearby player
   !farm seed:name count:N              — till dirt and plant seeds (wheat_seeds, beetroot_seeds, etc.)
   !breed animal:type                   — feed 2 nearby animals to breed them (cow, sheep, pig, chicken)
+  !harvest crop:name count:N             — harvest mature crops and auto-replant (wheat, carrots, potatoes, beetroots)
+  !hunt target:mobtype                   — seek and fight hostile mobs for drops (skeleton, zombie, spider, etc.)
+  !explore direction:north distance:N    — explore in a direction, discover villages/temples/biomes
   !mount                               — get into a nearby boat
   !dismount                            — get out of current vehicle
   !look target:inventory               — see what's in your inventory (or target:chest for nearest chest)
@@ -290,6 +340,10 @@ Examples:
   !withdraw item:iron_ingot count:5
   !sethome
   !see focus:"check if there are mobs nearby"
+  !harvest crop:wheat count:8
+  !hunt target:skeleton
+  !explore direction:north distance:64
+  !breed animal:cow
   !idle`)
 
   // Part 8: Format instruction — explicit single-command constraint
@@ -390,6 +444,11 @@ export function buildUserMessage(bot, trigger, options = {}) {
       if (result.planted) extras.push(`planted: ${result.planted}`)
       if (result.missing) extras.push(`missing: ${result.missing.join(', ')}`)
       if (result.placed !== undefined) extras.push(`placed: ${result.placed}`)
+      if (result.harvested !== undefined) extras.push(`harvested: ${result.harvested}`)
+      if (result.replanted !== undefined) extras.push(`replanted: ${result.replanted}`)
+      if (result.discoveries) extras.push(`discoveries: ${result.discoveries.length}`)
+      if (result.target) extras.push(`target: ${result.target}`)
+      if (result.searched) extras.push(`searched: ${result.searched}b radius`)
       const detail = extras.length > 0 ? ` | ${extras.join(' | ')}` : ''
       parts.push(`[skill complete: ${skillName} — ${status}${detail}]`)
     } else {
