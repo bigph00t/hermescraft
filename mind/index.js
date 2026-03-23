@@ -17,6 +17,9 @@ import { validateBlueprint } from '../body/blueprints/validate.js'
 import { recordBuild, getBuildHistoryForPrompt } from './build-history.js'
 import { retrieveKnowledge } from './knowledgeStore.js'
 import { getBrainStateForPrompt } from './backgroundBrain.js'
+import { captureScreenshot, queryVLM, buildVisionForPrompt } from './vision.js'
+import { getMinimapSummary } from './minimap.js'
+import { scanArea } from '../body/skills/scan.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 // BLUEPRINTS_DIR mirrors the path in body/skills/build.js — co-located with blueprint JSONs
@@ -32,6 +35,8 @@ let _config = null
 let _pendingChat = null  // queued chat that arrived during think()
 let _lastFailure = null  // { command, args } from previous failed dispatch — consumed by next think()
 let _lastDeath = null    // death message string — consumed by next think() for recovery RAG
+let _lastVisionResult = null  // consume-once VLM description — cleared after injection into prompt
+let _postBuildScan = null     // consume-once post-build scan result
 
 // ── Async Chat Response (bypasses skill queue) ──
 
@@ -316,7 +321,13 @@ async function think(bot, context) {
       buildHistory: getBuildHistoryForPrompt(),
       ragContext,
       brainState,
+      visionContext: _lastVisionResult ? buildVisionForPrompt(_lastVisionResult) : null,
+      minimapContext: getMinimapSummary(bot, 32),
+      postBuildScan: _postBuildScan,
     })
+    // Consume-once: clear vision and post-build scan results after injection (like _lastDeath pattern)
+    _lastVisionResult = null
+    _postBuildScan = null
 
     // Inject partner's last chat into user message if available
     const partnerChat = _config?.partnerName ? getPartnerLastChat(_config.partnerName) : null
@@ -389,6 +400,29 @@ async function think(bot, context) {
       return
     }
 
+    // !see — capture screenshot and describe via VLM
+    // Handled here (before dispatch) like !design because it requires async VLM calls
+    // and a consume-once result variable.
+    if (result.command === 'see') {
+      const focus = result.args?.focus || ''
+      console.log('[mind] !see triggered — capturing screenshot')
+      skillRunning = true
+      const displayNum = process.env.XVFB_DISPLAY || '1'
+      const base64 = await captureScreenshot(_config?.dataDir || '', displayNum)
+      const description = await queryVLM(base64, focus)
+      skillRunning = false
+      if (description) {
+        _lastVisionResult = description
+        console.log('[mind] !see result:', description.slice(0, 80))
+      } else {
+        console.log('[mind] !see: VLM unavailable or capture failed')
+      }
+      lastActionTime = Date.now()
+      setTimeout(() => think(bot, { trigger: 'skill_complete', skillName: 'see',
+        skillResult: { success: true, reason: description || 'vision unavailable' } }), 0)
+      return
+    }
+
     // Dispatch a real command to the body
     console.log('[mind] dispatching:', result.command, result.args)
     skillRunning = true
@@ -418,6 +452,22 @@ async function think(bot, context) {
         blockCount: skillResult.placed || skillResult.total || 0,
         builder: bot.username,
       })
+      // SPA-02: post-build scan for verification
+      try {
+        const pbx = parseInt(bx), pby = parseInt(by), pbz = parseInt(bz)
+        if (!isNaN(pbx) && !isNaN(pby) && !isNaN(pbz)) {
+          const scanResult = scanArea(bot, pbx - 2, pby, pbz - 2, pbx + 12, pby + 10, pbz + 12)
+          if (scanResult.success) {
+            _postBuildScan = `Post-build scan: ${scanResult.total} solid blocks — ` +
+              Object.entries(scanResult.blocks)
+                .filter(([k]) => k !== 'air' && k !== 'unloaded')
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5)
+                .map(([k, v]) => `${k}*${v}`)
+                .join(', ')
+          }
+        }
+      } catch { /* non-fatal */ }
     }
 
     // Schedule skill_complete think on the next event loop tick so:

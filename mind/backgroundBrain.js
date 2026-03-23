@@ -4,6 +4,7 @@ import OpenAI from 'openai'
 import { readFileSync, writeFileSync, renameSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import { getHistory } from './llm.js'
+import { captureScreenshot, queryVLM } from './vision.js'
 
 // ── Environment Variables ──
 
@@ -261,6 +262,23 @@ async function runBackgroundCycle(bot, config) {
     _cachedState = null
     _cacheTime = 0
 
+    // Periodic vision — capture screenshot and store description in brain-state.json
+    // Only fires if Xvfb display is available and main brain isn't thinking
+    if (process.env.DISPLAY) {
+      try {
+        const base64 = await captureScreenshot(DATA_DIR, process.env.XVFB_DISPLAY || '1')
+        if (base64) {
+          const desc = await queryVLM(base64, 'terrain and nearby threats')
+          if (desc) {
+            mergedState.visionNote = { text: desc, ts: Date.now() }
+            writeBrainState(mergedState)  // re-write with vision data
+            _cachedState = null
+            _cacheTime = 0
+          }
+        }
+      } catch { /* vision failure is non-fatal */ }
+    }
+
     console.log('[background-brain] cycle complete')
   } catch (err) {
     console.log(`[background-brain] cycle error: ${err.message}`)
@@ -299,6 +317,11 @@ function formatBrainState(state) {
   const hazards = (state.spatial || []).filter(s => s.hazard).slice(0, 2)
   if (hazards.length) {
     lines.push(`Hazards: ${hazards.map(h => h.note).join('. ')}`)
+  }
+
+  if (state.visionNote?.text) {
+    const vAge = Math.round((Date.now() - (state.visionNote.ts || 0)) / 1000)
+    lines.push(`Vision (${vAge}s ago): ${state.visionNote.text.slice(0, 200)}`)
   }
 
   const text = lines.join('\n')

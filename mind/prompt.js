@@ -215,6 +215,21 @@ Use !look target:horizon to scout locations. Use !design with rich, detailed des
     parts.push(options.brainState)
   }
 
+  // Part 5.9: Vision context — most recent !see result (consume-once, capped at 400 chars)
+  if (options.visionContext) {
+    parts.push(options.visionContext)
+  }
+
+  // Part 5.10: Minimap terrain summary — lightweight area awareness (no VLM needed)
+  if (options.minimapContext) {
+    parts.push(`## Area Overview\n${options.minimapContext}`)
+  }
+
+  // Part 5.11: Post-build scan result — one-time verification feedback after !build
+  if (options.postBuildScan) {
+    parts.push(`## Build Verification\n${options.postBuildScan}`)
+  }
+
   // Part 6: !command reference — all available commands with argument syntax
   parts.push(`
 When you decide to act, respond with a SINGLE line in this exact format:
@@ -239,6 +254,7 @@ Available commands:
   !dismount                            — get out of current vehicle
   !look target:inventory               — see what's in your inventory (or target:chest for nearest chest)
   !look target:horizon direction:north — survey terrain 64 blocks in a direction (north/south/east/west, or omit for 360°)
+  !see focus:"text"                    — capture screenshot and describe what you see (terrain, mobs, builds)
   !deposit item:name count:N           — put items from inventory into nearest chest/barrel
   !withdraw item:name count:N          — take items from nearest chest/barrel into inventory
   !sethome                             -- mark current position as home base
@@ -262,6 +278,7 @@ Examples:
   !deposit item:cobblestone count:32
   !withdraw item:iron_ingot count:5
   !sethome
+  !see focus:"check if there are mobs nearby"
   !idle`)
 
   // Part 8: Format instruction — explicit single-command constraint

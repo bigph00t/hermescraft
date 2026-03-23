@@ -82,6 +82,11 @@ const REGISTRY = new Map([
   ['wiki',     (_bot, _args) => {
     return Promise.resolve({ success: false, reason: 'wiki is handled by chat response — use !wiki query in chat' })
   }],
+  // !see is handled in mind/index.js think() BEFORE dispatch is called.
+  // This entry ensures listCommands() includes 'see' for help text and acts as a safety net.
+  ['see',      (_bot, _args) => {
+    return Promise.resolve({ success: false, reason: 'see must be handled by the Mind loop — use focus:"what to look for"' })
+  }],
   ['scan', (bot, args) => {
     const pos = bot.entity.position
     // Default: 16x8x16 box centered on bot if no coords given
