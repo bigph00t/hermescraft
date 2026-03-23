@@ -569,8 +569,9 @@ async function think(bot, context) {
     // COO-02: Chat loop prevention — track consecutive chat commands
     if (result.command === 'chat') {
       _consecutiveChatCount++
-    } else if (result.command !== 'idle' && skillResult.success) {
-      // Reset only on successful non-chat non-idle skill dispatch (Pitfall 3)
+    } else if (result.command !== 'idle') {
+      // Reset on ANY non-chat non-idle dispatch — a failed skill attempt still
+      // breaks the "consecutive chats" chain. Only chat and idle keep the counter.
       _consecutiveChatCount = 0
     }
 
