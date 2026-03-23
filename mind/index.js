@@ -16,6 +16,7 @@ import { requestInterrupt } from '../body/interrupt.js'
 import { validateBlueprint } from '../body/blueprints/validate.js'
 import { recordBuild, getBuildHistoryForPrompt } from './build-history.js'
 import { retrieveKnowledge } from './knowledgeStore.js'
+import { getBrainStateForPrompt } from './backgroundBrain.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 // BLUEPRINTS_DIR mirrors the path in body/skills/build.js — co-located with blueprint JSONs
@@ -30,6 +31,7 @@ let idleCheckTimer = null
 let _config = null
 let _pendingChat = null  // queued chat that arrived during think()
 let _lastFailure = null  // { command, args } from previous failed dispatch — consumed by next think()
+let _lastDeath = null    // death message string — consumed by next think() for recovery RAG
 
 // ── Async Chat Response (bypasses skill queue) ──
 
@@ -190,8 +192,8 @@ function deriveRagQuery(bot, context) {
     const result = context.skillResult
     const target = result?.item || result?.args?.item || ''
 
-    // Mining — include safety rules alongside target info
-    if (skill === 'mine') return `mine ${target} safety lava gravel never dig straight down`
+    // Mining — include safety + tool equipping
+    if (skill === 'mine') return `mine ${target} equip pickaxe tool tier safety lava never dig straight down`
     // Building — include placement rules
     if (skill === 'build' || skill === 'design') return `build place blocks placement distance materials ${target}`
     // Navigation — include movement and traversal
@@ -268,9 +270,20 @@ async function think(bot, context) {
     const buildContext = getBuildContextForPrompt(activeBuild, blueprintCatalog)
 
     // ── RAG context injection (RAG-08, RAG-09) ──
-    // Failure overrides context-aware query — more targeted when something just broke
+    // Death > Failure > Context-aware — priority order for RAG query
     let ragQuery = null
-    if (_lastFailure) {
+    if (_lastDeath) {
+      // After death: inject recovery knowledge. Lava deaths = items burned.
+      const deathStr = _lastDeath.toLowerCase()
+      if (deathStr.includes('lava') || deathStr.includes('fire') || deathStr.includes('burned')) {
+        ragQuery = 'died lava fire items destroyed burned gone do not recover start over'
+      } else if (deathStr.includes('fell') || deathStr.includes('fall')) {
+        ragQuery = 'died fall damage water bucket safety never dig straight down'
+      } else {
+        ragQuery = 'died death recovery respawn items despawn start over early game'
+      }
+      _lastDeath = null
+    } else if (_lastFailure) {
       ragQuery = deriveFailureQuery(_lastFailure.command, _lastFailure.args)
       _lastFailure = null  // consume the failure
     } else {
@@ -291,6 +304,9 @@ async function think(bot, context) {
       }
     }
 
+    // Background brain state — plan, insights, hazards from background cycle (Phase 15)
+    const brainState = getBrainStateForPrompt()
+
     const systemPrompt = buildSystemPrompt(bot, {
       soul: _config?.soulContent,
       memory: getMemoryForPrompt(),
@@ -299,6 +315,7 @@ async function think(bot, context) {
       buildContext,
       buildHistory: getBuildHistoryForPrompt(),
       ragContext,
+      brainState,
     })
 
     // Inject partner's last chat into user message if available
@@ -591,10 +608,13 @@ export async function initMind(bot, config) {
   // ── Death handler ──
   // Reset conversation history and idle timer on death.
   // Wipes context so the bot doesn't resume with stale pre-death decisions.
+  // Sets _lastDeath so next think() injects death recovery RAG context.
   bot.on('death', () => {
-    console.log('[mind] bot died — clearing conversation')
+    const deathMsg = bot.game?.lastDeathMessage || 'unknown cause'
+    console.log('[mind] bot died:', deathMsg, '— clearing conversation')
     clearConversation()
-    recordDeath('Died in the world')
+    recordDeath(deathMsg)
+    _lastDeath = deathMsg
     lastActionTime = Date.now()
   })
 

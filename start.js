@@ -12,6 +12,7 @@ import { initChestMemory } from './body/skills/chest.js'
 import { initBuildHistory, loadBuildHistory, saveBuildHistory } from './mind/build-history.js'
 import { initKnowledge, loadKnowledge } from './mind/knowledge.js'
 import { initKnowledgeStore } from './mind/knowledgeStore.js'
+import { initBackgroundBrain } from './mind/backgroundBrain.js'
 
 async function main() {
   console.log('[hermescraft] v2 starting...')
@@ -40,7 +41,9 @@ async function main() {
   initKnowledge(config)
   const knowledgeChunks = loadKnowledge()
 
-  // 3.7. Build retrieval indexes — BM25 + vector (async, ~2-5s first run for model download)
+  // 3.7. Build retrieval indexes — BM25 + vector
+  // If pre-built index exists on disk (from `node mind/knowledgeStore.js`), loads in ~1s.
+  // Otherwise embeds all chunks (~30-60s) — run pre-embed first to avoid timeout.
   await initKnowledgeStore(knowledgeChunks)
 
   // 4. Set bot.homeLocation for body/modes.js night shelter (mind/body boundary: property on bot, not import)
@@ -53,6 +56,10 @@ async function main() {
   // 5. Init mind loop with config (SOUL, memory, social, locations flow through think())
   await initMind(bot, config)
   console.log('[hermescraft] mind initialized -- agent is live')
+
+  // 5.5. Init background brain — secondary LLM for planning/reflection (Phase 15)
+  initBackgroundBrain(bot, config)
+  console.log('[hermescraft] background brain initialized')
 
   // 6. Start body tick
   initModes(bot, isSkillRunning)
