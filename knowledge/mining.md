@@ -1,6 +1,4 @@
-// mining.md — Minecraft 1.21.1 mining knowledge for AI agent RAG retrieval
-
-# Minecraft 1.21.1 Mining Knowledge
+# Mining Knowledge
 
 ## Ore Distribution by Y-Level
 
@@ -85,7 +83,7 @@ Mine 3 diamonds at Y=-58 with iron pickaxe. Craft diamond pickaxe. Required for 
 ### Stage 5: Netherite Pickaxe
 Reach the Nether. Mine ancient debris at Y=15 with diamond pickaxe. Smelt ancient debris → netherite scrap. Combine 4 netherite scrap + 4 gold ingots → netherite ingot. Use a smithing table: netherite upgrade smithing template + diamond pickaxe + netherite ingot → netherite pickaxe. The netherite upgrade template is found in bastion remnant chests.
 
-## Enchantments: Fortune vs Silk Touch
+## Fortune vs Silk Touch Pickaxe Choice
 
 ### Fortune on Ores
 Fortune increases drop quantity for ores that drop items (not raw ore). Fortune III multiplier per ore:
@@ -256,3 +254,39 @@ Bring a chest or shulker box on mining runs to store excess cobblestone, dirt, a
 
 ### Emergency Supplies
 Always carry: water bucket (lava), 20+ food (sustain health regen), torches (64+), pickaxes (at least 2), sword (mob defense), and dirt or cobblestone (pillar out of danger). Fire Resistance potion is essential when mining below Y=-50 or in the Nether. Carry Milk if exploring deep dark (remove Darkness effect for visibility).
+
+## Smelting Ores into Ingots
+
+Use a blast furnace for all ore processing — it smelts at 2× speed compared to a regular furnace. Smelt raw iron → iron ingots, raw gold → gold ingots, raw copper → copper ingots. Coal, lapis, diamonds, and emeralds drop directly as items — no smelting required. Smelt ancient debris → netherite scrap in any furnace type. Furnace fuel efficiency: coal or charcoal smelts 8 items per piece; lava bucket smelts 100 items and returns the empty bucket.
+
+## Ore Vein Sizes
+
+Coal ore: generates in veins of 0–37 blocks. Iron ore: veins of 1–13 blocks, sometimes larger in mountain biomes. Copper ore: large blobs up to 20+ blocks, especially in dripstone caves. Gold ore: veins of 1–9 blocks. Lapis ore: veins of 1–7 blocks. Redstone ore: veins of 1–10 blocks. Diamond ore: veins of 1–10 blocks but extremely rare (average 1 vein per 16 chunks at Y=-58). Ancient debris: maximum 2 veins per chunk, 1–3 blocks per vein.
+
+## Coal and Charcoal as Fuel
+
+Mine coal ore with any pickaxe — no tier requirement. Coal is at every Y-level above Y=0. Use coal for torches (1 coal + 1 stick = 4 torches), smelting fuel (1 coal = 8 smelt operations), and campfires (3 coal + 3 sticks + 3 logs). Make charcoal by smelting any log in a furnace — identical to coal in all uses. When starting out with no coal, smelt 1 log using sticks as fuel to get 1 charcoal, then use that charcoal to smelt more.
+
+## Obsidian Mining
+
+Obsidian forms when a water source block contacts a lava source block. Mine with diamond or netherite pickaxe only — any lesser tier mines it at full speed but drops nothing. Unenchanted diamond pickaxe mines obsidian in 9.4 seconds. Efficiency V diamond pickaxe: ~2.5 seconds. Efficiency V netherite + Haste II: under 1 second. Obsidian uses: Nether portal frame (10 blocks minimum), ender chest, beacon base, enchanting table (4 blocks).
+
+## Spawner Identification and Management
+
+Monster spawners are cage-like blocks containing a spinning mob figure. They spawn that mob type continuously when a player is within 16 blocks and the area is dark. Silks Touch does NOT work on spawners — mining a spawner destroys it. Break spawners that are inconveniently located (cave spiders especially). Keep useful spawners (zombies, skeletons) for XP farms: place torches immediately to pause the spawner, then build an XP kill chamber later.
+
+## Iron and Gold as Mid-Game Targets
+
+Iron is the highest-priority early ore. 24 iron = water bucket (3) + shield (6) + iron pickaxe (3) + iron sword (2) + iron chestplate (8) + spare pickaxe (3) = full iron kit. Iron spawns at all elevations up to Y=232 in mountains. Mine iron while building your shelter — you will pass ore seams naturally. Gold is less critical early but required for powered rails, clocks, and golden food items. Mine gold at Y=-16 to Y=32.
+
+## Aquifer Navigation Underground
+
+Aquifers are underground water bodies that generate in cave systems below Y=63. When you mine into an aquifer, water floods the tunnel. Place torches to light flooded areas. Use a boat to traverse flooded caves quickly (boats float in flooded tunnels). Drain smaller aquifers by digging a drainage channel to a lower cave level. Aquifer water is always fresh (not lava) — carry a bucket to collect it. Aquifers are hazardous only if you fall into a deep pool and cannot surface.
+
+## Ravine Mining
+
+Ravines are vertical cracks in the terrain exposing ore veins on all walls. Mine ravine walls for quick early resources without digging. Ravines expose coal, iron, copper, and sometimes gold at Y=0-50. In deep ravines (Y=-30 to Y=-60), diamonds and redstone appear on the walls. Ravines also expose lava pools — approach the bottom carefully. Bridge across ravines to access both walls efficiently.
+
+## Nether Portal as Mining Transport
+
+Use a Nether portal highway to travel vast Overworld distances quickly: 1 block traveled in the Nether = 8 blocks in the Overworld. Build a Nether highway at Y=110-120 (above the lava sea) to link your base to mining outposts. Place linked portals at your base and at each major mining site. This eliminates long Overworld treks back to base with full inventories.

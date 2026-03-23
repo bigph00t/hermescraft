@@ -1,4 +1,4 @@
-# Minecraft 1.21.1 Survival Knowledge
+# Survival Knowledge
 
 Comprehensive survival reference for AI agents. All data is Java Edition 1.21.1.
 Directives are imperative. Each section is self-contained for RAG retrieval.
@@ -145,24 +145,6 @@ Use coal blocks or lava buckets for bulk smelting. Never burn planks for fuel un
 
 ---
 
-## Enchanting
-
-### Enchanting Table and Bookshelves
-Craft an enchanting table from 1 book + 2 diamonds + 4 obsidian. Place 15 bookshelves within 2 blocks of the table (1 air block gap between bookshelf and table) to unlock level 30 enchantments. Each bookshelf raises the maximum enchantment level by 2. Bookshelves must be on the same Y level or 1 block above, within a 5×5 ring. Transparent blocks and torches between the bookshelf and table do not block the connection — solid blocks do.
-
-### Priority Enchantments by Gear Slot
-- Sword: Sharpness V, Looting III, Fire Aspect II, Sweeping Edge III, Unbreaking III, Mending
-- Pickaxe: Efficiency V, Fortune III (or Silk Touch), Unbreaking III, Mending
-- Bow: Power V, Flame I, Infinity (or Mending), Punch II, Unbreaking III
-- Armor: Protection IV (all pieces), Feather Falling IV (boots), Unbreaking III, Mending, Thorns III (chestplate)
-
-Mending is treasure-only — cannot be obtained from an enchanting table. Get it from librarian villager trading, fishing, dungeon chests, or raid drops. Mending causes XP orbs to repair the held/worn item instead of filling your XP bar.
-
-### Anvil and Enchantment Combining
-Anvil operations: combine two enchanted items of the same type to merge enchantments, apply an enchanted book to an item, rename items (1 level), repair with raw material. Each anvil use increases the item's "prior work" cost by 2× + 1. Items become "Too Expensive" at 40 levels — plan all enchanting at once. To get max-level enchants: combine two books first (book + book = higher tier), then apply the resulting book to your item. This minimizes prior work penalties.
-
----
-
 ## XP (Experience Points)
 
 ### XP Sources
@@ -294,30 +276,39 @@ Throw Eyes of Ender (blaze powder + ender pearl) into the air; they fly toward t
 
 ---
 
-## Potions Brewing
+## Tool Maintenance and Repair
 
-### Brewing Setup and Core Potions
-Build a brewing stand (1 blaze rod + 3 cobblestone). Fill 3 glass bottles with water (right-click a water source). Add nether wart (top ingredient slot) to brew awkward potions — the base for all useful potions. Then add the modifier ingredient:
+### Anvil Repair
+Use an anvil (3 iron blocks + 4 iron ingots) to repair tools and armor. Place the damaged item in the first slot and either another item of the same type or the raw material (iron, diamond, gold, netherite ingot) in the second slot. Each repair increases the "prior work" cost — after 5+ repairs, the cost may exceed 39 levels ("Too Expensive"). Plan repairs early before costs compound. Grindstone (2 sticks + 1 stone slab + 2 planks) repairs items for free but removes all enchantments — only use grindstone on unenchanted items.
 
-| Potion | Add to Awkward | Effect |
-|---|---|---|
-| Fire Resistance | Magma cream | Immune to fire and lava |
-| Strength | Blaze powder | +130% melee damage |
-| Speed | Sugar | +20% movement |
-| Night Vision | Golden carrot | See in darkness |
-| Water Breathing | Pufferfish | Breathe underwater |
-| Regeneration | Ghast tear | Heal over time |
-| Slowness Splash | Fermented spider eye added to Speed | Slows mobs |
-| Invisibility | Fermented spider eye added to Night Vision | Mobs ignore you |
+### Tool Durability Guide
+Durability determines how many blocks you can mine or hits you can deal before the tool breaks. Sword: wood 60, stone 131, iron 250, diamond 1561, netherite 2031. Pickaxe: same values. Armor varies by piece and tier — iron chestplate has 240 durability, diamond chestplate has 528. Always keep a spare tool in your hotbar when mining deep. A broken pickaxe strands you underground.
 
-Extend duration with redstone dust (3 min → 8 min, potency unchanged). Increase potency with glowstone dust (I → II, halves duration). Convert to splash (throwable) with gunpowder. Convert splash to lingering (ground cloud) with dragon's breath.
+## Torches and Lighting Strategy
 
----
+### Torch Placement for Mob Prevention
+Hostile mobs spawn only at block light level 0 in 1.18+. A single torch has light level 14 at source, dropping by 1 per block. Place torches every 12 blocks along walls to maintain minimum light level 2 everywhere between torches. For mob-free areas, use light level 8 as your minimum target — place torches every 8 blocks. Light your base perimeter with lanterns (higher light, longer range) on fence posts. Underground mines: place torches on one consistent wall to use them for navigation.
 
-## Redstone Basics
+### Light Sources Comparison
+Torch: 14 light, craft from coal + stick. Lantern: 15 light, craft from torch + iron nuggets. Glowstone: 15 light, found in Nether, crush for glowstone dust. Sea lantern: 15 light, found in ocean monuments, drops prismarine crystals without Silk Touch. Soul lantern: 10 light, craft from soul sand + iron + torch. Candle: 3-12 light (1-4 candles on a block), craft from string + honeycomb. Jack-o-lantern: 15 light, carved pumpkin + torch — decorative mob-proof light.
 
-### Signals, Repeaters, and Components
-Redstone dust carries a signal up to 15 blocks, losing 1 strength per block. Place a repeater every 15 blocks to extend signal indefinitely (repeaters also impose 1–4 tick delays). Key components: lever (toggle on/off), button (brief pulse), pressure plate (activates on step), observer (pulses when block in front changes state), piston (pushes blocks), sticky piston (pushes and pulls), comparator (measures container fullness or signal strength). Redstone torch: always-on signal source that inverts (turns off) when the block it is attached to receives power.
+## Nether Preparation
 
-### Hoppers for Automation
-A hopper below a container auto-pulls items down into it. A hopper facing into a container's side feeds items horizontally. Hoppers process 1 item per 8 game ticks (2.5 items/second). Chain hoppers to build item sorters, auto-smelters, and collection systems. Build automatic farms in the spawn chunks (-8,-8 to +7,+7) so they run continuously without a player nearby.
+### Gear Before Entering the Nether
+Do not enter the Nether without: iron armor minimum (full set), iron sword, iron pickaxe, 20+ cooked food, 64+ torches, a bucket (not water — useless in Nether), and flint and steel (relight portals). Build gold armor boots minimum — piglins attack any player wearing no gold. The Nether has ghasts, piglins, zombie piglins, blazes, wither skeletons, magma cubes, and hoglins — each lethal to unprepared players.
+
+### Nether Portal Safety
+Mark your portal's Nether-side coordinates immediately on entering — they will be approximately X/8, same Y, Z/8 of your Overworld position. Build a small cobblestone shelter around your Nether portal immediately to protect it from ghast fireballs. Ghast fireballs destroy portal frames if they hit unprotected obsidian areas. Replace any destroyed obsidian with spare obsidian carried in your inventory. Carry flint and steel to relight the portal if the flame is extinguished.
+
+## Progression Milestones
+
+### Early Game Milestones (Day 1–3)
+Day 1 targets: wood tools, stone tools, shelter, torches, bed. Day 2: mine iron (at least 24 ingots), craft full iron armor + iron pickaxe + iron sword + water bucket + shield. Day 3: mine diamonds (at least 6), craft diamond pickaxe + enchanting table obsidian (4 blocks). Complete this progression before venturing far from base. Skipping any tier compounds risk — stone tools in a cave at night is a death sentence.
+
+### Mid Game Milestones (Week 1)
+Get a full set of iron armor before exploring caves. Build a base with storage, a bed, a farm, and a furnace array. Get a diamond pickaxe before going below Y=-40. Establish a food farm (wheat or carrots) before the second night. Trade with villagers to get useful items without mining. Build a Nether portal after getting iron armor. Mine 4 ancient debris for 1 netherite ingot before the End fight.
+
+## Fishing
+
+### Fishing Mechanics
+Craft a fishing rod from 3 sticks + 2 string. Cast into any water body (2+ blocks deep works best). Wait for the bobber to dip underwater (sound: splash) — right-click immediately to reel in. Fishing yields: fish (55% chance), treasure (5% chance), junk (40%). Treasure includes: enchanted books (with random enchantments — best source of Mending and rare enchants), bows, fishing rods, saddles, name tags, and nautilus shells. Fish in rain for +20% chance of catching fish. Open water bonus: fishing in a 5x5x5 open water area reduces wait time by 20%.

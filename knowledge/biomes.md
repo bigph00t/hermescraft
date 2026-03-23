@@ -1,4 +1,4 @@
-# Minecraft 1.21.1 Biomes Knowledge
+# Biome Knowledge
 
 ## Overview
 
@@ -452,3 +452,11 @@ Location: All Nether biomes except Basalt Deltas. Contains: Piglins, hoglin stab
 
 ### End City
 Location: End Highlands on outer End islands. Find via: End Gateways (shoot ender pearl into gateway after Dragon death). Contains: Shulkers, shulker shells, elytra (on End Ship), valuable enchanted gear. Essential late-game structure for elytra and shulker box farming.
+
+## Biome Navigation and Identification
+
+### Identifying Your Biome
+Identify biomes by surface blocks and vegetation: grass color (green = temperate, brownish = savanna, pale = cold), tree types (oak = forest, birch = birch forest, spruce = taiga, acacia = savanna, jungle tree = jungle, dark oak = dark forest), and sand vs grass vs snow on the surface. Carry a clock (4 gold ingots + 1 redstone) to read time. Use the F3 debug screen (Java Edition) to see the exact biome name. Biome boundaries are visible at the transition from one vegetation type to another.
+
+### Biome-Specific Survival Tips
+Desert: No rain, no passive mobs except rabbits — bring food. Jungle: Extreme navigation difficulty — mark paths. Swamp: Slimes spawn at full moon on the surface — avoid at night. Mushroom Fields: No hostile mob spawning on mycelium — the only mob-safe biome. Ocean: No wood source — carry extra wood. Taiga: Sweet berry bushes damage you while walking through — use paths. Mountains: Fall risk is extreme — bring water bucket for MLG saves on every excursion.

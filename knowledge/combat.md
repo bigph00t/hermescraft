@@ -1,4 +1,4 @@
-# Minecraft 1.21.1 Combat Knowledge
+# Combat Knowledge
 
 ## Hostile Mob Overview
 
@@ -591,7 +591,7 @@ Hostile mobs spawn in darkness (light level < 0 in 1.21.1 using the new light sy
 
 ---
 
-## Enchantments — Weapon
+## Weapon Upgrades and Combat Bonuses
 
 ### Sharpness
 - Sharpness I-V: +1 HP per level extra damage (actually +0.5 per level in 1.21, with I being +1). Applies to all mobs.
