@@ -10,6 +10,7 @@ import { initModes } from './body/modes.js'
 import { initBuild } from './body/skills/build.js'
 import { initChestMemory } from './body/skills/chest.js'
 import { initBuildHistory, loadBuildHistory, saveBuildHistory } from './mind/build-history.js'
+import { initKnowledge, loadKnowledge } from './mind/knowledge.js'
 
 async function main() {
   console.log('[hermescraft] v2 starting...')
@@ -33,6 +34,10 @@ async function main() {
   initBuild(config)
   initBuildHistory(config)
   loadBuildHistory()
+
+  // 3.6. Init knowledge corpus (build all chunks at startup)
+  initKnowledge(config)
+  loadKnowledge()
 
   // 4. Set bot.homeLocation for body/modes.js night shelter (mind/body boundary: property on bot, not import)
   const home = getHome()

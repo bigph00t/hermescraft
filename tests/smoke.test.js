@@ -388,6 +388,56 @@ const _indexSrc = _readFileSync(_join(_here, '../mind/index.js'), 'utf-8')
 assert('start.js imports initBuildHistory', _startSrc.includes('initBuildHistory'))
 assert('mind/index.js imports recordBuild', _indexSrc.includes('recordBuild'))
 
+// ── Section 14: Knowledge Corpus ──
+
+section('Knowledge Corpus')
+
+const knowledge = await import('../mind/knowledge.js')
+assert('mind/knowledge: initKnowledge exported', typeof knowledge.initKnowledge === 'function')
+assert('mind/knowledge: loadKnowledge exported', typeof knowledge.loadKnowledge === 'function')
+assert('mind/knowledge: getAllChunks exported', typeof knowledge.getAllChunks === 'function')
+assert('mind/knowledge: buildRecipeChunks exported', typeof knowledge.buildRecipeChunks === 'function')
+assert('mind/knowledge: buildFactChunks exported', typeof knowledge.buildFactChunks === 'function')
+assert('mind/knowledge: buildCommandChunks exported', typeof knowledge.buildCommandChunks === 'function')
+assert('mind/knowledge: buildStrategyChunks exported', typeof knowledge.buildStrategyChunks === 'function')
+
+// Init and load — must complete without error
+knowledge.initKnowledge({})
+const knowledgeChunks = knowledge.loadKnowledge()
+assert('loadKnowledge returns array', Array.isArray(knowledgeChunks))
+assert('chunk count >= 600', knowledgeChunks.length >= 600)
+
+// Schema shape — all chunks must have { id, text, type, tags, source }
+const schemaOk = knowledgeChunks.every(c => c.id && c.text && c.type && Array.isArray(c.tags) && c.source)
+assert('all chunks have { id, text, type, tags, source }', schemaOk)
+
+// No empty text
+const noEmpty = knowledgeChunks.every(c => c.text.length > 0)
+assert('no chunk has empty text', noEmpty)
+
+// Recipe chunk exists for iron_pickaxe with smelting path
+const ironPick = knowledgeChunks.find(c => c.id === 'recipe_iron_pickaxe')
+assert('recipe_iron_pickaxe chunk exists', !!ironPick)
+assert('iron_pickaxe mentions smelt or raw_iron', ironPick && (ironPick.text.includes('smelt') || ironPick.text.includes('raw_iron')))
+
+// Fact chunks
+assert('mob_creeper chunk exists', knowledgeChunks.some(c => c.id === 'mob_creeper'))
+assert('food_bread chunk exists', knowledgeChunks.some(c => c.id === 'food_bread'))
+assert('biome_plains chunk exists', knowledgeChunks.some(c => c.id === 'biome_plains'))
+
+// Command chunks
+assert('cmd_gather chunk exists', knowledgeChunks.some(c => c.id === 'cmd_gather'))
+assert('cmd_craft chunk exists', knowledgeChunks.some(c => c.id === 'cmd_craft'))
+
+// Strategy chunks (from knowledge/*.md files)
+const strategyChunks = knowledgeChunks.filter(c => c.type === 'strategy')
+assert('strategy chunks exist (>= 100)', strategyChunks.length >= 100)
+
+// Wiring assertions
+assert('start.js imports initKnowledge', _startSrc.includes('initKnowledge'))
+assert('start.js imports loadKnowledge', _startSrc.includes('loadKnowledge'))
+assert('start.js calls loadKnowledge()', _startSrc.includes('loadKnowledge()'))
+
 // ── Final Summary ──
 
 console.log(`\n${'='.repeat(40)}`)

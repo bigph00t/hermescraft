@@ -23,10 +23,11 @@ export function initKnowledge(config) {
 export function loadKnowledge() {
   chunks = [
     ...buildRecipeChunks(),
-    // ...buildFactChunks(),      — Plan 03
-    // ...buildStrategyChunks(),   — Plan 03
-    // ...buildCommandChunks(),    — Plan 03
+    ...buildFactChunks(),
+    ...buildStrategyChunks(),
+    ...buildCommandChunks(),
   ]
+  console.log(`[knowledge] corpus loaded: ${chunks.length} chunks (${chunks.filter(c => c.type === 'recipe').length} recipes, ${chunks.filter(c => c.type === 'fact').length} facts, ${chunks.filter(c => c.type === 'strategy').length} strategy, ${chunks.filter(c => c.type === 'command').length} commands)`)
   return chunks
 }
 
@@ -455,4 +456,45 @@ export function buildCommandChunks() {
     tags: ['command', cmd.name],
     source: 'auto-generated',
   }))
+}
+
+// ── Strategy Chunk Generator ──
+
+// buildStrategyChunks — parse knowledge/*.md files into one chunk per H2 section (RAG-03)
+export function buildStrategyChunks() {
+  if (!KNOWLEDGE_DIR || !existsSync(KNOWLEDGE_DIR)) return []
+
+  const files = readdirSync(KNOWLEDGE_DIR).filter(f => f.endsWith('.md'))
+  const allChunks = []
+
+  for (const file of files) {
+    const filePath = join(KNOWLEDGE_DIR, file)
+    const content = readFileSync(filePath, 'utf-8')
+    const fileType = file.replace('.md', '')  // e.g. 'mining', 'combat'
+
+    // Split on H2 headings, keeping the heading with its section
+    const sections = content.split(/(?=^## )/m).filter(s => s.trim())
+
+    for (const section of sections) {
+      // Skip H1 title sections (lines starting with # but not ##)
+      if (section.startsWith('# ') && !section.startsWith('## ')) continue
+
+      const lines = section.trim().split('\n')
+      const heading = lines[0].replace(/^#+\s*/, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+      const text = section.trim()
+
+      // Skip sections with no actual content (just a heading)
+      if (lines.length <= 1) continue
+
+      allChunks.push({
+        id: `strategy_${fileType}_${heading}`,
+        text,
+        type: 'strategy',
+        tags: ['strategy', fileType, heading],
+        source: 'hand-authored',
+      })
+    }
+  }
+
+  return allChunks
 }
