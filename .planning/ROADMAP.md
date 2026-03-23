@@ -163,7 +163,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 14. RunPod Infrastructure | 1/2 | In Progress|  |
 | 15. Dual-Brain Architecture | 2/2 | Complete    | 2026-03-23 |
-| 16. Vision System | 2/2 | Complete   | 2026-03-23 |
+| 16. Vision System | 2/2 | Complete    | 2026-03-23 |
 | 17. Memory Foundation | 0/TBD | Not started | - |
 | 18. Memory Integration | 0/TBD | Not started | - |
 | 19. Enhanced Spatial + Building | 0/TBD | Not started | - |
