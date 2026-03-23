@@ -13,6 +13,7 @@ import { initBuildHistory, loadBuildHistory, saveBuildHistory } from './mind/bui
 import { initKnowledge, loadKnowledge } from './mind/knowledge.js'
 import { initKnowledgeStore } from './mind/knowledgeStore.js'
 import { initBackgroundBrain } from './mind/backgroundBrain.js'
+import { initMemoryDB } from './mind/memoryDB.js'
 
 async function main() {
   console.log('[hermescraft] v2 starting...')
@@ -28,6 +29,8 @@ async function main() {
   // 3. Init data subsystems (must happen before initMind)
   initMemory(config)
   loadMemory()
+  initMemoryDB(config)
+  console.log('[hermescraft] memory DB initialized')
   initSocial(config)
   initLocations(config)
 

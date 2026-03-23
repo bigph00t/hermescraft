@@ -684,6 +684,74 @@ assert('spatial.js buildSpatialAwareness still exported', _spatialSrc16.includes
 assert('mind/index.js imports scanArea for post-build scan', _indexSrc.includes('scanArea'))
 assert('mind/index.js has post-build scan try/catch', _indexSrc.includes('Post-build scan'))
 
+// ── Section 20: Memory DB (Phase 17) ──
+
+section('Memory DB (Phase 17)')
+
+import { mkdtempSync, rmSync } from 'fs'
+import { tmpdir } from 'os'
+
+// Module import and export validation
+const memoryDB = await import('../mind/memoryDB.js')
+assert('mind/memoryDB: initMemoryDB exported', typeof memoryDB.initMemoryDB === 'function')
+assert('mind/memoryDB: logEvent exported', typeof memoryDB.logEvent === 'function')
+assert('mind/memoryDB: queryRecent exported', typeof memoryDB.queryRecent === 'function')
+assert('mind/memoryDB: queryNearby exported', typeof memoryDB.queryNearby === 'function')
+assert('mind/memoryDB: pruneOldEvents exported', typeof memoryDB.pruneOldEvents === 'function')
+assert('mind/memoryDB: only 5 exports', Object.keys(memoryDB).length === 5)
+
+// Functional test with temp directory
+const tmpDir = mkdtempSync(_join(tmpdir(), 'memdb-test-'))
+try {
+  memoryDB.initMemoryDB({ dataDir: tmpDir, name: 'test-agent' })
+
+  const fakeBot = {
+    entity: { position: { x: 100, y: 64, z: -200 } },
+    game: { dimension: 'overworld' },
+  }
+
+  memoryDB.logEvent(fakeBot, 'death', 'Fell into lava', { cause: 'lava' })
+  memoryDB.logEvent(fakeBot, 'build', 'Completed cottage', null)
+  memoryDB.logEvent(fakeBot, 'craft', 'Crafted iron pickaxe', { item: 'iron_pickaxe' })
+
+  const rows = memoryDB.queryRecent('test-agent', 10)
+  assert('memoryDB: 3 events persisted to SQLite', rows.length === 3)
+
+  const deathRow = rows.find(r => r.event_type === 'death')
+  const buildRow = rows.find(r => r.event_type === 'build')
+  const craftRow = rows.find(r => r.event_type === 'craft')
+
+  assert('memoryDB: death importance === 10', deathRow?.importance === 10)
+  assert('memoryDB: build importance === 6', buildRow?.importance === 6)
+  assert('memoryDB: craft importance === 4', craftRow?.importance === 4)
+
+  assert('memoryDB: spatial coords x === 100 on death', deathRow?.x === 100)
+  assert('memoryDB: spatial coords z === -200 on death', deathRow?.z === -200)
+  assert('memoryDB: spatial coords x === 100 on build', buildRow?.x === 100)
+  assert('memoryDB: spatial coords z === -200 on build', buildRow?.z === -200)
+
+  const nearby = memoryDB.queryNearby('test-agent', 100, -200, 50)
+  assert('memoryDB: queryNearby returns events within radius', nearby.length >= 1)
+
+  const farAway = memoryDB.queryNearby('test-agent', 9999, 9999, 10)
+  assert('memoryDB: queryNearby returns 0 for out-of-range coords', farAway.length === 0)
+} finally {
+  rmSync(tmpDir, { recursive: true, force: true })
+}
+
+// Source-level wiring assertions
+const _memdbSrc = _readFileSync(_join(_here, '../mind/memoryDB.js'), 'utf-8')
+assert('memoryDB.js has WAL mode', _memdbSrc.includes('journal_mode = WAL'))
+assert('memoryDB.js has IMPORTANCE table', _memdbSrc.includes('death:'))
+assert('memoryDB.js has metadata cap 500', _memdbSrc.includes('.slice(0, 500)'))
+assert('memoryDB.js has dimension normalization', _memdbSrc.includes("replace('minecraft:', '')"))
+assert('memoryDB.js does NOT use default export', !_memdbSrc.includes('export default'))
+assert('start.js imports initMemoryDB', _startSrc.includes('initMemoryDB'))
+assert('start.js calls initMemoryDB(config)', _startSrc.includes('initMemoryDB(config)'))
+assert('mind/index.js imports logEvent', _indexSrc.includes("import { logEvent }"))
+assert("mind/index.js calls logEvent in death handler", _indexSrc.includes("logEvent(bot, 'death'"))
+assert('mind/index.js calls logEvent on dispatch success', _indexSrc.includes('EVT_MAP'))
+
 // ── Final Summary ──
 
 console.log(`\n${'='.repeat(40)}`)

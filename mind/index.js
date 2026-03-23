@@ -20,6 +20,7 @@ import { getBrainStateForPrompt } from './backgroundBrain.js'
 import { captureScreenshot, queryVLM, buildVisionForPrompt } from './vision.js'
 import { getMinimapSummary } from './minimap.js'
 import { scanArea } from '../body/skills/scan.js'
+import { logEvent } from './memoryDB.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 // BLUEPRINTS_DIR mirrors the path in body/skills/build.js — co-located with blueprint JSONs
@@ -386,6 +387,7 @@ async function think(bot, context) {
       if (designResult.success) {
         const pos = bot.entity.position
         addWorldKnowledge(`Designed and built "${description}" at ${Math.round(pos.x)},${Math.round(pos.y)},${Math.round(pos.z)}`)
+        logEvent(bot, 'build', `design: ${description}`, { command: 'design', success: true })
         saveLocation(`custom_build`, Math.round(pos.x), Math.round(pos.y), Math.round(pos.z), 'build')
         recordBuild({
           name: description,
@@ -435,6 +437,13 @@ async function think(bot, context) {
     // RAG-08: Track failures for auto-lookup on next think() cycle
     if (!skillResult.success) {
       _lastFailure = { command: result.command, args: result.args || {} }
+    }
+
+    // Log successful dispatches to the SQLite event log (Phase 17 — MEM-01/MEM-03/SPA-03)
+    if (skillResult.success) {
+      const EVT_MAP = { build: 'build', design: 'build', mine: 'discovery', gather: 'discovery', combat: 'combat', craft: 'craft', smelt: 'craft', chat: 'social', navigate: 'movement' }
+      const evtType = EVT_MAP[result.command] || 'observation'
+      logEvent(bot, evtType, `${result.command}: ${JSON.stringify(result.args || {}).slice(0, 120)}`, { command: result.command, success: true })
     }
 
     // Record build completion to world knowledge, locations, and build history for cross-session recall (BUILD-03)
@@ -664,6 +673,7 @@ export async function initMind(bot, config) {
     console.log('[mind] bot died:', deathMsg, '— clearing conversation')
     clearConversation()
     recordDeath(deathMsg)
+    logEvent(bot, 'death', deathMsg, { cause: deathMsg })
     _lastDeath = deathMsg
     lastActionTime = Date.now()
   })
