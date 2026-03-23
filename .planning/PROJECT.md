@@ -35,9 +35,9 @@ Agents must feel and play like real people — creative, emotional, with desires
 
 - [x] Minecraft RAG — full game knowledge (recipes, blocks, mobs, biomes) queryable on demand — Validated in Phase 11: Knowledge Corpus (2,677 chunks)
 - [x] Tool/command RAG — agents understand their own !commands deeply via indexed documentation — Validated in Phase 11: Knowledge Corpus (22 command chunks)
-- [ ] Auto-lookup on failure — when skills fail, automatically retrieve correct approach
-- [ ] Context-aware knowledge injection — inject relevant MC info based on current activity
-- [ ] !wiki command — agents query MC knowledge mid-gameplay
+- [x] Auto-lookup on failure — when skills fail, automatically retrieve correct approach — Validated in Phase 13: Prompt Integration
+- [x] Context-aware knowledge injection — inject relevant MC info based on current activity — Validated in Phase 13: Prompt Integration
+- [x] !wiki command — agents query MC knowledge mid-gameplay — Validated in Phase 13: Prompt Integration
 
 ### Out of Scope
 
@@ -57,9 +57,11 @@ The v2.0 rewrite is complete. 24 JavaScript modules across `body/` (skills, prim
 
 **Phase 11 complete (2026-03-23):** Knowledge corpus built — 2,677 chunks (782 recipes, 1,662 facts, 211 strategy, 22 commands). `mind/knowledge.js` with 4 generators wired into `start.js`. 10 hand-authored knowledge files in `knowledge/` covering mining, combat, farming, survival, biomes, structures, building, tool-mastery, creative-flows, objectives.
 
-**Phase 12 complete (2026-03-23):** KnowledgeStore retrieval engine — `mind/knowledgeStore.js` with hybrid BM25 + vector search + RRF fusion (k=60). Local all-MiniLM-L6-v2 embeddings via @huggingface/transformers. Top-8 results with scores. 267 smoke tests passing.
+**Phase 12 complete (2026-03-23):** KnowledgeStore retrieval engine — `mind/knowledgeStore.js` with hybrid BM25 + vector search + RRF fusion (k=60). Local all-MiniLM-L6-v2 embeddings via @huggingface/transformers. Top-8 results with scores.
 
-Architecture: `start.js` → `createBot()` → init subsystems → `initKnowledge` → `loadKnowledge` → `initKnowledgeStore` → `initMind(bot, config)` → `initModes(bot, isSkillRunning)`. Event-driven Mind loop (chat/skill_complete/idle triggers). 9 registry commands (!gather, !mine, !craft, !smelt, !navigate, !chat, !idle, !combat, !build, !deposit, !withdraw). 300ms body tick with 6-priority survival cascade.
+**Phase 13 complete (2026-03-23):** Prompt Integration — RAG wired into agent brain. !wiki command for on-demand queries, failure auto-lookup (craft/mine/build failures trigger knowledge injection), context-aware injection on every think() call. GAMEPLAY_INSTRUCTIONS replaced with 150-token ESSENTIAL KNOWLEDGE + dynamic RAG. 292 smoke tests passing.
+
+Architecture: `start.js` → `createBot()` → init subsystems → `initKnowledge` → `loadKnowledge` → `initKnowledgeStore` → `initMind(bot, config)` → `initModes(bot, isSkillRunning)`. Event-driven Mind loop with RAG injection (chat/skill_complete/idle triggers). 10 registry commands (!gather, !mine, !craft, !smelt, !navigate, !chat, !idle, !combat, !build, !deposit, !withdraw, !wiki). 300ms body tick with 6-priority survival cascade.
 
 ## Current Milestone: v2.2 Minecraft RAG
 
@@ -120,4 +122,4 @@ Architecture: `start.js` → `createBot()` → init subsystems → `initKnowledg
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-03-23 after Phase 12 completion*
+*Last updated: 2026-03-23 after Phase 13 completion — v2.2 milestone complete*
