@@ -181,6 +181,20 @@ for (const cmd of promptCmds) {
 // Directed building guidance — CBUILD-01 enabler
 assert('system prompt mentions directed building guidance', sysPrompt.includes('build something') || sysPrompt.includes('build a') || sysPrompt.includes('"here"') || sysPrompt.includes('"at this spot"'))
 
+// RAG-10: Prompt restructuring — old verbose MINECRAFT KNOWLEDGE replaced by ESSENTIAL KNOWLEDGE
+assert('system prompt contains ESSENTIAL KNOWLEDGE', sysPrompt.includes('ESSENTIAL KNOWLEDGE'))
+assert('system prompt does NOT contain old MINECRAFT KNOWLEDGE header', !sysPrompt.includes('## MINECRAFT KNOWLEDGE'))
+assert('system prompt contains tool tiers', sysPrompt.includes('WOODEN: stone, coal_ore'))
+assert('system prompt contains ore Y-levels', sysPrompt.includes('diamond < 16'))
+assert('system prompt does NOT contain old verbose building materials list', !sysPrompt.includes('oak/spruce/birch/jungle/acacia/dark_oak'))
+
+// RAG context injection slot
+const ragPrompt = prompt.buildSystemPrompt(mockBot, { ragContext: '## RELEVANT KNOWLEDGE\nTest knowledge chunk' })
+assert('ragContext option injects into system prompt', ragPrompt.includes('## RELEVANT KNOWLEDGE'))
+assert('ragContext content appears in prompt', ragPrompt.includes('Test knowledge chunk'))
+const noRagPrompt = prompt.buildSystemPrompt(mockBot, {})
+assert('no ragContext means no RELEVANT KNOWLEDGE section', !noRagPrompt.includes('RELEVANT KNOWLEDGE'))
+
 // ── Section 4: Normalizer Correctness ──
 
 section('Normalizer Correctness')
