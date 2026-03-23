@@ -2,13 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Persistent Memory & Ambitious Building
-status: ready_to_plan
-last_updated: "2026-03-23T18:00:00.000Z"
+status: Ready to execute
+stopped_at: Phase 14-01 complete. infra/ scripts built, MAX_TOKENS wired. Ready for Plan 02 deployment.
+last_updated: "2026-03-23T19:57:37.803Z"
 progress:
   total_phases: 9
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 2
+  completed_plans: 1
 ---
 
 # Project State
@@ -18,20 +19,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** Agents that learn, grow, remember, and build ambitiously — playing Minecraft like real humans
-**Current focus:** Phase 14 — RunPod Infrastructure (first phase of v2.3)
+**Current focus:** Phase 14 — runpod-infrastructure
 
 ## Current Position
 
-Phase: 14 of 22 (RunPod Infrastructure — first phase of v2.3)
-Plan: 0 of 2 in current phase
-Status: Planned — ready to execute
-Last activity: 2026-03-23 — Phase 14 planned (2 plans, 2 waves)
-
-Progress: [░░░░░░░░░░] 0% (v2.3 starting)
+Phase: 14 (runpod-infrastructure) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed: 0 (v2.3); 6 (v2.2) for reference
 - Average duration: not tracked
 - Total execution time: not tracked
@@ -43,6 +41,7 @@ Progress: [░░░░░░░░░░] 0% (v2.3 starting)
 ### Key Architecture Decisions
 
 **Carried from v2.2:**
+
 - Mind + Body split enforced; only registry.js imports from body/
 - KnowledgeStore: hybrid BM25 (MiniSearch) + vector (Vectra) + RRF fusion (k=60)
 - Local all-MiniLM-L6-v2 embeddings via @huggingface/transformers
@@ -51,6 +50,7 @@ Progress: [░░░░░░░░░░] 0% (v2.3 starting)
 - 2,710 RAG chunks across 17 knowledge files
 
 **v2.3 Decisions:**
+
 - **Model**: Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled-heretic-v1 (GGUF) as main brain, replacing MiniMax M2.7
 - **Secondary brain**: Qwen3.5-9B for background processing (memory consolidation, spatial analysis, planning)
 - **GPU**: RunPod A6000 48GB ($0.33/hr) — NOT A100. Dual model fits with quantization.
@@ -79,6 +79,19 @@ Progress: [░░░░░░░░░░] 0% (v2.3 starting)
 | `.planning/research/DUAL-BRAIN-ARCHITECTURE.md` | Talker-Reasoner pattern, shared state design, ring buffers |
 | `.planning/research/MODEL-OPTIMIZATION.md` | Quant comparison, A6000 speed estimates, MAX_TOKENS tuning |
 
+### Decisions (Phase 14)
+
+- MAX_TOKENS=128 default in all configs (A6000 <3s latency target)
+- MODEL_NAME default changed from MiniMax to hermes everywhere
+- Sequential startup with sleep 30 between llama-server and vLLM to prevent CUDA OOM
+- VLLM_API_KEY no longer required (llama-server needs no auth); default changed to not-needed
+
+### Performance Metrics
+
+| Phase | Plan | Duration | Tasks | Files |
+|-------|------|----------|-------|-------|
+| 14-runpod-infrastructure | P01 | 196s | 2 | 9 |
+
 ### Pending Todos
 
 - Fix tool auto-equipping bug (agents mine with fists instead of pickaxe)
@@ -94,6 +107,6 @@ Progress: [░░░░░░░░░░] 0% (v2.3 starting)
 
 ## Session Continuity
 
-Last session: 2026-03-23
-Stopped at: Phase 14 planned. 2 plans in 2 waves. Plan 01 autonomous, Plan 02 collaborative.
+Last session: 2026-03-23T19:57:37.801Z
+Stopped at: Phase 14-01 complete. infra/ scripts built, MAX_TOKENS wired. Ready for Plan 02 deployment.
 Resume: `/gsd:execute-phase 14` or `/gsd:autonomous`

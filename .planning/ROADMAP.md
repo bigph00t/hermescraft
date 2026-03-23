@@ -52,9 +52,9 @@ See: `.planning/milestones/v2.2-ROADMAP.md` for full details.
   3. Both Luna and Max agents connect to the new model and produce coherent responses
   4. Response latency is under 3 seconds for 128-token generation (main brain)
   5. .env.runpod configured for on-pod localhost deployment; Glass .env updated if agents also run remotely
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
-- [ ] 14-01-PLAN.md — All infra scripts + code changes (autonomous: setup-pod, start-models, start-stack, llm.js MAX_TOKENS, launch-duo defaults, docker-compose.runpod, .env.runpod, smoke test)
+- [x] 14-01-PLAN.md — All infra scripts + code changes (autonomous: setup-pod, start-models, start-stack, llm.js MAX_TOKENS, launch-duo defaults, docker-compose.runpod, .env.runpod, smoke test)
 - [ ] 14-02-PLAN.md — RunPod pod provisioning + full stack deployment + agent coherence verification (collaborative)
 
 ### Phase 15: Dual-Brain Architecture
@@ -155,7 +155,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 14. RunPod Infrastructure | 0/2 | Planned | - |
+| 14. RunPod Infrastructure | 1/2 | In Progress|  |
 | 15. Dual-Brain Architecture | 0/TBD | Not started | - |
 | 16. Vision System | 0/TBD | Not started | - |
 | 17. Memory Foundation | 0/TBD | Not started | - |
