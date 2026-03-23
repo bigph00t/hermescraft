@@ -11,6 +11,8 @@ import { initBuild } from './body/skills/build.js'
 import { initChestMemory } from './body/skills/chest.js'
 import { initBuildHistory, loadBuildHistory, saveBuildHistory } from './mind/build-history.js'
 import { initBuildPlanner } from './mind/buildPlanner.js'
+import { initTaskRegistry } from './mind/taskRegistry.js'
+import { initCoordination } from './mind/coordination.js'
 import { initKnowledge, loadKnowledge } from './mind/knowledge.js'
 import { initKnowledgeStore } from './mind/knowledgeStore.js'
 import { initBackgroundBrain } from './mind/backgroundBrain.js'
@@ -42,6 +44,11 @@ async function main() {
   loadBuildHistory()
   initBuildPlanner(config)
   console.log('[hermescraft] build planner initialized')
+
+  // 3.6a. Init multi-agent coordination (Phase 21 — COO-01/COO-04)
+  initTaskRegistry(config)
+  initCoordination(config)
+  console.log('[hermescraft] coordination initialized')
 
   // 3.6. Init knowledge corpus (build all chunks at startup)
   initKnowledge(config)

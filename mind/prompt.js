@@ -296,6 +296,11 @@ Build a nether portal: 4×5 obsidian frame (corners optional), ignite with flint
     parts.push(`## Build Plan\n${options.buildPlanContext}`)
   }
 
+  // Part 5.13: Partner activity — what the other agent is currently doing (COO-04)
+  if (options.partnerActivity) {
+    parts.push(`## Partner Activity\n${options.partnerActivity}`)
+  }
+
   // Part 6: !command reference — all available commands with argument syntax
   parts.push(`
 When you decide to act, respond with a SINGLE line in this exact format:
@@ -476,6 +481,11 @@ export function buildUserMessage(bot, trigger, options = {}) {
     if (age < 30000) {
       parts.push(`⚠ ${options.partnerChat.sender} just spoke to you. Respond with !chat before doing anything else.`)
     }
+  }
+
+  // COO-02: Chat loop prevention warning — injected into user message (not system prompt)
+  if (options.chatLimitWarning) {
+    parts.push(`⚠ You've sent ${options.chatLimitWarning} chats in a row. TAKE A GAME ACTION now — no more !chat until you do something useful like !gather, !mine, !craft, !build, !explore, etc.`)
   }
 
   // Current game state

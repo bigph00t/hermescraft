@@ -21,7 +21,8 @@ import { captureScreenshot, queryVLM, buildVisionForPrompt } from './vision.js'
 import { getMinimapSummary } from './minimap.js'
 import { scanArea } from '../body/skills/scan.js'
 import { logEvent, queryRecent, queryNearby } from './memoryDB.js'
-import { planBuild, auditMaterials, getBuildPlanForPrompt, getActivePlan, buildExpectedBlockMap, saveBuildPlan } from './buildPlanner.js'
+import { planBuild, auditMaterials, getBuildPlanForPrompt, getActivePlan, buildExpectedBlockMap, saveBuildPlan, claimBuildSection } from './buildPlanner.js'
+import { broadcastActivity, getPartnerActivityForPrompt } from './coordination.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 // BLUEPRINTS_DIR mirrors the path in body/skills/build.js — co-located with blueprint JSONs
@@ -39,6 +40,7 @@ let _lastFailure = null  // { command, args } from previous failed dispatch — 
 let _lastDeath = null    // death message string — consumed by next think() for recovery RAG
 let _lastVisionResult = null  // consume-once VLM description — cleared after injection into prompt
 let _postBuildScan = null     // consume-once post-build scan result
+let _consecutiveChatCount = 0  // COO-02: chat loop prevention — force non-chat after 3 consecutive
 
 // ── Async Chat Response (bypasses skill queue) ──
 
@@ -400,6 +402,7 @@ async function think(bot, context) {
       visionContext: _lastVisionResult ? buildVisionForPrompt(_lastVisionResult) : null,
       minimapContext: getMinimapSummary(bot, 32),
       postBuildScan: _postBuildScan,
+      partnerActivity: getPartnerActivityForPrompt(),
     })
     // Consume-once: clear vision and post-build scan results after injection (like _lastDeath pattern)
     _lastVisionResult = null
@@ -407,7 +410,7 @@ async function think(bot, context) {
 
     // Inject partner's last chat into user message if available
     const partnerChat = _config?.partnerName ? getPartnerLastChat(_config.partnerName) : null
-    const userMessage = buildUserMessage(bot, context.trigger, { ...context, partnerChat })
+    const userMessage = buildUserMessage(bot, context.trigger, { ...context, partnerChat, chatLimitWarning: _consecutiveChatCount >= 3 ? _consecutiveChatCount : null })
 
     console.log('[mind] thinking...', context.trigger)
 
@@ -538,6 +541,22 @@ async function think(bot, context) {
       return
     }
 
+    // COO-03: Auto-claim build section when active plan exists and command is build
+    if (result.command === 'build') {
+      const activePlan = getActivePlan()
+      if (activePlan?.sections?.length > 1) {
+        const claimed = claimBuildSection(_config.name, activePlan.id)
+        if (claimed) {
+          console.log('[mind] claimed build section:', claimed.id)
+        }
+      }
+    }
+
+    // COO-04: Broadcast activity start before dispatch
+    try {
+      broadcastActivity(result.command, result.args || {}, 'running')
+    } catch { /* non-fatal — partner visibility is best-effort */ }
+
     // Dispatch a real command to the body
     console.log('[mind] dispatching:', result.command, result.args)
     skillRunning = true
@@ -546,6 +565,19 @@ async function think(bot, context) {
 
     console.log('[mind] skill result:', result.command, skillResult.success ? 'OK' : skillResult.reason)
     lastActionTime = Date.now()
+
+    // COO-02: Chat loop prevention — track consecutive chat commands
+    if (result.command === 'chat') {
+      _consecutiveChatCount++
+    } else if (result.command !== 'idle' && skillResult.success) {
+      // Reset only on successful non-chat non-idle skill dispatch (Pitfall 3)
+      _consecutiveChatCount = 0
+    }
+
+    // COO-04: Broadcast activity after every dispatch
+    try {
+      broadcastActivity(result.command, result.args || {}, skillResult.success ? 'complete' : 'failed')
+    } catch { /* non-fatal — partner visibility is best-effort */ }
 
     // RAG-08: Track failures for auto-lookup on next think() cycle
     if (!skillResult.success) {
