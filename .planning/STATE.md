@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Persistent Memory & Ambitious Building
-status: Ready to plan
-stopped_at: Completed 21-02-PLAN.md — coordination wiring + smoke tests. Phase 21 complete.
-last_updated: "2026-03-23T23:11:24.881Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 22-02-PLAN.md — graceful shutdown, scheduled restart, Phase 22 smoke tests. Phase 22 complete.
+last_updated: "2026-03-23T23:24:38.882Z"
 progress:
   total_phases: 9
-  completed_phases: 7
-  total_plans: 14
-  completed_plans: 13
+  completed_phases: 8
+  total_plans: 16
+  completed_plans: 15
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** Agents that learn, grow, remember, and build ambitiously — playing Minecraft like real humans
-**Current focus:** Phase 21 — multi-agent-coordination
+**Current focus:** Phase 22 — polish-tool-fixes
 
 ## Current Position
 
-Phase: 22
-Plan: Not started
+Phase: 22 (polish-tool-fixes) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -90,6 +90,8 @@ Plan: Not started
 | Phase 20-gameplay-loops P02 | 12 | 3 tasks | 3 files |
 | Phase 21 P01 | 4 | 2 tasks | 3 files |
 | Phase 21-multi-agent-coordination P02 | 184 | 2 tasks | 4 files |
+| Phase 22-polish-tool-fixes P01 | 3 | 2 tasks | 4 files |
+| Phase 22-polish-tool-fixes P02 | 240 | 2 tasks | 3 files |
 
 ### Decisions (Phase 21)
 
@@ -145,6 +147,6 @@ Plan: Not started
 
 ## Session Continuity
 
-Last session: 2026-03-23T23:07:47.874Z
-Stopped at: Completed 21-02-PLAN.md — coordination wiring + smoke tests. Phase 21 complete.
+Last session: 2026-03-23T23:24:38.879Z
+Stopped at: Completed 22-02-PLAN.md — graceful shutdown, scheduled restart, Phase 22 smoke tests. Phase 22 complete.
 Resume: `/gsd:execute-phase 14` or `/gsd:autonomous`

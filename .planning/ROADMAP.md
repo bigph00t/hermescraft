@@ -38,7 +38,7 @@ See: `.planning/milestones/v2.2-ROADMAP.md` for full details.
 - [x] **Phase 19: Enhanced Spatial + Building** - Entity awareness, build verification, LLM build specs, section decomposition, material planning (completed 2026-03-23)
 - [x] **Phase 20: Gameplay Loops** - Animal farming, crop farming, mob hunting, exploration, trading, enchanting, nether, progression (completed 2026-03-23)
 - [x] **Phase 21: Multi-Agent Coordination** - Shared task registry, chat dedup, spatial task splitting, activity broadcasting (completed 2026-03-23)
-- [ ] **Phase 22: Polish & Tool Fixes** - Tool auto-equipping, bug fixes, prompt tuning, overnight stability
+- [x] **Phase 22: Polish & Tool Fixes** - Tool auto-equipping, bug fixes, prompt tuning, overnight stability (completed 2026-03-23)
 
 ## Phase Details
 
@@ -166,10 +166,10 @@ Plans:
   2. Agents run 12+ hours without crashes or disconnects
   3. Prompt tuning: chat frequency, building ambition, exploration drive all feel natural
   4. Memory, brain-state, and spatial database all persist correctly across restarts
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
-- [ ] 22-01-PLAN.md — Tool auto-equip fix (shared canHarvestWith utility, gather.js requireHarvest, mine.js refactor) + chat count reset fix (POLISH-EQUIP, POLISH-CHATCOUNT)
-- [ ] 22-02-PLAN.md — Graceful shutdown (SIGTERM/SIGINT), scheduled restart (ONNX leak, exit code 42), launch-duo.sh loop fix, smoke tests (POLISH-STABILITY, POLISH-PERSISTENCE)
+- [x] 22-01-PLAN.md — Tool auto-equip fix (shared canHarvestWith utility, gather.js requireHarvest, mine.js refactor) + chat count reset fix (POLISH-EQUIP, POLISH-CHATCOUNT)
+- [x] 22-02-PLAN.md — Graceful shutdown (SIGTERM/SIGINT), scheduled restart (ONNX leak, exit code 42), launch-duo.sh loop fix, smoke tests (POLISH-STABILITY, POLISH-PERSISTENCE)
 
 ## Progress
 
@@ -185,4 +185,4 @@ Plans:
 | 19. Enhanced Spatial + Building | 2/2 | Complete    | 2026-03-23 |
 | 20. Gameplay Loops | 2/2 | Complete    | 2026-03-23 |
 | 21. Multi-Agent Coordination | 2/2 | Complete    | 2026-03-23 |
-| 22. Polish & Tool Fixes | 0/2 | Not started | - |
+| 22. Polish & Tool Fixes | 2/2 | Complete   | 2026-03-23 |
