@@ -138,7 +138,10 @@ Plans:
   3. Agents proactively hunt hostile mobs for drops
   4. Agents explore systematically and log findings to spatial memory
   5. Agents pursue wood → stone → iron → diamond progression and manage smelting
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 20-01-PLAN.md — New body skills (harvest.js, hunt.js, explore.js) + registry wiring + RAG routing + event logging (GPL-01, GPL-02, GPL-03, GPL-04, GPL-06)
+- [ ] 20-02-PLAN.md — Gameplay knowledge corpus + prompt hint sections + progression detection + smoke tests (GPL-01 through GPL-10)
 
 ### Phase 21: Multi-Agent Coordination
 **Goal**: Multiple agents coordinate without duplicate work, chat loops, or state conflicts
@@ -174,6 +177,6 @@ Plans:
 | 17. Memory Foundation | 1/1 | Complete    | 2026-03-23 |
 | 18. Memory Integration | 1/1 | Complete    | 2026-03-23 |
 | 19. Enhanced Spatial + Building | 2/2 | Complete    | 2026-03-23 |
-| 20. Gameplay Loops | 0/TBD | Not started | - |
+| 20. Gameplay Loops | 0/2 | Not started | - |
 | 21. Multi-Agent Coordination | 0/TBD | Not started | - |
 | 22. Polish & Tool Fixes | 0/TBD | Not started | - |
