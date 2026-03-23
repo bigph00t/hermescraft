@@ -10,15 +10,15 @@ Requirements for Persistent Memory & Ambitious Building milestone.
 ### Memory
 
 - [x] **MEM-01**: Agent experiences persist across sessions — deaths, builds, discoveries, conversations stored in SQLite with timestamps and coordinates
-- [ ] **MEM-02**: Memory retrieval in every LLM call — relevant past experiences injected alongside RAG knowledge
+- [x] **MEM-02**: Memory retrieval in every LLM call — relevant past experiences injected alongside RAG knowledge
 - [x] **MEM-03**: Importance scoring (1-10) on events — significant moments (first diamond, death, build completion) scored higher and retrieved more often
-- [ ] **MEM-04**: Reflection journals — periodic LLM pass summarizes recent experiences into strategies and lessons
+- [x] **MEM-04**: Reflection journals — periodic LLM pass summarizes recent experiences into strategies and lessons
 
 ### Build Planning
 
-- [ ] **BLD-01**: LLM generates structured build specs (style, dimensions, materials, features) — deterministic code handles coordinates
-- [ ] **BLD-02**: Section decomposition for structures over 100 blocks — break large builds into manageable chunks
-- [ ] **BLD-03**: Material estimation before building — agent knows what to gather before starting
+- [x] **BLD-01**: LLM generates structured build specs (style, dimensions, materials, features) — deterministic code handles coordinates
+- [x] **BLD-02**: Section decomposition for structures over 100 blocks — break large builds into manageable chunks
+- [x] **BLD-03**: Material estimation before building — agent knows what to gather before starting
 - [ ] **BLD-04**: Post-build verification — scan completed structure, detect missing/wrong blocks, auto-repair
 - [ ] **BLD-05**: Build retry with error feedback — failed placements get re-attempted with LLM guidance
 
@@ -72,12 +72,12 @@ Requirements for Persistent Memory & Ambitious Building milestone.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | MEM-01 | Phase 14 | Complete |
-| MEM-02 | Phase 15 | Pending |
+| MEM-02 | Phase 15 | Complete |
 | MEM-03 | Phase 14 | Complete |
-| MEM-04 | Phase 15 | Pending |
-| BLD-01 | Phase 17 | Pending |
-| BLD-02 | Phase 17 | Pending |
-| BLD-03 | Phase 17 | Pending |
+| MEM-04 | Phase 15 | Complete |
+| BLD-01 | Phase 17 | Complete |
+| BLD-02 | Phase 17 | Complete |
+| BLD-03 | Phase 17 | Complete |
 | BLD-04 | Phase 17 | Pending |
 | BLD-05 | Phase 17 | Pending |
 | SPA-01 | Phase 16 | Complete |
