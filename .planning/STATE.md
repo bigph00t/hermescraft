@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Minecraft RAG
-status: Ready to execute
-stopped_at: Completed 13-01-PLAN.md
-last_updated: "2026-03-23T04:48:15.172Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 13-02-PLAN.md
+last_updated: "2026-03-23T04:53:11.024Z"
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
 ---
 
 # Project State
@@ -46,6 +46,7 @@ Plan: 2 of 2
 | Phase 11-knowledge-corpus P03 | 10 | 2 tasks | 3 files |
 | Phase 12-knowledgestore P01 | 5m | 2 tasks | 5 files |
 | Phase 13-prompt-integration P01 | 2m | 2 tasks | 2 files |
+| Phase 13-prompt-integration P02 | 2m | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -63,6 +64,9 @@ Plan: 2 of 2
 - [11-01] Recipe tiebreak: prefer cobblestone/oak variants — mcData returns cobbled_deepslate first for furnace by coincidence
 - [13-01] ESSENTIAL KNOWLEDGE core: tool tiers + ore Y-levels + essential chains + food priority (~150 tokens); crafting chains/building materials/survival details moved to RAG
 - [13-01] ragContext slot (Part 5.7) in buildSystemPrompt between buildHistory and command reference; caller formats with ## RELEVANT KNOWLEDGE header
+- [13-02] !wiki handler inline in respondToChat() before normal chat path — same pattern as !sethome/!design, avoids registry routing
+- [13-02] formatRagContext in mind/index.js not prompt.js — co-located with callers, keeps prompt.js boundary pure
+- [13-02] _lastFailure consumed at START of next think() cycle — ensures failure info available for recovery RAG query
 
 ### Pending Todos
 
@@ -75,6 +79,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-23T04:48:15.170Z
-Stopped at: Completed 13-01-PLAN.md
+Last session: 2026-03-23T04:53:11.021Z
+Stopped at: Completed 13-02-PLAN.md
 Resume file: None
