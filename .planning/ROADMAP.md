@@ -67,9 +67,9 @@ Plans:
   3. Main brain reads brain-state.json with 5s TTL cache and injects relevant insights into the system prompt
   4. Ring buffers cap all state: 20 insights, 50 spatial entries, 100 partner observations
   5. GPU contention is negligible — main brain and background brain don't block each other
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
-- [ ] 15-01-PLAN.md — Core background brain module (mind/backgroundBrain.js) + env var docs
+- [x] 15-01-PLAN.md — Core background brain module (mind/backgroundBrain.js) + env var docs
 - [ ] 15-02-PLAN.md — Wiring into agent startup, think loop, system prompt + smoke tests
 
 ### Phase 16: Vision System
@@ -159,7 +159,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 14. RunPod Infrastructure | 1/2 | In Progress|  |
-| 15. Dual-Brain Architecture | 0/2 | Not started | - |
+| 15. Dual-Brain Architecture | 1/2 | In Progress|  |
 | 16. Vision System | 0/TBD | Not started | - |
 | 17. Memory Foundation | 0/TBD | Not started | - |
 | 18. Memory Integration | 0/TBD | Not started | - |
