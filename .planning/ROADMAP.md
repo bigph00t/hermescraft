@@ -82,9 +82,9 @@ Plans:
   3. Background brain periodically processes screenshots into spatial awareness entries
   4. Screenshots are stored in `data/<agent>/screenshots/` with timestamps for history
   5. Top-down minimap generation from block data as lightweight alternative
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
-- [ ] 16-01-PLAN.md — Core vision modules (mind/vision.js, mind/minimap.js) + entity awareness in spatial.js (SPA-01)
+- [x] 16-01-PLAN.md — Core vision modules (mind/vision.js, mind/minimap.js) + entity awareness in spatial.js (SPA-01)
 - [ ] 16-02-PLAN.md — Wiring: !see command, prompt injection, background brain vision, post-build scan (SPA-02), smoke tests
 
 ### Phase 17: Memory Foundation
@@ -163,7 +163,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 14. RunPod Infrastructure | 1/2 | In Progress|  |
 | 15. Dual-Brain Architecture | 2/2 | Complete    | 2026-03-23 |
-| 16. Vision System | 0/2 | Not started | - |
+| 16. Vision System | 1/2 | In Progress|  |
 | 17. Memory Foundation | 0/TBD | Not started | - |
 | 18. Memory Integration | 0/TBD | Not started | - |
 | 19. Enhanced Spatial + Building | 0/TBD | Not started | - |

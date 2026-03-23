@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Persistent Memory & Ambitious Building
-status: Ready to plan
-stopped_at: Completed 15-02-PLAN.md — background brain wiring complete, 319 smoke tests passing
-last_updated: "2026-03-23T20:28:21.728Z"
+status: Ready to execute
+stopped_at: Completed 16-01-PLAN.md — vision.js, minimap.js, and entity awareness in spatial.js
+last_updated: "2026-03-23T20:57:30.860Z"
 progress:
   total_phases: 9
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 3
+  total_plans: 6
+  completed_plans: 4
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** Agents that learn, grow, remember, and build ambitiously — playing Minecraft like real humans
-**Current focus:** Phase 15 — dual-brain-architecture
+**Current focus:** Phase 16 — vision-system
 
 ## Current Position
 
-Phase: 16
-Plan: Not started
+Phase: 16 (vision-system) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -80,6 +80,7 @@ Plan: Not started
 | `.planning/research/MODEL-OPTIMIZATION.md` | Quant comparison, A6000 speed estimates, MAX_TOKENS tuning |
 | Phase 15-dual-brain-architecture P01 | 109s | 2 tasks | 2 files |
 | Phase 15-dual-brain-architecture P02 | 90s | 2 tasks | 4 files |
+| Phase 16-vision-system P01 | 129s | 2 tasks | 5 files |
 
 ### Decisions (Phase 14)
 
@@ -109,6 +110,6 @@ Plan: Not started
 
 ## Session Continuity
 
-Last session: 2026-03-23T20:24:49.000Z
-Stopped at: Completed 15-02-PLAN.md — background brain wiring complete, 319 smoke tests passing
+Last session: 2026-03-23T20:57:30.858Z
+Stopped at: Completed 16-01-PLAN.md — vision.js, minimap.js, and entity awareness in spatial.js
 Resume: `/gsd:execute-phase 14` or `/gsd:autonomous`
