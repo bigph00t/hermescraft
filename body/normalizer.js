@@ -39,6 +39,17 @@ const ITEM_ONLY_ALIASES = {
   'gold_ore': 'raw_gold',
 }
 
+// Block-only aliases: map drop names to the mineable block name.
+// LLMs say "mine cobblestone" but the actual block is "stone" (which drops cobblestone).
+const BLOCK_ONLY_ALIASES = {
+  'cobblestone': 'stone',
+  'raw_iron': 'iron_ore',
+  'raw_gold': 'gold_ore',
+  'raw_copper': 'copper_ore',
+  'charcoal': 'oak_log',
+  'flint': 'gravel',
+}
+
 /**
  * Shared normalization pipeline — used by both normalizeItemName and normalizeBlockName.
  * Steps:
@@ -131,5 +142,10 @@ export function normalizeItemName(name) {
  * @returns {string}
  */
 export function normalizeBlockName(name) {
+  // Apply block-only aliases first (cobblestone → stone, raw_iron → iron_ore)
+  const lower = (name || '').toLowerCase().trim()
+  if (BLOCK_ONLY_ALIASES[lower]) {
+    return _normalize(BLOCK_ONLY_ALIASES[lower], mcData.blocksByName)
+  }
   return _normalize(name, mcData.blocksByName)
 }
