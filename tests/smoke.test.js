@@ -1098,7 +1098,57 @@ assert('mind/index.js imports claimBuildSection', _indexSrcCoo.includes('claimBu
 assert('mind/index.js passes partnerActivity to buildSystemPrompt', _indexSrcCoo.includes('partnerActivity'))
 assert('mind/index.js passes chatLimitWarning to buildUserMessage', _indexSrcCoo.includes('chatLimitWarning'))
 assert('mind/index.js increments chat count', _indexSrcCoo.includes('_consecutiveChatCount++'))
-assert('mind/index.js resets chat count on non-idle success', _indexSrcCoo.includes('_consecutiveChatCount = 0'))
+assert('mind/index.js resets chat count on non-idle dispatch', _indexSrcCoo.includes('_consecutiveChatCount = 0'))
+
+// ── Section: Phase 22 — Polish & Tool Fixes ──
+
+section('Phase 22 — Tool Auto-Equip Fix')
+
+const toolsMod = await import('../body/tools.js')
+assert('body/tools: canHarvestWith exported', typeof toolsMod.canHarvestWith === 'function')
+
+// canHarvestWith contract: no harvestTools = always true
+assert('body/tools: canHarvestWith returns true when no harvestTools', toolsMod.canHarvestWith({ harvestTools: undefined }, null) === true)
+assert('body/tools: canHarvestWith returns true when no harvestTools + held item', toolsMod.canHarvestWith({ harvestTools: undefined }, 123) === true)
+// canHarvestWith contract: harvestTools exists but bare hands = false
+assert('body/tools: canHarvestWith returns false for bare hands on restricted block', toolsMod.canHarvestWith({ harvestTools: { 123: true } }, null) === false)
+// canHarvestWith contract: harvestTools exists and correct tool = true
+assert('body/tools: canHarvestWith returns true for qualifying tool', toolsMod.canHarvestWith({ harvestTools: { 123: true } }, 123) === true)
+// canHarvestWith contract: harvestTools exists but wrong tool = false
+assert('body/tools: canHarvestWith returns false for wrong tool', toolsMod.canHarvestWith({ harvestTools: { 123: true } }, 456) === false)
+
+// Source-level validation: gather.js uses shared canHarvestWith + requireHarvest
+const { readFileSync: _readFS_p22 } = await import('fs')
+const _gatherSrc = _readFS_p22('body/skills/gather.js', 'utf-8')
+assert('gather.js imports canHarvestWith from tools.js', _gatherSrc.includes("import { canHarvestWith } from '../tools.js'"))
+assert('gather.js calls equipForBlock with requireHarvest', _gatherSrc.includes('requireHarvest: true'))
+assert('gather.js checks canHarvestWith before dig', _gatherSrc.includes('canHarvestWith(target, heldType)'))
+
+// Source-level validation: mine.js uses shared canHarvestWith (not inline)
+const _mineSrc = _readFS_p22('body/skills/mine.js', 'utf-8')
+assert('mine.js imports canHarvestWith from tools.js', _mineSrc.includes("import { canHarvestWith } from '../tools.js'"))
+assert('mine.js does NOT define canHarvestWith inline', !_mineSrc.includes('function canHarvestWith'))
+
+section('Phase 22 — Stability & Shutdown')
+
+const _startSrc22 = _readFS_p22('start.js', 'utf-8')
+assert('start.js has SIGTERM handler', _startSrc22.includes("process.on('SIGTERM'"))
+assert('start.js has SIGINT handler', _startSrc22.includes("process.on('SIGINT'"))
+assert('start.js has _shuttingDown guard', _startSrc22.includes('_shuttingDown'))
+assert('start.js has scheduled restart with exit(42)', _startSrc22.includes('process.exit(42)'))
+assert('start.js has RESTART_INTERVAL_MS env var', _startSrc22.includes('RESTART_INTERVAL_MS'))
+assert('start.js checks isSkillRunning before restart', _startSrc22.includes('isSkillRunning()'))
+assert('start.js uncaughtException calls periodicSave', _startSrc22.includes('uncaughtException') && _startSrc22.includes('periodicSave()'))
+
+const _launchSrc22 = _readFS_p22('launch-duo.sh', 'utf-8')
+assert('launch-duo.sh handles exit code 42', _launchSrc22.includes('CODE -eq 42'))
+
+section('Phase 22 — Chat Count Fix')
+
+const _indexSrc22 = _readFS_p22('mind/index.js', 'utf-8')
+// Chat count reset must be on command type (result.command !== 'idle'), not gated on skillResult.success.
+// Verify the reset line exists and is not inside a skillResult.success conditional.
+assert('mind/index.js resets chat count on non-idle dispatch (command-based, not success-based)', _indexSrc22.includes("result.command !== 'idle'") && _indexSrc22.includes('_consecutiveChatCount = 0'))
 
 // ── Final Summary ──
 
