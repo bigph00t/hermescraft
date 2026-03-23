@@ -1,5 +1,19 @@
 # Milestones
 
+## v2.2 Minecraft RAG (Shipped: 2026-03-23)
+
+**Phases completed:** 3 phases, 6 plans, 9 tasks
+
+**Key accomplishments:**
+
+- Recursive recipe chain resolver in mind/knowledge.js produces 782 chunks resolving every craftable MC 1.21.1 item to raw materials via hardcoded smelting table and cycle-safe DFS
+- 7 hand-authored Minecraft knowledge files with 25-35 H2 sections each — imperative directive style, covering mining, combat, survival, biomes, building, farming, and structures for RAG retrieval
+- buildStrategyChunks() — 211 chunks:
+- Replaced 549-token MINECRAFT KNOWLEDGE block with 150-token ESSENTIAL KNOWLEDGE core and added ragContext option slot for dynamic RAG injection
+- Wired retrieveKnowledge into think() failure tracking, context-aware injection, and !wiki chat command with top-5 retrieval + LLM synthesis
+
+---
+
 ## v2.1 Creative Building + Bug Fixes (Shipped: 2026-03-22)
 
 **Phases completed:** 4 phases, 7 plans, 8 tasks
