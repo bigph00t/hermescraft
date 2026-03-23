@@ -20,7 +20,7 @@ import { getBrainStateForPrompt } from './backgroundBrain.js'
 import { captureScreenshot, queryVLM, buildVisionForPrompt } from './vision.js'
 import { getMinimapSummary } from './minimap.js'
 import { scanArea } from '../body/skills/scan.js'
-import { logEvent } from './memoryDB.js'
+import { logEvent, queryRecent, queryNearby } from './memoryDB.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 // BLUEPRINTS_DIR mirrors the path in body/skills/build.js — co-located with blueprint JSONs
@@ -246,6 +246,48 @@ function deriveFailureQuery(command, args) {
   return `${command} ${Object.values(args || {}).join(' ')}`
 }
 
+// ── Memory Retrieval (Phase 18 — MEM-02) ──
+
+// deriveMemoryQuery — determine whether to use spatial (nearby) or temporal (recent) retrieval.
+// When the bot has a known position, nearby experiences are more relevant than pure recency.
+function deriveMemoryQuery(bot) {
+  const pos = bot?.entity?.position
+  if (pos) {
+    return { mode: 'nearby', x: Math.round(pos.x), z: Math.round(pos.z) }
+  }
+  return { mode: 'recent', limit: 12 }
+}
+
+// retrieveMemoryContext — synchronous (better-sqlite3) — no await needed.
+// Falls back to queryRecent when queryNearby returns no results at current position.
+function retrieveMemoryContext(query) {
+  const name = _config?.name
+  if (!name) return null
+  let events
+  if (query.mode === 'nearby') {
+    events = queryNearby(name, query.x, query.z, 50, 8)
+    if (events.length === 0) events = queryRecent(name, 12)
+  } else {
+    events = queryRecent(name, query.limit || 12)
+  }
+  return formatMemoryContext(events)
+}
+
+// formatMemoryContext — formats event rows into a "Past Experiences" prompt section.
+// Caps at ~1,000 tokens = 4,000 chars, independent of the RAG knowledge budget.
+function formatMemoryContext(events) {
+  if (!events || events.length === 0) return null
+  const lines = ['## Past Experiences']
+  for (const ev of events) {
+    const mins = Math.round((Date.now() - ev.ts) / 60000)
+    const loc = ev.x != null ? ` at ${ev.x},${ev.z}` : ''
+    lines.push(`[${mins}m ago${loc}] ${ev.description}`)
+  }
+  const text = lines.join('\n')
+  // Cap at ~1,000 tokens = 4,000 chars (independent of knowledge RAG budget)
+  return text.length > 4000 ? text.slice(0, 4000) : text
+}
+
 // ── Core Think Function ──
 
 // think(bot, context) — the central decision function.
@@ -296,18 +338,35 @@ async function think(bot, context) {
       ragQuery = deriveRagQuery(bot, context)
     }
 
+    // Phase 18 — MEM-02: derive memory query before async RAG retrieval
+    const memQuery = deriveMemoryQuery(bot)
+
     let ragContext = null
+    let memoryContext = null
     if (ragQuery) {
       try {
-        const topK = ragQuery.startsWith('how to') ? 3 : 3  // top-3 for all context queries per user decision
+        const topK = 3  // top-3 for all context queries per user decision
+        // Memory retrieval is synchronous — safe to call alongside async RAG
+        memoryContext = retrieveMemoryContext(memQuery)
         const chunks = await retrieveKnowledge(ragQuery, topK)
         ragContext = formatRagContext(chunks)
         if (ragContext) {
           console.log('[mind] RAG injected:', ragQuery, `(${chunks.length} chunks)`)
         }
+        if (memoryContext) {
+          console.log('[mind] memory injected:', memQuery.mode)
+        }
       } catch (err) {
         console.log('[mind] RAG retrieval failed (non-fatal):', err.message)
       }
+    } else {
+      // Even without RAG query, still inject memory context
+      try {
+        memoryContext = retrieveMemoryContext(memQuery)
+        if (memoryContext) {
+          console.log('[mind] memory injected:', memQuery.mode)
+        }
+      } catch { /* non-fatal */ }
     }
 
     // Background brain state — plan, insights, hazards from background cycle (Phase 15)
@@ -321,6 +380,7 @@ async function think(bot, context) {
       buildContext,
       buildHistory: getBuildHistoryForPrompt(),
       ragContext,
+      memoryContext,
       brainState,
       visionContext: _lastVisionResult ? buildVisionForPrompt(_lastVisionResult) : null,
       minimapContext: getMinimapSummary(bot, 32),

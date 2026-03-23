@@ -748,7 +748,7 @@ assert('memoryDB.js has dimension normalization', _memdbSrc.includes("replace('m
 assert('memoryDB.js does NOT use default export', !_memdbSrc.includes('export default'))
 assert('start.js imports initMemoryDB', _startSrc.includes('initMemoryDB'))
 assert('start.js calls initMemoryDB(config)', _startSrc.includes('initMemoryDB(config)'))
-assert('mind/index.js imports logEvent', _indexSrc.includes("import { logEvent }"))
+assert('mind/index.js imports logEvent', _indexSrc.includes("logEvent") && _indexSrc.includes("from './memoryDB.js'"))
 assert("mind/index.js calls logEvent in death handler", _indexSrc.includes("logEvent(bot, 'death'"))
 assert('mind/index.js calls logEvent on dispatch success', _indexSrc.includes('EVT_MAP'))
 

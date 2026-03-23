@@ -210,6 +210,11 @@ Use !look target:horizon to scout locations. Use !design with rich, detailed des
     parts.push(options.ragContext)
   }
 
+  // Part 5.75: Memory context — retrieved past experiences from SQLite event log (Phase 18 — MEM-02)
+  if (options.memoryContext) {
+    parts.push(options.memoryContext)
+  }
+
   // Part 5.8: Background brain state — plan, insights, hazards from background cycle
   if (options.brainState) {
     parts.push(options.brainState)
