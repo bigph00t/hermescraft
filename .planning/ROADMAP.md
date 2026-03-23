@@ -33,7 +33,7 @@ See: `.planning/milestones/v2.2-ROADMAP.md` for full details.
 - [ ] **Phase 14: RunPod Infrastructure** - Deploy A6000 48GB pod with dual-model serving (27B main + 9B background)
 - [x] **Phase 15: Dual-Brain Architecture** - Background brain module with shared state, insight injection, constraint system (completed 2026-03-23)
 - [x] **Phase 16: Vision System** - Screenshot capture + VLM processing + spatial understanding database (completed 2026-03-23)
-- [ ] **Phase 17: Memory Foundation** - SQLite event log with importance scoring, spatial tagging, cross-session persistence
+- [x] **Phase 17: Memory Foundation** - SQLite event log with importance scoring, spatial tagging, cross-session persistence (completed 2026-03-23)
 - [ ] **Phase 18: Memory Integration** - Episodic retrieval in LLM calls, reflection journals, background brain memory consolidation
 - [ ] **Phase 19: Enhanced Spatial + Building** - Entity awareness, build verification, LLM build specs, section decomposition, material planning
 - [ ] **Phase 20: Gameplay Loops** - Animal farming, crop farming, mob hunting, exploration, trading, enchanting, nether, progression
@@ -96,9 +96,9 @@ Plans:
   2. Deaths, build completions, and discoveries are assigned importance scores (1-10) — deaths score 10, routine actions score 2 or below
   3. Every logged event carries (x, z, dimension) coordinates enabling queries like "what do I know about this location?"
   4. The event log is capped with FIFO pruning — never grows unbounded across weeks of play
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
-- [ ] 17-01-PLAN.md — SQLite event log module (mind/memoryDB.js) + startup wiring + lifecycle hooks + smoke tests (MEM-01, MEM-03, SPA-03)
+- [x] 17-01-PLAN.md — SQLite event log module (mind/memoryDB.js) + startup wiring + lifecycle hooks + smoke tests (MEM-01, MEM-03, SPA-03)
 
 ### Phase 18: Memory Integration
 **Goal**: Retrieved past experiences appear in every LLM call — agents demonstrably reference prior sessions
@@ -166,7 +166,7 @@ Plans:
 | 14. RunPod Infrastructure | 1/2 | In Progress|  |
 | 15. Dual-Brain Architecture | 2/2 | Complete    | 2026-03-23 |
 | 16. Vision System | 2/2 | Complete    | 2026-03-23 |
-| 17. Memory Foundation | 0/1 | Not started | - |
+| 17. Memory Foundation | 1/1 | Complete   | 2026-03-23 |
 | 18. Memory Integration | 0/TBD | Not started | - |
 | 19. Enhanced Spatial + Building | 0/TBD | Not started | - |
 | 20. Gameplay Loops | 0/TBD | Not started | - |

@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Persistent Memory & Ambitious Building
-status: Ready to plan
-stopped_at: Completed 16-02-PLAN.md — vision system wiring, !see command, prompt injection, background brain vision
-last_updated: "2026-03-23T21:06:24.663Z"
+status: Phase complete — ready for verification
+stopped_at: Completed 17-01-PLAN.md — SQLite event log (memoryDB.js), importance scoring, spatial tagging, smoke tests
+last_updated: "2026-03-23T21:22:42.234Z"
 progress:
   total_phases: 9
-  completed_phases: 2
-  total_plans: 6
-  completed_plans: 5
+  completed_phases: 3
+  total_plans: 7
+  completed_plans: 6
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** Agents that learn, grow, remember, and build ambitiously — playing Minecraft like real humans
-**Current focus:** Phase 16 — vision-system
+**Current focus:** Phase 17 complete — memory-foundation
 
 ## Current Position
 
-Phase: 17
-Plan: Not started
+Phase: 17 (memory-foundation) — COMPLETE
+Plan: 1 of 1 (done)
 
 ## Performance Metrics
 
@@ -82,6 +82,14 @@ Plan: Not started
 | Phase 15-dual-brain-architecture P02 | 90s | 2 tasks | 4 files |
 | Phase 16-vision-system P01 | 129s | 2 tasks | 5 files |
 | Phase 16-vision-system P02 | 240 | 2 tasks | 5 files |
+| Phase 17-memory-foundation P01 | 5 | 2 tasks | 5 files |
+
+### Decisions (Phase 17)
+
+- agent column = config.name (_agentName), not bot.username — consistent per-agent filtering even when MC username differs
+- logEvent wired only in mind/index.js (has bot reference for spatial coords); mind/memory.js recordDeath has no bot access
+- Dispatch EVT_MAP: build/design->build, mine/gather->discovery, combat->combat, craft/smelt->craft, navigate->movement; fallback observation
+- FIFO pruning runs at initMemoryDB startup only — zero per-tick overhead in the game loop
 
 ### Decisions (Phase 14)
 
@@ -111,6 +119,6 @@ Plan: Not started
 
 ## Session Continuity
 
-Last session: 2026-03-23T21:02:51.960Z
-Stopped at: Completed 16-02-PLAN.md — vision system wiring, !see command, prompt injection, background brain vision
+Last session: 2026-03-23T21:22:42.232Z
+Stopped at: Completed 17-01-PLAN.md — SQLite event log (memoryDB.js), importance scoring, spatial tagging, smoke tests
 Resume: `/gsd:execute-phase 14` or `/gsd:autonomous`

@@ -9,9 +9,9 @@ Requirements for Persistent Memory & Ambitious Building milestone.
 
 ### Memory
 
-- [ ] **MEM-01**: Agent experiences persist across sessions — deaths, builds, discoveries, conversations stored in SQLite with timestamps and coordinates
+- [x] **MEM-01**: Agent experiences persist across sessions — deaths, builds, discoveries, conversations stored in SQLite with timestamps and coordinates
 - [ ] **MEM-02**: Memory retrieval in every LLM call — relevant past experiences injected alongside RAG knowledge
-- [ ] **MEM-03**: Importance scoring (1-10) on events — significant moments (first diamond, death, build completion) scored higher and retrieved more often
+- [x] **MEM-03**: Importance scoring (1-10) on events — significant moments (first diamond, death, build completion) scored higher and retrieved more often
 - [ ] **MEM-04**: Reflection journals — periodic LLM pass summarizes recent experiences into strategies and lessons
 
 ### Build Planning
@@ -26,7 +26,7 @@ Requirements for Persistent Memory & Ambitious Building milestone.
 
 - [x] **SPA-01**: Enhanced entity awareness — track nearby mobs, animals, villagers with types, distances, health
 - [x] **SPA-02**: Post-build scan integration — verify placed blocks match blueprint
-- [ ] **SPA-03**: What-where-when memory tagging — every experience tagged with coordinates for spatial queries
+- [x] **SPA-03**: What-where-when memory tagging — every experience tagged with coordinates for spatial queries
 - [x] **SPA-04**: Area familiarity — agent knows what's been explored vs unknown territory
 
 ### Multi-Agent Coordination
@@ -71,9 +71,9 @@ Requirements for Persistent Memory & Ambitious Building milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MEM-01 | Phase 14 | Pending |
+| MEM-01 | Phase 14 | Complete |
 | MEM-02 | Phase 15 | Pending |
-| MEM-03 | Phase 14 | Pending |
+| MEM-03 | Phase 14 | Complete |
 | MEM-04 | Phase 15 | Pending |
 | BLD-01 | Phase 17 | Pending |
 | BLD-02 | Phase 17 | Pending |
@@ -82,7 +82,7 @@ Requirements for Persistent Memory & Ambitious Building milestone.
 | BLD-05 | Phase 17 | Pending |
 | SPA-01 | Phase 16 | Complete |
 | SPA-02 | Phase 16 | Complete |
-| SPA-03 | Phase 14 | Pending |
+| SPA-03 | Phase 14 | Complete |
 | SPA-04 | Phase 16 | Complete |
 | COO-01 | Phase 19 | Pending |
 | COO-02 | Phase 19 | Pending |
