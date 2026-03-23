@@ -118,12 +118,14 @@ export async function build(bot, blueprintName, originX, originY, originZ) {
   // ── Resume check ──
   // If there's an active paused build, resume it instead of starting fresh.
   // Prevents building the same structure multiple times at different offsets.
+  let isResume = false
   if (_activeBuild && _activeBuild.paused && _activeBuild.completedIndex > 0) {
     console.log(`[build] resuming paused build: ${_activeBuild.blueprintName} at ${_activeBuild.completedIndex}/${_activeBuild.totalBlocks}`)
     blueprintName = _activeBuild.blueprintName
     originX = _activeBuild.origin.x
     originY = _activeBuild.origin.y
     originZ = _activeBuild.origin.z
+    isResume = true
   }
 
   // ── Load Blueprint ──
@@ -190,18 +192,21 @@ export async function build(bot, blueprintName, originX, originY, originZ) {
   // ── Pre-flight Area Check ──
   // Scan ground level footprint. If >50% non-air, abort — site is occupied.
   const footprintBlocks = blueprint.size.x * blueprint.size.z
-  let solidCount = 0
-  for (let dx = 0; dx < blueprint.size.x; dx++) {
-    for (let dz = 0; dz < blueprint.size.z; dz++) {
-      const b = bot.blockAt(new Vec3(originX + dx, originY, originZ + dz))
-      if (b && b.name !== 'air') solidCount++
+  // Skip site check when resuming — the site has our own blocks from the previous run
+  if (!isResume) {
+    let solidCount = 0
+    for (let dx = 0; dx < blueprint.size.x; dx++) {
+      for (let dz = 0; dz < blueprint.size.z; dz++) {
+        const b = bot.blockAt(new Vec3(originX + dx, originY, originZ + dz))
+        if (b && b.name !== 'air') solidCount++
+      }
     }
-  }
-  if (solidCount > footprintBlocks * 0.5) {
-    return {
-      success: false,
-      reason: 'site_blocked',
-      message: `Too many blocks at build site (${solidCount}/${footprintBlocks} occupied). Choose flatter terrain.`,
+    if (solidCount > footprintBlocks * 0.5) {
+      return {
+        success: false,
+        reason: 'site_blocked',
+        message: `Too many blocks at build site (${solidCount}/${footprintBlocks} occupied). Choose flatter terrain.`,
+      }
     }
   }
 
