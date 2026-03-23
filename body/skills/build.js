@@ -115,6 +115,17 @@ export function getBuildProgress() {
  * @returns {Promise<{success: boolean, placed?: number, total?: number, blueprintName?: string, reason?: string, missing?: string[], message?: string}>}
  */
 export async function build(bot, blueprintName, originX, originY, originZ) {
+  // ── Resume check ──
+  // If there's an active paused build, resume it instead of starting fresh.
+  // Prevents building the same structure multiple times at different offsets.
+  if (_activeBuild && _activeBuild.paused && _activeBuild.completedIndex > 0) {
+    console.log(`[build] resuming paused build: ${_activeBuild.blueprintName} at ${_activeBuild.completedIndex}/${_activeBuild.totalBlocks}`)
+    blueprintName = _activeBuild.blueprintName
+    originX = _activeBuild.origin.x
+    originY = _activeBuild.origin.y
+    originZ = _activeBuild.origin.z
+  }
+
   // ── Load Blueprint ──
   // Try both with and without underscores since callers may use either form
   let blueprintFile = join(BLUEPRINTS_DIR, blueprintName + '.json')

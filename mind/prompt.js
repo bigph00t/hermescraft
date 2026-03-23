@@ -64,7 +64,7 @@ export function getBuildContextForPrompt(activeBuild, blueprintCatalog) {
   if (activeBuild) {
     const pct = Math.round(100 * activeBuild.completedIndex / activeBuild.totalBlocks)
     if (activeBuild.paused) {
-      lines.push(`Active build: ${activeBuild.blueprintName} — PAUSED at ${activeBuild.completedIndex}/${activeBuild.totalBlocks} blocks (${pct}%). Need: ${activeBuild.missingMaterials.join(', ')}. Gather materials then !build again to resume.`)
+      lines.push(`Active build: ${activeBuild.blueprintName} — PAUSED at ${activeBuild.completedIndex}/${activeBuild.totalBlocks} blocks (${pct}%). Need: ${activeBuild.missingMaterials.join(', ')}. Gather the missing materials, then use !build to resume (it will automatically continue where you left off — do NOT start a new build at different coordinates).`)
     } else {
       lines.push(`Active build: ${activeBuild.blueprintName} — ${activeBuild.completedIndex}/${activeBuild.totalBlocks} blocks placed (${pct}%).`)
     }
