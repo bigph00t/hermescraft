@@ -187,7 +187,10 @@ Plans:
   5. mind/vision.js uses same VLLM_URL for native vision (no separate port 8002)
   6. .env.runpod simplified to single endpoint
   7. Smoke tests pass with updated defaults
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 23-01-PLAN.md — Infra scripts: setup-pod.sh single Unsloth download, start-models.sh single llama-server + mmproj, start-stack.sh port 8001 removal
+- [ ] 23-02-PLAN.md — Mind modules: unified VLLM_URL in llm.js + backgroundBrain.js + vision.js, .env.runpod MODEL_NAME update, smoke test assertions
 
 ### Phase 24: Four Agents + Prompt Polish
 **Goal**: 4 unique agent personalities with less prescriptive prompting — creative behavior emerges from knowledge + tools, not explicit instructions. Proximity-based chat so agents only hear nearby agents.
@@ -245,7 +248,7 @@ Plans:
 | 20. Gameplay Loops | 2/2 | Complete    | 2026-03-23 |
 | 21. Multi-Agent Coordination | 2/2 | Complete    | 2026-03-23 |
 | 22. Polish & Tool Fixes | 2/2 | Complete    | 2026-03-23 |
-| 23. Model Switch + Unified Inference | 0/TBD | Not started | - |
+| 23. Model Switch + Unified Inference | 0/2 | Not started | - |
 | 24. Four Agents + Prompt Polish | 0/TBD | Not started | - |
 | 25. Voice Chat | 0/TBD | Not started | - |
 | 26. RunPod Deployment | 0/TBD | Not started | - |
