@@ -148,9 +148,9 @@ assert('body/skills/chest: withdrawFromChest exported', typeof chest.withdrawFro
 section('Registry Completeness')
 
 const commands = registry.listCommands()
-assert('registry has 22 commands', commands.length === 22)
+assert('registry has 23 commands', commands.length === 23)
 
-const expectedCmds = ['gather', 'mine', 'craft', 'smelt', 'navigate', 'chat', 'drop', 'idle', 'combat', 'deposit', 'withdraw', 'build', 'design', 'scan', 'farm', 'breed', 'mount', 'dismount', 'look', 'give', 'material', 'wiki']
+const expectedCmds = ['gather', 'mine', 'craft', 'smelt', 'navigate', 'chat', 'drop', 'idle', 'combat', 'deposit', 'withdraw', 'build', 'design', 'scan', 'farm', 'breed', 'mount', 'dismount', 'look', 'give', 'material', 'wiki', 'see']
 for (const cmd of expectedCmds) {
   assert(`registry has !${cmd}`, commands.includes(cmd))
 }
@@ -557,6 +557,132 @@ assert('brainState option injects into system prompt', brainStatePrompt.includes
 assert('brainState content appears in prompt', brainStatePrompt.includes('Build shelter'))
 const noBrainPrompt = prompt.buildSystemPrompt(mockBot, {})
 assert('no brainState means no Background Brain section', !noBrainPrompt.includes('Background Brain'))
+
+// ── Section 18: Vision System (Phase 16) ──
+
+section('Vision System (Phase 16)')
+
+// vision.js module exports
+const vision = await import('../mind/vision.js')
+assert('mind/vision: captureScreenshot exported', typeof vision.captureScreenshot === 'function')
+assert('mind/vision: queryVLM exported', typeof vision.queryVLM === 'function')
+assert('mind/vision: buildVisionForPrompt exported', typeof vision.buildVisionForPrompt === 'function')
+assert('mind/vision: only 3 exports', Object.keys(vision).length === 3)
+
+// buildVisionForPrompt behavioral tests
+assert('buildVisionForPrompt(null) returns null', vision.buildVisionForPrompt(null) === null)
+assert('buildVisionForPrompt("") returns null', vision.buildVisionForPrompt('') === null)
+const vfp = vision.buildVisionForPrompt('A grassy hill with oak trees')
+assert('buildVisionForPrompt returns string', typeof vfp === 'string')
+assert('buildVisionForPrompt includes Visual Observation header', vfp.includes('Visual Observation'))
+assert('buildVisionForPrompt includes description text', vfp.includes('grassy hill'))
+
+// vision.js source-level validation
+const _visionSrc = _readFileSync(_join(_here, '../mind/vision.js'), 'utf-8')
+assert('vision.js has VISION_URL env var', _visionSrc.includes('VISION_URL'))
+assert('vision.js has VISION_MODEL env var', _visionSrc.includes('VISION_MODEL'))
+assert('vision.js has VISION_MAX_TOKENS env var', _visionSrc.includes('VISION_MAX_TOKENS'))
+assert('vision.js has XVFB_DISPLAY env var', _visionSrc.includes('XVFB_DISPLAY'))
+assert('vision.js has OpenAI client', _visionSrc.includes('new OpenAI'))
+assert('vision.js has execSync for scrot', _visionSrc.includes('execSync'))
+assert('vision.js wraps in try/catch', _visionSrc.includes('try') && _visionSrc.includes('catch'))
+assert('vision.js returns null on failure (>=3 return null)', (_visionSrc.match(/return null/g) || []).length >= 3)
+assert('vision.js does NOT use default export', !_visionSrc.includes('export default'))
+assert('vision.js caps description at 400 chars', _visionSrc.includes('400'))
+
+// minimap.js module exports
+const minimap = await import('../mind/minimap.js')
+assert('mind/minimap: renderMinimap exported', typeof minimap.renderMinimap === 'function')
+assert('mind/minimap: getMinimapSummary exported', typeof minimap.getMinimapSummary === 'function')
+assert('mind/minimap: only 2 exports', Object.keys(minimap).length === 2)
+
+// minimap.js behavioral tests — null bot returns null
+assert('renderMinimap(null) returns null', minimap.renderMinimap(null) === null)
+assert('getMinimapSummary(null) returns null', minimap.getMinimapSummary(null) === null)
+
+// minimap.js source-level validation
+const _minimapSrc = _readFileSync(_join(_here, '../mind/minimap.js'), 'utf-8')
+assert('minimap.js has BLOCK_COLORS', _minimapSrc.includes('BLOCK_COLORS'))
+assert('minimap.js has createCanvas import', _minimapSrc.includes('createCanvas'))
+assert('minimap.js wraps in try/catch', _minimapSrc.includes('try') && _minimapSrc.includes('catch'))
+assert('minimap.js returns null on failure (>=2)', (_minimapSrc.match(/return null/g) || []).length >= 2)
+assert('minimap.js does NOT use default export', !_minimapSrc.includes('export default'))
+
+// !see in registry
+const visionCommands = registry.listCommands()
+assert('registry has !see command', visionCommands.includes('see'))
+assert('registry has 23 commands after Phase 16', visionCommands.length === 23)
+
+// !see stub returns failure (handled in mind/index.js think(), not dispatch)
+const seeResult = await registry.dispatch({}, 'see', {})
+assert('registry: see dispatch returns failure', seeResult.success === false)
+assert('registry: see dispatch mentions Mind loop', seeResult.reason.includes('Mind'))
+
+// Wiring assertions — mind/index.js imports vision functions
+assert('mind/index.js imports captureScreenshot', _indexSrc.includes('captureScreenshot'))
+assert('mind/index.js imports queryVLM', _indexSrc.includes('queryVLM'))
+assert('mind/index.js imports buildVisionForPrompt', _indexSrc.includes('buildVisionForPrompt'))
+assert('mind/index.js imports getMinimapSummary', _indexSrc.includes('getMinimapSummary'))
+assert('mind/index.js has _lastVisionResult state', _indexSrc.includes('_lastVisionResult'))
+assert('mind/index.js has _postBuildScan state', _indexSrc.includes('_postBuildScan'))
+assert('mind/index.js handles !see command', _indexSrc.includes("result.command === 'see'"))
+assert('mind/index.js passes visionContext to buildSystemPrompt', _indexSrc.includes('visionContext'))
+assert('mind/index.js passes minimapContext to buildSystemPrompt', _indexSrc.includes('minimapContext'))
+assert('mind/index.js passes postBuildScan to buildSystemPrompt', _indexSrc.includes('postBuildScan'))
+
+// Wiring assertions — mind/prompt.js has injection slots
+assert('mind/prompt.js has Part 5.9 visionContext', _promptSrc.includes('options.visionContext'))
+assert('mind/prompt.js has Part 5.10 minimapContext', _promptSrc.includes('options.minimapContext'))
+assert('mind/prompt.js has Part 5.11 postBuildScan', _promptSrc.includes('options.postBuildScan'))
+assert('mind/prompt.js mentions !see in command reference', _promptSrc.includes('!see'))
+
+// Prompt integration tests — visionContext injects into system prompt
+const visionPrompt = prompt.buildSystemPrompt(mockBot, { visionContext: '## Visual Observation\nA grassy hill' })
+assert('visionContext injects into system prompt', visionPrompt.includes('Visual Observation'))
+assert('visionContext content appears', visionPrompt.includes('grassy hill'))
+const noVisionPrompt = prompt.buildSystemPrompt(mockBot, {})
+assert('no visionContext means no Visual Observation section', !noVisionPrompt.includes('Visual Observation'))
+
+// Prompt integration tests — minimapContext injects into system prompt
+const minimapPrompt = prompt.buildSystemPrompt(mockBot, { minimapContext: 'Terrain (64x64): grass*1024' })
+assert('minimapContext injects into system prompt', minimapPrompt.includes('Area Overview'))
+assert('minimapContext content appears', minimapPrompt.includes('grass*1024'))
+
+// Prompt integration tests — postBuildScan injects into system prompt
+const scanPrompt = prompt.buildSystemPrompt(mockBot, { postBuildScan: 'Post-build scan: 50 solid blocks' })
+assert('postBuildScan injects into system prompt', scanPrompt.includes('Build Verification'))
+assert('postBuildScan content appears', scanPrompt.includes('50 solid blocks'))
+
+// Wiring assertions — backgroundBrain.js imports vision
+const _bgSrc16 = _readFileSync(_join(_here, '../mind/backgroundBrain.js'), 'utf-8')
+assert('backgroundBrain.js imports captureScreenshot', _bgSrc16.includes('captureScreenshot'))
+assert('backgroundBrain.js imports queryVLM', _bgSrc16.includes('queryVLM'))
+assert('backgroundBrain.js has visionNote field', _bgSrc16.includes('visionNote'))
+assert('backgroundBrain.js guards on process.env.DISPLAY', _bgSrc16.includes('process.env.DISPLAY'))
+assert('backgroundBrain.js formatBrainState handles visionNote', _bgSrc16.includes('visionNote?.text'))
+
+// ── Section 19: Entity Awareness — SPA-01 (Phase 16) ──
+
+section('Entity Awareness — SPA-01 (Phase 16)')
+
+// Source-level validation of spatial.js entity awareness
+const _spatialSrc16 = _readFileSync(_join(_here, '../mind/spatial.js'), 'utf-8')
+assert('spatial.js has HOSTILE_MOBS_SPATIAL set', _spatialSrc16.includes('HOSTILE_MOBS_SPATIAL'))
+assert('spatial.js has PASSIVE_MOBS set', _spatialSrc16.includes('PASSIVE_MOBS'))
+assert('spatial.js has getEntityAwareness function', _spatialSrc16.includes('getEntityAwareness'))
+assert('spatial.js entity awareness checks distance <= 16', _spatialSrc16.includes('> 16'))
+assert('spatial.js entity awareness uses distanceTo', _spatialSrc16.includes('distanceTo'))
+assert('spatial.js outputs HOSTILE: prefix', _spatialSrc16.includes('HOSTILE: '))
+assert('spatial.js outputs animals: prefix', _spatialSrc16.includes('animals: '))
+assert('spatial.js outputs players: prefix', _spatialSrc16.includes('players: '))
+assert('spatial.js still has Tier 1 getImmediate', _spatialSrc16.includes('getImmediate'))
+assert('spatial.js still has Tier 2 getNearVision', _spatialSrc16.includes('getNearVision'))
+assert('spatial.js still has Tier 3 getTerrainContext', _spatialSrc16.includes('getTerrainContext'))
+assert('spatial.js buildSpatialAwareness still exported', _spatialSrc16.includes('export function buildSpatialAwareness'))
+
+// SPA-02: post-build scan wiring in index.js
+assert('mind/index.js imports scanArea for post-build scan', _indexSrc.includes('scanArea'))
+assert('mind/index.js has post-build scan try/catch', _indexSrc.includes('Post-build scan'))
 
 // ── Final Summary ──
 
