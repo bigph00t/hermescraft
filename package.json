@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
+    "better-sqlite3": "^12.8.0",
     "canvas": "^3.2.2",
     "minecraft-data": "^3.105.0",
     "mineflayer": "^4.35.0",
