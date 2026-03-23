@@ -1,188 +1,216 @@
 # Project Research Summary
 
-**Project:** HermesCraft v2.0 — Mineflayer Mind + Body Rewrite
-**Domain:** LLM-driven Minecraft AI agent
-**Researched:** 2026-03-22
+**Project:** HermesCraft v2.3 — Persistent Memory & Ambitious Building
+**Domain:** LLM-driven Minecraft agent — episodic memory, spatial intelligence, large-scale build planning, multi-agent coordination
+**Researched:** 2026-03-23
 **Confidence:** HIGH
 
 ## Executive Summary
 
-HermesCraft v2.0 is a ground-up rewrite of a Minecraft AI agent, replacing the v1 Fabric mod + HTTP bridge architecture with a direct Mineflayer Node.js integration. The research is unambiguous: every serious LLM+Minecraft project (Mindcraft, Voyager, AIRI) uses Mineflayer directly — no HTTP bridge, no Java mod, no Xvfb display. This eliminates the root causes of all v1 failures: crosshair drift, race conditions, and 1GB RAM per agent collapse to zero. The recommended architecture is a Mind/Body split where the LLM layer (Mind) fires on events, not on a fixed timer, and the Body executes skills autonomously between LLM decisions. This is event-driven, not tick-locked.
+HermesCraft v2.3 extends a working Mind+Body agent architecture with four capability areas: cross-session episodic memory, spatial intelligence for build planning, LLM-generated building specifications, and lightweight multi-agent coordination. The research is grounded in peer-reviewed work (Stanford Generative Agents, Project Sid PIANO, Voyager, MrSteve PEM, T2BM building generation) and direct codebase analysis of 3,389 lines across 24 existing modules. The existing architecture is a strong foundation: RAG infrastructure (BM25 + vector via MiniSearch + Vectra) is already in place and can serve double duty as the episodic memory retrieval pipeline. The per-agent data directory pattern already exists. The recommended approach adds three new `mind/` modules (`memoryStore.js`, `buildPlanner.js`, `taskRegistry.js`) and modifies six existing ones, without touching the Mind/Body boundary or introducing external infrastructure.
 
-The recommended approach is modeled directly on Mindcraft's production source code (verified, not inferred). The agent interface is a parameterized command palette (`!collectBlocks("oak_log", 4)`) — the LLM names intent, the Body executes. Autonomous reactive modes (`self_preservation`, `self_defense`, `unstuck`, `idle_staring`) run on a 300ms Body tick, independent of the LLM, and are what make the agent feel alive between decisions. The LLM fires only when: a player sends a chat message, the self-prompter detects the agent has been idle for 2+ seconds, or a goal completes and the next action needs to be decided. This naturally produces the 15-30s Mind decision cadence targeted in PROJECT.md without a fixed timer.
+The two highest-value features for this milestone are persistent cross-session memory with importance scoring and LLM-authored build specifications. Both are grounded in well-researched patterns. Memory should follow the Stanford Generative Agents architecture: append-only JSONL event log, importance-scored entries, recency-weighted retrieval injected into prompts alongside existing knowledge RAG. Build specs should follow the T2BM interlayer pattern: LLM describes building intent in natural language, deterministic code converts the validated JSON spec to block placements. The key insight is to separate design intent from spatial arithmetic — LLMs cannot reliably count grid cells above 10x10, but they can describe architecture well.
 
-The critical risks are infrastructure-level, not feature-level. Five pitfalls must be designed in from the start: every navigation skill needs an external wall-clock timeout or it hangs permanently; every dig and place skill needs post-action block verification or it reports false success; item name normalization is a prerequisite for every skill; conversation history must be capped at 40 turns with summarization or context overflows after 60-90 minutes; and the v1 memory files must NOT be migrated directly — they contain v1 action vocabulary (`look_at_block`, `break_block(x,y,z)`) that will corrupt v2 agent behavior.
+The primary risks are unbounded memory growth (degrades LLM attention and inflates token cost), LLM spatial reasoning failures in blueprint generation (grid miscounting, material underestimation), and multi-agent chat loops that consume all LLM budget with no skill execution. All three have well-understood mitigations: memory caps with temporal decay, blueprint validation with retry-and-feedback loops capped at 10x10, and a chat deduplication window with consecutive-chat-action limits. These mitigations must be designed in from day one — they cannot be retrofitted after the features ship.
+
+---
 
 ## Key Findings
 
 ### Recommended Stack
 
-Mineflayer 4.35.0 (already installed, latest stable as of 2026-02-13) is the sole transport layer for all game interaction. The Fabric mod and HTTP bridge are entirely eliminated. The new required package is `mineflayer-pathfinder` 2.4.5, which replaces Baritone and provides Promise-based A* pathfinding with `GoalNear`, `GoalFollow`, and `GoalSurface` targets. Five survival plugins are recommended for production: `mineflayer-pvp` (combat), `mineflayer-collectblock` (resource gathering), `mineflayer-tool` (auto-equip best tool), `mineflayer-auto-eat` (autonomous hunger), and `mineflayer-armor-manager` (auto-equip armor). All are at known-compatible versions verified against Mindcraft's package.json. Per-bot RAM drops from 1GB+ (v1 with Fabric + Xvfb) to ~100MB, enabling comfortable scaling to 10 agents on existing 15GB Glass hardware.
+The v2.3 stack requires only one new npm dependency: `better-sqlite3` for the persistent event log. All other new capability is implemented using existing dependencies. Honcho, Letta/MemGPT, Redis, and screenshot-based vision were all evaluated and rejected: Honcho and Letta impose the wrong abstraction for game event streams, Redis adds external infrastructure overhead with no benefit at 2-10 agent scale, and screenshot vision costs $130/day/agent at a 2s tick rate.
 
 **Core technologies:**
-- `mineflayer` 4.35.0: headless bot transport — replaces entire Fabric mod + HTTP bridge stack
-- `mineflayer-pathfinder` 2.4.5: A* pathfinding — replaces Baritone, promise-based, no crosshair drift
-- `minecraft-data` 3.105.0: item/block/recipe database — already installed, carried from v1
-- `openai` ^4.0.0: LLM client — pointed at MiniMax M2.7 (or any OpenAI-compatible endpoint)
-
-**Critical version requirement:** Pin `version: '1.21.1'` explicitly in `createBot()`. Auto-detection is a documented source of protocol bugs. MC 1.21.1 support is confirmed in mineflayer 4.35.0 with the known Paper SlotComponent issue resolved in the bundled minecraft-data 3.105.0.
-
-**Cleanup required:** Remove `sharp` (vision, v1 only) and `ws` (unused) from `package.json`.
+- `better-sqlite3` 12.8.0: persistent cross-session event log — synchronous API fits the tick loop, zero infrastructure, single `.db` file per agent. Requires `node-gyp` on Glass.
+- `MiniSearch` (existing): BM25 index for episodic memory retrieval — already used in `knowledgeStore.js`; apply same pattern to `experiences.jsonl` in new `mind/memoryStore.js`.
+- `mineflayer-schem` 1.5.2: schematic interop — optional, only needed if agents will read/write `.litematic` files. Not required for JSON blueprint execution.
+- Mineflayer block APIs (`bot.blockAt`, `bot.findBlock`): spatial intelligence — richer and cheaper than any screenshot-based vision approach.
+- Shared JSON file + `fs.renameSync` atomic swap: multi-agent coordination — sufficient for 2-10 agents on one machine; upgrade to SQLite backing at 10+ agents.
 
 ### Expected Features
 
-The feature set divides into a v2.0 launch set and a post-validation set. The critical insight from FEATURES.md is that the two-tier command interface from Mindcraft — parameterized `!commands` for 90% of tasks, `!newAction` code-gen escape hatch for complex tasks — is the correct design. Do not give the LLM raw Mineflayer API access; that is a documented failure mode.
+**Must have (v2.3 launch — table stakes):**
+- Persistent cross-session memory log (JSONL, append on significant events only) — without this, "persistent agents" is marketing copy
+- Memory importance scoring (heuristic: death=10, discovery=8, build_complete=7, conversation=5, routine=2) — prevents event log from becoming equal-weight noise
+- Session journal entry at session end (200-400 tokens, stored in `data/{name}/journal/`) — agents that process their day are more coherent the next session
+- Spatial memory index: each logged event tagged with (x, z, dimension) — enables MrSteve-style "what do I know about here?" queries
+- LLM-authored build specs via `!plan` command — LLM describes building intent, deterministic code translates to JSON blueprint, body executes
+- Material pre-planning before any build execution — agents that start builds without materials waste 30+ minutes and fail visibly
+- Multi-phase build tracking with cross-session resume — build state file survives session restart
+- Build quality self-verification: post-build scan of placed vs planned blocks, automatic patch loop
 
-**Must have (v2.0 launch — table stakes):**
-- Bot connection, pathfinding, navigation commands — every other feature depends on these
-- Block collection, crafting (with chain solver), smelting — core resource progression loop
-- Combat + `self_defense` mode, `self_preservation` mode — survival without LLM decision per threat
-- SOUL + memory system (MEMORY.md, notepad, context/) — carry over from v1 with fresh data directories
-- `idle_staring` and `elbow_room` modes — zero-cost "feels alive" behaviors; highest observed human-feeling impact per Mindcraft modes.js analysis
-- `unstuck` mode — critical for unsupervised operation; without it, agents get stuck for hours
-- Natural grounded chat with response timing delays — agents must only reference what they have seen
-- Multi-agent: 2 bots (Jeffrey, John) with separate data dirs, chat routing, self-message filtering
+**Should have (v2.3.x — add after core loop validates):**
+- Episodic memory RAG: add `experiences.jsonl` as second collection in `knowledgeStore.js` — reuse existing BM25+vector pipeline for personal memory retrieval
+- Exploration with memory logging — systematic radius exploration with biome/ore/structure annotation feeding the spatial index
+- Animal farming skill (`!farm_animals`) — breed, pen, maintain population; provides passive food loop
+- Social memory extension — per-entity relationship score, shared event history, last interaction timestamp
+- Mob hunting patrol — proactive combat/XP loop distinct from reactive self-defense
 
-**Should have (v2.0.x — add after individual bots are stable):**
-- Day/night routine (NPC controller: go home at dusk, sleep, resume at dawn)
-- `torch_placing`, `hunting`, `item_collecting` ambient modes
-- `!newAction` code generation escape hatch (Tier 2 interface) for complex tasks
-- Villager trading (end-game economy)
-
-**Defer (v2.1+):**
-- Scale to 5-10 bots (needs shared task registry, likely SQLite)
-- Blueprint-based building (needs reliable `placeBlock` first)
-- Skill auto-update from phase completion (carry over SKILL.md pattern after Ender Dragon phases)
+**Defer to v2.4+:**
+- Background memory consolidation agent — need to see actual memory volume in production first
+- Autonomous long-horizon goal progression (macro/meso/micro goal hierarchy) — requires stable memory + builds
+- Multi-agent task splitting with atomic section claiming — single-agent builds must be reliable first
+- Personality-driven build aesthetics (SOUL-aware material preferences) — bolt-on to LLM build specs, but full implementation is iterative
+- Settlement layout planning — separate milestone (v2.5+), requires all of the above
 
 ### Architecture Approach
 
-The architecture is a strict Mind/Body separation. The Mind layer (Prompter, SelfPrompter, History) owns all LLM calls and conversation history. The Body layer (ActionManager, Skills, ModeController, Commands) owns all Mineflayer calls. The boundary is enforced: no file in `mind/` imports from `body/skills/`, no file in `body/` calls the LLM. The command registry is the LLM-visible interface — command names appear in the system prompt while skill functions are internal implementations. Refactoring a skill never changes the LLM's interface.
+v2.3 is additive to the existing Mind+Body architecture. The critical boundary rule is unchanged: only `mind/registry.js` imports from `body/`; `body/` never imports from `mind/`. Three new `mind/` modules are added and six existing modules are modified. The memory system follows a parallel RAG path pattern: knowledge retrieval and episodic memory retrieval run in parallel via `Promise.all()` inside `think()`, merging before prompt construction at zero additional sequential latency. Background work (memory index rebuild, optional consolidation pass) uses an idle-gated `setInterval` in `start.js` — it defers when a skill is running or an LLM call is in flight.
 
-Every skill function is `async` with `try/catch`, returns `{ success, message, error? }`, never throws, and checks `if (bot.interrupt_code) return false` after every `await`. This cooperative interrupt pattern lets modes and chat preempt long-running skills without forced termination that leaves the bot in a bad state.
+**Major components and their status:**
+1. `mind/memoryStore.js` (NEW) — BM25 index over `experiences.jsonl`, `retrieveMemories(query, topK)` API
+2. `mind/buildPlanner.js` (NEW) — `planBuild()`, `auditMaterials()`, `saveBuildPlan()` for 500+ block structures
+3. `mind/taskRegistry.js` (NEW) — cross-agent task claim/release via atomic-rename shared JSON file
+4. `mind/memory.js` (MODIFY) — add `addExperience()`, experiences array, `experiences.jsonl` write-back
+5. `mind/index.js` (MODIFY) — add parallel memory RAG path, `deriveMemoryQuery()`, `isThinking()` export
+6. `mind/prompt.js` (MODIFY) — add `formatMemoryContext()`, build plan context injection
+7. `mind/spatial.js` (MODIFY) — entity awareness tier, post-build scan injection
+8. `body/skills/build.js` (MODIFY) — Z-slice pagination for 500+ block builds, `completedSlice` persistence
+9. `start.js` (MODIFY) — init new modules, idle-gated background consolidation interval
 
-**Major components:**
-1. `mind/prompter.js` — LLM client, conversation history, self-prompter loop (event-driven, 2s idle timer)
-2. `body/action-manager.js` — serialized execution, interrupt flag, 10-min timeout watchdog
-3. `body/modes.js` — ModeController, 300ms reactive behaviors, completely independent of LLM
-4. `body/commands/` — LLM-visible command registry (`!collectBlocks`, `!craft`, `!goTo`, etc.)
-5. `body/skills/` — internal async primitives split by domain (navigate, gather, build, craft, world)
-6. `memory/` — MEMORY.md, notepad, session JSONL, locations (file-backed, no database needed at 2-10 agent scale)
-7. `social/conversation.js` — chat routing, multi-agent message tagging, self-prompter pause/resume
-
-**Build order is strict** (from ARCHITECTURE.md): Phase 1 (bot foundation + core skills + interrupt harness) → Phase 2 (Mind loop + LLM integration) → Phase 3 (survival modes) → Phase 4 (full skill set + memory) → Phase 5 (personality + multi-agent). Each phase requires the prior phase working before it begins.
+**Data store additions:**
+- `data/<agent>/experiences.jsonl` — append-only episodic event log
+- `data/<agent>/plans/<planId>.json` — per-agent persistent build plans
+- `data/shared_task_registry.json` — cross-agent task coordination
 
 ### Critical Pitfalls
 
-1. **Pathfinder indefinite hang** — `bot.pathfinder.goto()` never resolves on unreachable goals (documented issue #222). Every navigation skill must wrap `goto()` in a 30s wall-clock timeout and return failure if triggered. Must be addressed in Phase 1 before any skill builds on navigation.
+1. **Unbounded memory file growth** — Apply FIFO caps and temporal decay from day one. Never inject the full memory log; always inject top-K most recent + relevant entries. Hard character budget on the memory section of the system prompt. Warning signs: MEMORY.md past 5KB, LLM stops referencing lessons, contradictions visible in the same dump.
 
-2. **Silent false success from `bot.dig()` and `bot.placeBlock()`** — both resolve without confirming the server actually processed the action. Protected blocks, spawn protection, and server-load-related timeouts cause the skill to report success while the game state is unchanged. Every dig and place skill must verify the block state changed with `bot.blockAt()` afterward.
+2. **LLM blueprint spatial reasoning failures** — Grid row miscounts and material underestimation are fundamental LLM limitations, not model quality issues. Fix: hard-cap generated blueprints at 10x10x8, validate after generation and retry up to 2 times with specific error feedback injected, pre-compute exact material requirements from the validated palette before placing any block.
 
-3. **Item name hallucination** — LLMs output display names ("Oak Log"), pluralized forms ("sticks"), and colloquial names ("cobble") even when prompted with registry names. Without a normalization layer, `bot.registry.itemsByName[name]` returns `undefined` and skills throw. The v1 normalizer must be ported before any skill is written.
+3. **Multi-agent chat loops** — Both agents become fully reactive to each other's chat, spending all LLM budget on `!chat` calls with no skill execution. Fix: chat deduplication window (3s cooldown on same-partner messages), `consecutiveChatActions` counter with forced action injection after 3 consecutive chats.
 
-4. **Context window overflow after 60-90 minutes** — full state snapshots per turn fill the 128K context window in ~90 minutes. The v1 agent hit this at 90 messages × 4KB = 360KB. Cap at 40 turns with progressive summarization (oldest 10 turns → 500-char summary). Use delta state format in conversation history.
+4. **Shared state file corruption** — `writeFileSync` is not atomic on Linux for files >4KB under concurrent writes. Fix: per-agent data directories for private state (already in v2.0) and atomic rename pattern (`write to .tmp` then `renameSync`) for any genuinely shared file.
 
-5. **v1 memory file contamination** — v1 MEMORY.md files contain action vocabulary (`look_at_block`, `break_block(x,y,z)`, HTTP bridge references) that does not exist in v2. Loading them causes the agent to call non-existent skills. Create fresh `agent/data/jeffrey/` and `agent/data/john/` directories for v2; archive v1 data as `jeffrey_v1/`.
+5. **Embedding model memory leak** — `@huggingface/transformers` + ONNX Runtime leaks native tensor memory under high-frequency inference (confirmed open issue #860). Fix: batch embeddings at startup only (already done), cache identical query strings for 10s, add `process.memoryUsage()` logging every 5 minutes, schedule nightly restarts.
+
+---
 
 ## Implications for Roadmap
 
-Based on combined research, the architectural build order from ARCHITECTURE.md provides the definitive phase structure. Each phase has hard dependencies on the prior one — no parallelization is possible until Phase 5.
+Based on the ARCHITECTURE.md build order and FEATURES.md dependency graph, six implementation phases are suggested. The order is driven by hard dependencies: memory infrastructure must exist before build planning can record outcomes, and single-agent stability is a prerequisite for multi-agent coordination.
 
-### Phase 0: Migration Setup
-**Rationale:** Must happen before a single line of v2 code runs an agent. PITFALLS.md identifies v1 memory file contamination as a Phase 0 issue — the data directory structure and server config must be established first or the first agent run will poison fresh memory files.
-**Delivers:** Clean v2 data directories (`data/jeffrey/`, `data/john/`), v1 data archived, `package.json` cleanup (`sharp`, `ws` removed), Paper server configured (`allow-flight: true`, `spawn-protection=0` for dev), VeinMiner switched to command activation mode.
-**Addresses:** Pitfall 15 (v1 memory contamination), Pitfall 9 (VeinMiner plugin config), Pitfall 14 (anti-cheat server settings)
-**Research flag:** Standard setup — no deep research needed
+### Phase 1: Memory Foundation
+**Rationale:** Everything else depends on this. Memory retrieval must work before build planning or coordination can use it. Lowest risk — pure `mind/` additions with no `body/` changes.
+**Delivers:** Cross-session episodic memory that accumulates and is retrievable. Agents stop being amnesiac between sessions.
+**Addresses:** Persistent memory log, importance scoring, session journal entry, spatial memory index (coordinates attached to events).
+**Implements:** `mind/memory.js` extension + new `mind/memoryStore.js`, `experiences.jsonl`, `start.js` init wiring.
+**Avoids:** Unbounded memory growth (Pitfall 1) — caps and deduplication built in from the start, not retrofitted.
+**Research flag:** Standard patterns. Stanford Generative Agents + MrSteve PEM are well-documented. No additional research needed.
 
-### Phase 1: Bot Foundation + Core Skills
-**Rationale:** All other phases depend on a bot that can connect, navigate, mine, and place blocks reliably. The interrupt harness, post-action verification, and item normalization must be correct here — they cannot be retrofitted later without breaking all higher-level skills. The "bot connects and spawns on Paper 1.21.1" smoke test is the critical early gate for this entire project.
-**Delivers:** Headless bot on Paper 1.21.1. ActionManager with interrupt + timeout. Navigation, gather, place, chest skills. Item name normalization. Post-dig and post-place block verification. Respawn handler with 100-200ms delay.
-**Addresses:** Pitfall 1 (pathfinder hang), Pitfall 2 (silent dig failure), Pitfall 3 (placeBlock timeout), Pitfall 5 (window lifecycle for chests), Pitfall 8 (respawn kick), Pitfall 11 (async error handling), Pitfall 12 (item normalization), Pitfall 13 (keepalive async I/O)
-**Avoids:** Anti-pattern of building skills without the cooperative interrupt pattern
-**Research flag:** Well-documented patterns from Mindcraft source. Smoke test is the gate — validate pathfinder on Paper 1.21.1 before full skill development.
+### Phase 2: Memory Integration into Prompts
+**Rationale:** Memory stored but not retrieved is worthless. This phase closes the loop so retrieved experiences appear in prompts and agents demonstrate "I remember" behavior.
+**Delivers:** Parallel RAG path in `think()` — knowledge chunks + memory chunks injected together. Measurable behavioral change: agents reference past events in their reasoning.
+**Addresses:** Episodic memory RAG (P2 feature that can be wired early given the infrastructure exists from Phase 1).
+**Implements:** `mind/index.js` `Promise.all` retrieval path, `mind/prompt.js` `formatMemoryContext()`.
+**Avoids:** Context window stuffing (Pitfall 7) — enforce system prompt token ceiling of 4,000 tokens maximum.
+**Research flag:** Standard patterns. Direct reuse of existing BM25 pipeline. No additional research needed.
 
-### Phase 2: Mind Loop + LLM Integration
-**Rationale:** Skills are inert without an LLM driving them. The Mind loop design (event-driven, 2s idle timer, 40-turn history cap, delta state format) must be built correctly from the start — retrofitting history compression after sessions accumulate is expensive and risks session instability.
-**Delivers:** End-to-end pipeline: LLM reads world state, outputs `!command`, Body executes, result feeds back to history. SelfPrompter goal loop with 2s idle timer and 3-miss stop condition. History compression (progressive summarization, 40-turn cap). Command registry with system prompt injection.
-**Addresses:** Pitfall 6 (context overflow), Pitfall 4 (crafting tag resolution — verify crafter.js uses minecraft-data directly, not `bot.recipesFor()`)
-**Research flag:** Standard patterns from Mindcraft source. One gap: MiniMax M2.7 `!command` syntax compliance needs a smoke test — the model was not tested in v1 and may need prompt adjustments vs Hermes 4.3.
+### Phase 3: Enhanced Spatial Intelligence
+**Rationale:** No new dependencies from Phase 1/2. Extends existing `spatial.js`. Required for build verification in Phase 4.
+**Delivers:** Entity awareness in prompts, `!scan` command exposed via registry, post-build scan results injected as `postBuildScan` context.
+**Addresses:** Spatial memory index queries ("what do I know about here?"), build quality self-verification groundwork.
+**Implements:** `mind/spatial.js` entity tier + post-build scan, `mind/registry.js` `!scan` command.
+**Avoids:** Screenshot-based vision anti-pattern (Pitfall 2) — all spatial intelligence via Mineflayer block APIs.
+**Research flag:** Standard patterns. Mineflayer APIs are well-documented and already in use.
 
-### Phase 3: Survival Modes
-**Rationale:** Without autonomous modes, the agent cannot survive without the LLM watching for every threat. Modes must be in before multi-agent testing because unsupervised bots die. The ModeController design (300ms tick, independent of LLM, cooperative interrupt) is also the gating dependency for the "feels alive" behavior that makes testing legible.
-**Delivers:** ModeController with `self_preservation`, `self_defense`, `unstuck`, `item_collecting`, `idle_staring`, `elbow_room`. Agents survive and feel alive between LLM decisions.
-**Addresses:** The "LLM too slow for survival decisions" problem. `idle_staring` and `elbow_room` are the highest-impact human-feeling behaviors (verified from Mindcraft modes.js).
-**Research flag:** Standard patterns from Mindcraft modes.js — direct copy of priority ordering and condition thresholds. No additional research needed.
+### Phase 4: Build Planning for 500+ Block Structures
+**Rationale:** Requires Phase 1 (memory records build outcomes) and Phase 3 (spatial scan for post-build verification). This is the headline feature of v2.3.
+**Delivers:** `!plan` command that generates build spec, audits materials, saves to disk, and tracks multi-phase progress across sessions. Build quality verification after completion.
+**Addresses:** LLM-authored build specs, material pre-planning, multi-phase build tracking, build quality self-verification.
+**Implements:** New `mind/buildPlanner.js`, `body/skills/build.js` Z-slice pagination, `mind/registry.js` `!plan` command.
+**Avoids:** Blueprint spatial reasoning failures (Pitfall 3) — validation retry loop with error feedback, 10x10x8 hard cap, pre-computed material requirements.
+**Research flag:** Needs attention during implementation. T2BM research shows even GPT-4 achieves only 48% material constraint satisfaction. MiniMax M2.7 is unverified for this workload. Plan a validation gate: measure blueprint validity rate on 10 test structures before declaring Phase 4 done.
 
-### Phase 4: Full Skill Set + Memory
-**Rationale:** Building and crafting are second-tier skills that depend on navigation and collection working correctly (Phase 1). Adding the full skill set here after the Mind loop is working (Phase 2) means each new skill can be validated end-to-end against the real LLM immediately. Memory files (MEMORY.md, notepad, context/) are carried from v1 structure but populated fresh.
-**Delivers:** `placeBlock`, `clearArea`, `craftRecipe` (with chain solver BFS), `smelt`, `attack`, `flee`. MEMORY.md, notepad read/write, context/ pinned files. Saved locations. Stats tracking.
-**Addresses:** Full Ender Dragon progression capability. Crafting chain solver validated against Pitfall 4 (spruce_planks → crafting_table test case).
-**Research flag:** `placeBlock` has known complexity (Pitfall 3 — blockUpdate timeout on loaded Paper server). Phase 1 adds the wrapper; Phase 4 stress-tests it with real builds. The v1 crafter.js BFS solver needs auditing for `bot.recipesFor()` usage — if present, it must be replaced with direct minecraft-data lookup.
+### Phase 5: Multi-Agent Coordination
+**Rationale:** Requires single-agent stability across all prior phases. Coordination bugs compound and are much harder to debug than single-agent bugs. Ship last.
+**Delivers:** Shared task registry with atomic claim/release. Agents announce task claims via in-game chat (human-observable). No duplicate mining, no overwritten build plans.
+**Addresses:** Multi-agent task splitting (enabling coordinated builds), chat loop prevention.
+**Implements:** New `mind/taskRegistry.js`, `data/shared_task_registry.json`, chat deduplication window in the social layer.
+**Avoids:** Shared file corruption (Pitfall 5) and multi-agent chat loops (Pitfall 4).
+**Research flag:** Light verification needed on the atomic rename pattern under the Glass filesystem. Confirm `/tmp` and the data directory are on the same mount (required for `renameSync` atomicity guarantee on Linux).
 
-### Phase 5: Personality + Multi-Agent
-**Rationale:** Multi-agent coordination requires single-agent stability first. All v2.0 crash modes must be eliminated before adding a second bot. Chat routing, self-message filtering, and the conversation pause/resume flow are the final pieces. SOUL files for Jeffrey and John can be ported from v1 (they contain personality content, not action vocabulary).
-**Delivers:** SOUL file loading per agent. ConversationManager with self-message filtering. Per-agent data directories. Two agents on server simultaneously. Jeffrey and John coordinate on a task via chat.
-**Addresses:** Pitfall 10 (chat flood from self-messages). Multi-agent routing per Mindcraft conversation.js pattern (200ms response delay when idle, 5s delay when busy, `(FROM OTHER BOT)` message tagging).
-**Research flag:** Well-documented in Mindcraft conversation.js. No additional research needed.
+### Phase 6: Memory Consolidation (Optional — Phase-Gated)
+**Rationale:** Only build this after observing actual memory volume in production. May not be needed if importance scoring and caps from Phase 1 keep the log manageable.
+**Delivers:** Background LLM consolidation pass: 20 recent experiences → 3-5 strategy bullet points appended to `memory.strategies`. Prevents unbounded raw log accumulation across months of sessions.
+**Addresses:** Background memory consolidation agent (P3 feature from FEATURES.md).
+**Implements:** Consolidation pass in the idle-gated `setInterval` already scaffolded in Phase 1's `start.js`.
+**Avoids:** Background memory agent starving the game loop (Pitfall 9) — idle-only trigger, 30-minute minimum interval, defers if LLM API is busy.
+**Research flag:** Phase-gate this behind a production observation period of at least 2 weeks. If Phase 1 caps keep memory healthy, skip Phase 6 entirely.
 
 ### Phase Ordering Rationale
 
-- Phases 1-5 are a strict dependency chain, not preferences. This order comes directly from ARCHITECTURE.md's "Build Order" section, derived from Mindcraft's documented production evolution.
-- Phase 0 is not optional even though it has no code — the v1 data contamination risk from skipping it is rated MEDIUM recovery cost in PITFALLS.md.
-- Multi-agent is correctly placed last (Phase 5). FEATURES.md explicitly notes "single-agent working first" as a dependency. All prior phases must be green.
-- "Feels human" features (`idle_staring`, `elbow_room`) are placed in Phase 3, not in a separate polish phase, because they contribute directly to observability during testing of the survival loop.
-- Day/night routine and ambient modes (`torch_placing`, `hunting`) are deferred to v2.0.x — they require stable bots but are not part of the core rewrite milestone.
+- Phases 1-2 are pure `mind/` additions — no `body/` changes, lowest blast radius if something breaks, highest return for demonstrating the milestone theme.
+- Phase 3 has no new dependencies and prepares the spatial verification tooling that Phase 4 requires. Worth placing before build planning, not after.
+- Phase 4 is the headline feature but carries the highest implementation risk (LLM spatial reasoning on MiniMax M2.7). Placing it here ensures memory infrastructure is solid and the verification loop (Phase 3) is ready to catch placement errors.
+- Phase 5 requires all prior phases to be stable. Multi-agent bugs compound; never debug coordination and memory simultaneously.
+- Phase 6 is explicitly optional and dependent on production observation. Real usage data should drive the decision.
 
 ### Research Flags
 
-Phases with well-documented patterns (skip `research-phase`):
-- **Phase 0:** Standard file ops and server config. No research needed.
-- **Phase 1:** Mindcraft source covers all patterns with HIGH confidence. Focus on the smoke test gate.
-- **Phase 3:** Mindcraft modes.js is directly applicable. Priority ordering and condition thresholds are ready to copy.
-- **Phase 5:** Mindcraft conversation.js is the blueprint for routing and timing.
+Phases needing deeper research or empirical validation during planning:
+- **Phase 4 (Build Planning):** Validate MiniMax M2.7's blueprint generation quality empirically before committing to the 10x10x8 cap as sufficient. T2BM results are from GPT-4. If validity rate is below 50% at 10x10, reduce to 8x8 and re-test before shipping.
+- **Phase 5 (Multi-Agent):** Confirm POSIX `renameSync` atomicity on the Glass filesystem (local disk, same mount) before shipping the task registry. Non-issue if confirmed; data corruption risk if not.
 
-Phases that need targeted research or validation during execution:
-- **Phase 1 (Pathfinder smoke test):** Live behavior of `mineflayer-pathfinder` 2.4.5 on Paper 1.21.1 must be validated before full skill development. Issue #222 (indefinite hang) may behave differently on current Paper builds.
-- **Phase 2 (MiniMax M2.7 command format):** The `!command` syntax parsing has not been tested against MiniMax M2.7 specifically. Hermes 4.3 was the v1 model. MiniMax may need prompt tuning to reliably output `!commandName(args)` format vs free text or tool calls.
-- **Phase 4 (Crafting chain solver audit):** The v1 crafter.js BFS solver needs to be checked for `bot.recipesFor()` usage (Pitfall 4, wood tag issue). If it calls `bot.recipesFor()` internally, it needs a rewrite before Phase 4 begins.
+Phases with standard patterns (skip `research-phase`):
+- **Phase 1 (Memory Foundation):** Stanford Generative Agents architecture is fully specified in research literature. MrSteve PEM is concrete. Straightforward implementation.
+- **Phase 2 (Memory RAG):** Direct reuse of existing `knowledgeStore.js` pattern. No new unknowns.
+- **Phase 3 (Spatial):** Mineflayer block APIs are well-documented and already in production use by this project.
+- **Phase 6 (Consolidation):** Pattern is clear from ARCHITECTURE.md; the decision to build it is empirical, not a research question.
+
+---
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All packages verified via npm registry and node_modules. Mindcraft package.json used as reference implementation. MC 1.21.1 support confirmed with specific issue resolution context (SlotComponent fix in minecraft-data 3.105.0). |
-| Features | HIGH | Derived from direct source reads of Mindcraft skills.js, modes.js, agent.js, self_prompter.js, action_manager.js, conversation.js. Function names and patterns from real code, not inferred. |
-| Architecture | HIGH | Mindcraft source read directly from GitHub. AIRI DeepWiki cross-checked independently. Build order confirmed by testing in Mindcraft's documented production evolution. |
-| Pitfalls | HIGH | 15 pitfalls documented with GitHub issue numbers, reproduction conditions, and specific recovery steps. Most reference mineflayer's issue tracker directly. |
+| Stack | HIGH | Only one new package (`better-sqlite3`). All alternatives evaluated and rejected with clear rationale verified via official docs and npm registry. |
+| Features | HIGH | Grounded in peer-reviewed research (Stanford Generative Agents, MrSteve, T2BM, Voyager, Project Sid PIANO). Full dependency graph mapped explicitly in FEATURES.md. |
+| Architecture | HIGH | Based on direct codebase reads of 3,389 lines across 24 modules. Integration points are concrete, not speculative. Tick budget analysis confirms no new bottlenecks introduced. |
+| Pitfalls | HIGH | Sourced from Mindcraft/Voyager post-mortems, MAST NeurIPS 2025 taxonomy, mineflayer issue tracker, and transformers.js issue tracker. Warnings include specific measurable symptoms and recovery steps. |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **MiniMax M2.7 command format compliance:** FEATURES.md and ARCHITECTURE.md are based on Mindcraft using GPT-4/Claude. MiniMax M2.7 instruction-following for `!command` syntax needs validation in Phase 2 smoke test. If the model reliably outputs tool calls instead of text commands, the command parser must handle both formats.
-- **Paper 1.21.1 + mineflayer-pathfinder 2.4.5 live behavior:** Issues #3488 and #3492 reference older mineflayer versions and are likely resolved, but a live connection smoke test is the only way to confirm. Build this into Phase 1 exit criteria explicitly.
-- **v1 crafter.js compatibility:** The carry-over crafting chain solver from v1 needs auditing against `bot.recipesFor()` usage (Pitfall 4). Assess during Phase 4 planning.
-- **Glass server anti-cheat plugin stack:** PITFALLS.md calls out rapid bot actions as an anti-cheat trigger. The actual Paper plugin stack running on Glass (GriefPrevention, VeinMiner, others) has not been fully audited for bot compatibility. Validate during Phase 1 integration testing.
+- **MiniMax M2.7 blueprint quality:** T2BM research uses GPT-4. Blueprint generation quality for MiniMax M2.7 is unverified. Plan an empirical validation pass (10 test structures) early in Phase 4. If quality is poor, reduce size caps and supplement with hand-authored large blueprints.
+- **`mineflayer-schem` 1.21.1 compatibility:** Library declares 1.8-1.20+ compatibility. Verify on 1.21.1 if schematic interop is needed. Listed as optional — do not block Phase 4 on this verification.
+- **Glass filesystem for atomic rename:** `renameSync` is POSIX-atomic on the same device. Confirm Glass data and tmp directories share a device before shipping Phase 5. Non-issue if confirmed; critical race condition risk if not.
+- **transformers.js memory leak status:** Reported as open in early 2025 (issue #860). Check release notes before upgrading. Add heap monitoring in Phase 1 to detect if it manifests in the current installed version.
+
+---
 
 ## Sources
 
-### Primary (HIGH confidence)
-- `node_modules/mineflayer/package.json` — version 4.35.0 confirmed installed
-- [Mindcraft source: skills.js, modes.js, agent.js, self_prompter.js, action_manager.js, conversation.js, history.js, coder.js, npc/controller.js](https://github.com/kolbytn/mindcraft) — architecture and feature patterns read directly
-- [mineflayer GitHub README](https://github.com/PrismarineJS/mineflayer) — auth, version support, offline mode
-- [mineflayer-pathfinder repo](https://github.com/PrismarineJS/mineflayer-pathfinder) — GoalNear, goto() Promise API, issue #222
-- `npm view` for all recommended packages — versions confirmed 2026-03-22
-- [mineflayer discussion #2251](https://github.com/PrismarineJS/mineflayer/discussions/2251) — 100MB per bot RAM figure, maintainer-confirmed
-- mineflayer issues #3494, #3488, #3492, #3549, #3360, #3769, #222, #671, #2076, #2673 — specific pitfall root causes
+### Primary (HIGH confidence — direct codebase reads)
+- `mind/memory.js`, `mind/index.js`, `mind/knowledgeStore.js`, `mind/spatial.js` — integration point analysis for all new modules
+- `body/skills/build.js`, `body/skills/scan.js` — build execution and scan API details
+- `start.js`, `launch-duo.sh`, `mind/config.js` — multi-agent deployment and init sequence patterns
+
+### Primary (HIGH confidence — peer-reviewed research)
+- [Generative Agents: Park et al., UIST 2023](https://dl.acm.org/doi/10.1145/3586183.3606763) — memory stream, importance scoring, reflection, recency decay
+- [Project Sid (arXiv 2411.00114)](https://arxiv.org/html/2411.00114v1) — PIANO architecture, social modules, role specialization emergence
+- [MrSteve (arXiv 2411.06736, ICLR 2025)](https://arxiv.org/html/2411.06736v3) — Place Event Memory, what/where/when tagging, Explore/Execute mode switching
+- [Voyager (arXiv 2305.16291)](https://arxiv.org/abs/2305.16291) — skill library as vector DB, iterative feedback, self-verification
+- [T2BM (arXiv 2406.08751)](https://arxiv.org/html/2406.08751v1) — LLM building generation, 80% structure / 48% material accuracy with GPT-4
+- [Mindcraft MineCollab (arXiv 2504.17950)](https://arxiv.org/html/2504.17950v1) — 15% performance penalty for detailed communication, construction plan failure taxonomy
+- [MAST taxonomy, NeurIPS 2025 (arXiv 2503.13657)](https://arxiv.org/abs/2503.13657) — multi-agent failure classification
 
 ### Secondary (MEDIUM confidence)
-- [AIRI Minecraft agent DeepWiki](https://deepwiki.com/moeru-ai/airi) — independent implementation confirms same interrupt and action queue patterns
-- [Mindcraft-CE README](https://mindcraft-ce.com/) — enhanced unstuck, multi-tier hierarchy, augments system
-- [Voyager breakdown](https://www.hanakano.com/posts/voyager-breakdown/) — curriculum, skill library, 73% performance drop without self-verification
+- [better-sqlite3 GitHub](https://github.com/WiseLibs/better-sqlite3) — synchronous API, performance characteristics confirmed
+- [Honcho docs](https://docs.honcho.dev/) — evaluated and rejected; architecture and pricing confirmed via official docs
+- [Letta/MemGPT docs](https://docs.letta.com/concepts/memgpt/) — evaluated and rejected; tiered memory concept noted
+- [Context Rot (Morph/Redis)](https://www.morphllm.com/context-rot) — context degradation under long context, 18-model study
+- [Lost in the Middle (arXiv 2307.03172)](https://arxiv.org/abs/2307.03172) — U-shaped attention, 30% degradation for middle-context content
+- [Transformers.js issue #860](https://github.com/huggingface/transformers.js/issues/860) — ONNX tensor memory leak
+- [Mineflayer issue #1123](https://github.com/PrismarineJS/mineflayer/issues/1123) — chunk unload memory leak
 
 ### Tertiary (LOW confidence — needs live validation)
-- MiniMax M2.7 `!command` syntax compliance — inferred from instruction-following capability; needs smoke test in Phase 2
-- Paper 1.21.1 + mineflayer 4.35.0 connection stability — known older issues likely resolved; needs live confirmation in Phase 1
+- MiniMax M2.7 blueprint generation quality — inferred from T2BM (GPT-4 baseline); needs empirical test in Phase 4
+- `mineflayer-schem` 1.21.1 compatibility — declared for 1.20+; needs live confirmation if used
 
 ---
-*Research completed: 2026-03-22*
+*Research completed: 2026-03-23*
 *Ready for roadmap: yes*

@@ -1,329 +1,221 @@
 # Pitfalls Research
 
-**Domain:** LLM-driven Mineflayer bot — Mind + Body architecture on Paper 1.21.1
-**Researched:** 2026-03-22
-**Confidence:** HIGH (based on Mineflayer GitHub issues, Mindcraft project analysis, community reports, and v1 post-mortem)
+**Domain:** LLM-driven Mineflayer agents — adding persistent memory, vision, ambitious build planning, and multi-agent coordination to existing v2.0 Mind + Body architecture
+**Researched:** 2026-03-23
+**Confidence:** HIGH — sourced from Mindcraft/Voyager post-mortems, MAST multi-agent failure taxonomy (NeurIPS 2025), mineflayer issue tracker, LLM memory research (2024-2025), and direct analysis of the v2.0 codebase
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Pathfinder Hangs Indefinitely on Unreachable Goals
+### Pitfall 1: Unbounded Memory File Growth Degrades Retrieval and Prompt Quality
 
 **What goes wrong:**
-`bot.pathfinder.goto(goal)` hangs permanently when the goal is physically unreachable — e.g., a block inside a wall, underwater without swimming enabled, or blocked by bedrock. No timeout fires, no error event emits, no `path_reset` event triggers. The bot freezes in place and the Mind loop never gets a result back. The skill function `goto()` awaits a promise that never resolves.
+A naive "save everything" persistent memory strategy causes the MEMORY.md to grow without bound across sessions. After 20-30 sessions, the file contains hundreds of bullet-point "lessons" that are contradictory, redundant, or time-expired ("explored north — found nothing" becomes false after the next expedition). When all of this is injected into every prompt, three things happen simultaneously: (a) the LLM hits context rot — information buried in the middle of a long context is attended to 30% less reliably than information at the start or end, (b) contradictory facts confuse the LLM into hedging or ignoring the section entirely, and (c) the per-call token cost grows linearly with sessions played.
+
+The v2.0 `memory.js` already has hardcoded caps (`slice(-20)` lessons, `slice(-10)` strategies) which prevent the worst case. The v2.3 milestone will add episodic memory, locations, build history, and potentially a background memory agent — each adds a new unbounded accumulation surface if not designed with explicit eviction from the start.
 
 **Why it happens:**
-`mineflayer-pathfinder` has a documented open issue (#222) where `thinkTimeout` does not trigger in the hanging state. The pathfinder's A* algorithm reaches a partial result, doesn't declare failure, and the consuming code waits forever. The pathfinder expects higher-level code to detect obstruction — it provides events like `path_update` with status `noPath` and `path_reset` with reason `stuck`, but these only fire in some failure modes, not when the pathfinder hangs computing an impossible path.
+Developers treat memory as append-only logs because that is the simplest implementation. The assumption is "more context = better performance." Research from 2024-2025 shows the opposite: models tested with 18 frontier LLMs all degraded in accuracy as context grew, and utility-based deletion with a capped buffer outperformed naive retention by up to 10% on task completion.
 
 **How to avoid:**
-Wrap every `goto()` call in a hard wall-clock timeout (e.g., 30s). If the timeout fires before the goal is reached, cancel the pathfinder with `bot.pathfinder.setMovements(null)` or `bot.pathfinder.stop()` and return a failure result. Never await a pathfinder promise without an external deadline. Additionally, before calling `goto()`, check `bot.blockAt(target)` to validate the destination is not solid.
+- Apply a FIFO cap to every memory category (already done for lessons/strategies/worldKnowledge).
+- For new episodic memory, deduplicate before writing: hash the semantic content and skip entries that are too similar to the last 5 entries in the same category.
+- Mark memories with timestamps and apply temporal decay: facts older than N sessions that haven't been accessed are either pruned or demoted to a "cold" archive not injected into prompts.
+- Never inject the full memory file; inject only the top-K most recently relevant entries per context.
+- Enforce a hard character budget on the memory section of the system prompt (current `getMemoryForPrompt()` does this implicitly; make it explicit).
 
 **Warning signs:**
-- Skill function `navigate` has been running for > 30s with no position change
-- `bot.pathfinder.isMoving()` returns true but bot.entity position is static
-- Mind loop queued multiple actions but none are executing
-- Memory grows because skill function never returns, leaving the async call stack open
+- MEMORY.md file size growing past 5KB
+- LLM starts ignoring memory section (visible in reasoning: never references lessons)
+- Contradictory instructions visible in the same memory dump (e.g., "explore north" and "north explored, nothing there")
+- System prompt token count growing session-over-session with no new features added
 
-**Phase to address:** Phase 1 (Core skill functions) — every navigation skill must wrap pathfinder in a timeout before any other skill can be built on top.
+**Phase to address:** Memory Phase — design eviction and deduplication before the first production run, not as a retrofit.
 
 ---
 
-### Pitfall 2: bot.dig() Silently Succeeds on Protected Blocks
+### Pitfall 2: Vision Per-Tick = Latency Death Spiral
 
 **What goes wrong:**
-`bot.dig(block)` returns a resolved promise (no error thrown) even when the dig physically fails — specifically when the block is inside spawn protection, in a game mode that prevents breaking, or protected by a Paper plugin (GriefPrevention, WorldGuard, etc.). The skill function reports success, the Mind loop marks the task done, and the block is still there. The bot then tries to path through the unbroken block and gets stuck.
+Adding screenshot-based vision (sending PNG/JPEG to a vision LLM like Claude Haiku or GPT-4o-mini) on every think() cycle destroys the agent's responsiveness. A screenshot capture + encode + API round trip + decode takes 800ms–2s on a good day. This is added on top of the existing 0.5–1s text LLM call, making each think cycle 1.3–3s. On Glass's constrained hardware (15GB RAM, 4 cores) with 2 agents both doing vision calls, you have 4 parallel LLM calls contending for the same network and process resources.
+
+The critical compounding failure: the 300ms body survival tick runs independently and may fight the stuck agent for CPU time when the vision call is blocking the event loop or awaiting I/O.
+
+Voyager's architecture explicitly paused the game server for thinking because it could not keep up with real-time play. The v2.3 milestone explicitly marks vision as out-of-scope in PROJECT.md — this is the correct call.
 
 **Why it happens:**
-Documented in mineflayer issue #3494. The dig function resolves based on the animation completing and the dig packet being sent, not on receiving a block-break confirmation from the server. In protected zones, the server silently rejects the break and restores the block without sending a `diggingAborted` event.
+Vision appears as an obvious enhancement ("give the bot eyes!") and VLM APIs make it trivially easy to implement. The failure is underestimating compounded latency and not accounting for the cost of two concurrent vision-calling agents. Research on game agents with VLM backends shows performance near random-action baselines when vision is the primary state input — worse than structured game-state APIs.
 
 **How to avoid:**
-After `bot.dig(block)` resolves, read `bot.blockAt(block.position)` and verify the block type changed to `air`. If the block is still present, treat the dig as failed. Add this check in a `digBlock()` skill wrapper. Also call `bot.canDigBlock(block)` before attempting — though this does not catch server-side protection, it catches client-side impossibility (water, bedrock, etc.).
+- Keep vision explicitly out of scope. Mineflayer provides complete structured world state (block positions, entity types, inventory, time, health) which is far richer and more reliable than screenshot analysis.
+- If vision is required for something specific (e.g., reading signs or identifying mob types not in entity data), use it as a deliberate one-shot command (`!look target:screenshot`) with a separate LLM call budget, not injected into every think cycle.
+- Never trigger a vision call from the 300ms survival tick.
+- If a future phase adds vision: gate it behind a dedicated trigger event, cache results for at least 2 seconds, and only use models that respond in under 500ms.
 
 **Warning signs:**
-- Skill reports `"mined oak_log"` but tree is still standing
-- Bot immediately gets pathfinding error after a successful mine call
-- Mine loop repeats the same block coords without making progress
-- `bot.blockAt()` after dig returns the original block type
+- think() cycle time exceeding 2 seconds (log delta between `[mind] thinking...` and `[mind] dispatching:`)
+- Survival tick logs showing gaps > 500ms between body tick firings
+- Memory pressure on Glass increasing over a session
 
-**Phase to address:** Phase 1 (Core skill functions) — add post-dig verification to the `mineBlock()` skill wrapper.
+**Phase to address:** Every phase — vision stays out of scope. If it re-enters scope, it requires a dedicated latency study phase first.
 
 ---
 
-### Pitfall 3: placeBlock Timeout on High-Entity-Count Servers
+### Pitfall 3: Blueprint Generation Block Count and Spatial Reasoning Failures
 
 **What goes wrong:**
-`bot.placeBlock(referenceBlock, faceVector)` throws `Error: Event blockUpdate did not fire within timeout of 5000ms` when the server is under load. This happens on Paper servers with many entities, active farms, or heavy chunk loading. The block may or may not have actually been placed — the server processed the placement but the confirmation packet arrived late or out of order.
+The existing `!design` pipeline asks an LLM to generate a blueprint JSON for a structure described in natural language. For small structures (5x5x4 cabins), this works. For "ambitious builds" targeted in v2.3 (multi-structure settlements, large unique buildings), the LLM reliably fails in three distinct ways:
+
+1. **Grid row length miscounts**: The LLM generates grid rows that are not exactly `size.x` characters wide. `validateBlueprint()` catches this, but the build silently fails without recovery.
+2. **Layer count mismatches**: The LLM declares `size.y = 8` but generates only 6 layers. The validator catches it, but the design result is `{ success: false }` with no fallback.
+3. **Material estimation errors**: For a 10x10x5 structure, the LLM estimates "about 50 cobblestone" — actually 300 blocks are needed. The build pauses with `missingMaterials` error, and neither agent has a strategy to gather the correct amount.
+
+The Mindcraft MineCollab benchmark (2025) found Claude 3.5 Sonnet placed less than 40% of blocks correctly in coordinated construction tasks. "Wrong Command," "Missing Step," and "Logic Error" together accounted for 100% of construction plan failures.
 
 **Why it happens:**
-`placeBlock` internally uses a `once('blockUpdate', ...)` listener with a 5-second timeout. On a loaded Paper server, the blockUpdate event for the placed block can be delayed past 5 seconds if the server tick is backlogged. A community fix (reducing the timeout to 500ms with patch-package) actually makes this worse — it increases false negatives. The real issue is that the timeout is based on event latency, which is server-load-dependent.
+LLMs have documented spatial reasoning and grid-counting weaknesses. Counting characters in a generated string requires the model to track an implicit counter — it drifts. This is not a model quality issue; it's a fundamental mismatch between autoregressive token generation and spatial counting. Larger/more capable models improve slightly but do not reliably eliminate it.
 
 **How to avoid:**
-Catch the timeout error in the `placeBlock()` skill wrapper. After the timeout, check `bot.blockAt(targetPosition)` — if the block is now the correct type, the placement succeeded and the timeout was a false negative. Only fail if the block is not present after the timeout. This converts an unreliable exception into a reliable post-placement check. Additionally, pre-equip the item before calling `bot.placeBlock()` to reduce the time between the call and packet dispatch.
+- **Schema enforcement**: After LLM generates blueprint JSON, run `validateBlueprint()` and retry up to 2 times with the validation error injected back into the prompt ("Your grid row 3 has 7 characters but should have 5. Fix this specific row."). Already have the validator — add the retry loop.
+- **Constrain by complexity**: Hard-cap blueprint sizes for LLM-generated designs at 10x10x8 (already in the design prompt as a rule). Do not increase this for v2.3 without testing.
+- **Pre-calculate material requirements**: After blueprint validates, compute exact block counts from the palette+grid before starting the build. If the bot doesn't have enough, gather first, then build — don't rely on LLM estimation.
+- **Segment large builds**: Break builds > 200 blocks into phases (foundation, walls, roof) rather than one monolithic build command. Each phase can pause for material gathering without losing the overall plan.
+- **Post-place verification**: The existing `body/skills/build.js` does post-place checks. Ensure this extends to LLM-generated blueprints.
 
 **Warning signs:**
-- `blockUpdate did not fire within timeout` errors during building on a multi-agent server
-- Build logs show intermittent failures even though the structure visually progresses
-- Error rate increases when multiple bots are online simultaneously
+- `validateBlueprint()` failing on > 30% of `!design` attempts
+- Build pausing repeatedly for "missingMaterials" on the same structure
+- `completedIndex / totalBlocks` ratio never advancing past 20-30% before pausing
 
-**Phase to address:** Phase 1 (Core skill functions) — add post-placement verification to the `placeBlock()` skill wrapper.
+**Phase to address:** Build Planning Phase — retry loop and pre-computed material lists before any ambitious build features ship.
 
 ---
 
-### Pitfall 4: Crafting Recipes Only Match Exact Item Names (No Wood Tag Support)
+### Pitfall 4: Multi-Agent Chat Loop — Agents Talk Themselves to Death
 
 **What goes wrong:**
-`bot.recipesFor(itemId)` uses exact item ID matching. If the bot has `spruce_planks` in inventory, `bot.recipesFor('crafting_table')` returns an empty array because the recipe expects `oak_planks` (or rather, the `planks` tag). All wooden plank types are functionally equivalent in vanilla Minecraft, but Mineflayer's recipe lookup does not honor item tags — it only matches the specific item ID registered in the recipe.
+Jeffrey says "let's build a house." John hears it, responds "great idea, I'll get wood." Jeffrey hears that, responds "I'll get stone." John hears "stone," responds "I'll mine it." This loop generates dozens of chat messages per minute, consumes LLM call budget on content-free exchanges, and neither agent ever executes a skill. In a variant of this: Jeffrey !chat-responds while John is mid-conversation, both start chatting simultaneously, and the server floods with 20 chat messages in 5 seconds.
+
+Mindcraft's MineCollab research found agent performance drops 15% when agents are required to communicate detailed plans — not because communication is bad, but because agents loop on communication instead of acting.
 
 **Why it happens:**
-Documented in mineflayer issue #3549. The recipe system was built around exact item IDs, not Minecraft's tag system (`minecraft:planks`, `minecraft:logs`, etc.). Vanilla Minecraft uses tags for recipe ingredients, but the PrismarineJS recipe data uses concrete item IDs.
+The current `respondToChat()` function fires an LLM call on every chat message from the partner. When both agents are responsive, they can get into a ping-pong. The `_chatResponseInFlight` guard prevents stacking within one agent, but it does not limit total call frequency. An agent that receives 5 chat messages in 10 seconds while its previous LLM call returns in 500ms will fire 5 sequential LLM calls in 5 seconds.
 
 **How to avoid:**
-Do not rely solely on `bot.recipesFor()` for recipe discovery. Use `minecraft-data` to get the recipe data directly, then implement tag resolution yourself. For wood recipes specifically, map all plank variants to a canonical representative before checking recipes. Our existing `crafter.js` BFS solver already handles this — ensure it does not call `bot.recipesFor()` but uses its own data. Alternatively, when `bot.recipesFor()` returns empty, try with each plank variant before declaring the recipe unavailable.
+- **Chat deduplication window**: Track the last partner-chat timestamp. If a new partner chat arrives within 3 seconds of the last one, queue it but don't fire a new LLM call immediately — let the current call handle the context.
+- **Action-first rule**: The existing system prompt says "If your partner talks to you, ALWAYS respond with !chat BEFORE doing anything else." This is correct for responsiveness but needs a complement: after responding to chat, the LLM should prefer dispatching an action next, not more chat.
+- **Chat budget per cycle**: Track `consecutiveChatActions` counter. After 3 consecutive `!chat` outputs with no skill dispatch in between, inject into the next user message: "You've been chatting a lot. Take action now."
+- **Cooldown on partner-message triggers**: Do not fire `respondToChat()` if the bot already called `respondToChat()` for the same partner within 2 seconds.
 
 **Warning signs:**
-- `craft(crafting_table)` fails with "no recipe found" when bot has `spruce_planks`
-- Any recipe using wood tags (planks, logs, slabs) fails with non-oak variants
-- Agent cuts down a spruce tree and then cannot craft basic tools
+- Server chat log showing > 5 messages per minute from bot accounts with no skill completions
+- `[mind] chat reply sent` log lines appearing without any `[mind] dispatching:` lines between them
+- Two agents both reporting `[mind] responding to chat from [partner]` simultaneously
 
-**Phase to address:** Phase 2 (Crafting skill) — test all wood-family recipes with non-oak variants before declaring the crafting skill complete.
+**Phase to address:** Multi-Agent Coordination Phase — implement chat deduplication window before deploying two agents together.
 
 ---
 
-### Pitfall 5: Window Operations Race — Opening Chest That Is Already Open (or Closed)
+### Pitfall 5: Shared State Corruption — Both Agents Write to the Same Files
 
 **What goes wrong:**
-`bot.openChest(chestBlock)` throws or hangs if called when a window is already open. Similarly, calling `chest.close()` on a chest that was closed by server event (e.g., another player walked away, plugin closed it) causes an unhandled rejection. The `windowOpen` event has a 20-second timeout — if it doesn't fire, the skill hangs for 20 seconds before erroring.
+Jeffrey and John both run in separate Node.js processes. Both processes read and write the same files if their `dataDir` is not isolated: `players.json`, `MEMORY.md`, `stats.json`, `locations.json`. When both processes do `writeFileSync()` concurrently (both respond to a shared event like nightfall), writes interleave at the OS level. `writeFileSync` is not atomic on Linux for files > 4KB — it is a sequence of write() syscalls. The second writer can overwrite a partial write from the first, producing JSON with a truncated line: `{"lessons": ["found iro` — unparseable. On the next startup, `JSON.parse()` throws, the agent initializes with empty state, and all learned knowledge is silently lost.
+
+The Node.js issue tracker confirms `writeFileSync` can corrupt shared files under high-frequency concurrent access (nodejs/help#2346, nodejs/node#1058).
 
 **Why it happens:**
-Documented in mineflayer issues #3360 and #3769. Mineflayer expects exactly one open window at a time. If a prior window interaction left a window open (e.g., the chest skill threw mid-operation), subsequent `openChest` calls fail because the bot thinks it's already in a window. The chest skill must track window state explicitly and close any open window before opening another.
+The natural default is to give each agent a single shared `data/` directory since they're cooperating. Developers don't anticipate concurrent writes because each agent's event loop is single-threaded. But two processes are two concurrent writers, and file I/O crosses process boundaries.
 
 **How to avoid:**
-Before any `openChest()` or `openBlock()` call, check `bot.currentWindow` — if it is not null, call `bot.closeWindow(bot.currentWindow)` first. Wrap the entire chest interaction (open → operate → close) in a try/finally so the window always closes even if the operation throws. Add a 10-second wall-clock timeout around `openChest()` independent of the internal event timeout.
+- **Per-agent data directories** (already implemented in v2.0: `agent/data/{name}/`). Jeffrey writes to `data/jeffrey/`, John writes to `data/john/`. Never share files between agents.
+- For genuinely shared state (a shared chest inventory, a cooperative build plan), write to a single canonical owner's directory and have the other agent read-only access it, or use a lightweight IPC mechanism (a shared JSON file written only by one agent, with a lock file or atomic rename pattern).
+- **Atomic write pattern**: Write to `file.tmp`, then `fs.renameSync('file.tmp', 'file')`. `rename()` is atomic on the same filesystem on Linux, eliminating partial-write corruption.
+- **Validate on load**: All `JSON.parse()` calls in `memory.js`, `social.js`, `locations.js` already have try-catch with empty fallbacks. Verify this pattern is maintained in all new modules.
 
 **Warning signs:**
-- `windowOpen did not fire within timeout of 20000ms` errors during chest interactions
-- Inventory skill hangs for 20 seconds then errors
-- After a failed chest operation, all subsequent chest operations also fail
-- `bot.currentWindow` is not null at the start of a chest skill call
+- `SyntaxError: Unexpected end of JSON input` on agent startup
+- Agent starting with empty memory after a session that appeared to be working
+- `stats.json` showing `sessionsPlayed: 1` every startup despite many prior sessions
+- `locations.json` missing entries that were saved in a prior session
 
-**Phase to address:** Phase 1 (Core skill functions) — the chest interaction skill must include window lifecycle management from the start.
+**Phase to address:** Memory Phase (day one) — the per-agent directory pattern must be enforced and documented before any new shared-state features are added.
 
 ---
 
-### Pitfall 6: LLM Action Loop Causes Context Window Overflow Over Long Sessions
+### Pitfall 6: Embedding Model Memory Leak Under Extended Agent Sessions
 
 **What goes wrong:**
-Each Mind loop turn appends a state observation + action result to the conversation history. After 60-90 minutes of continuous operation, the accumulated messages exceed the model's context window. When this happens, the LLM receives a truncated context and loses earlier decisions, inventory state, and active plans. The agent starts repeating actions it already completed or contradicting its own earlier decisions. Context overflow errors from the API result in failed Mind loop turns.
+The `knowledgeStore.js` loads `Xenova/all-MiniLM-L6-v2` via `@huggingface/transformers` (quantized INT8, ~43MB model weights). Each `retrieveKnowledge()` call runs an embedding inference pass. On Node.js + ONNX Runtime Web, tensor objects are not always garbage collected promptly between calls. Documented in `huggingface/transformers.js` issue #860 (memory leak under repeated inference) and issue #759 (excessive memory consumption). Under a long-running agent session with RAG queries firing every think() cycle, the Node.js heap grows by ~10–50MB per hour. On Glass with 15GB RAM serving 2 agents + Paper server, this matters after 4-8 hours.
 
 **Why it happens:**
-Naive rolling history — keep last N messages — works short-term but each message contains a full state snapshot (inventory, position, nearby blocks, recent actions). A 15-30s Mind loop with verbose state produces 2-4KB per turn. At 128K tokens, this gives roughly 60-90 real-time minutes before overflow. The v1 agent already hit this: 90 messages at ~4KB each = 360KB = ~90K tokens, consuming 70% of context before system prompt.
+ONNX Runtime allocates native memory for inference tensors. The JS garbage collector controls the JS wrapper but not the native backing memory. Without explicit `tensor.dispose()` calls (which transformers.js does not expose to the consumer in all cases), native tensors accumulate until a GC cycle happens to collect both the JS wrapper and the native memory. In practice, this collection is deferred and incomplete under high-frequency inference.
 
 **How to avoid:**
-State snapshots in conversation history must be compressed. Use a delta format: only include state fields that changed since the last turn. Store full state separately; the conversation history only carries "what changed and what was decided." Keep a separate persistent scratchpad (notepad.txt) for plans — it doesn't grow with turns. Implement progressive summarization: every 20 turns, summarize the oldest 10 turns into a single paragraph and replace them. Cap total conversation history at 40 turns, never 90.
+- **Batch on startup, not per-tick**: The current design embeds the entire corpus once at startup and persists to disk. At query time, only one embedding is generated (the query itself). This is already the lowest-frequency pattern possible — do not change it.
+- **Cache recent query embeddings**: If `deriveRagQuery()` generates the same query string twice within 5 seconds (e.g., "early game start first day punch tree"), cache the embedding vector for 10 seconds to avoid redundant inference.
+- **Monitor heap growth**: Add periodic `process.memoryUsage().heapUsed` logging (every 5 minutes). Alert if heap grows by > 100MB in a session.
+- **Restart cadence**: For long-running deployments, schedule a nightly restart (e.g., via the tmux session management in `launch-agents.sh`) to clear accumulated heap fragmentation.
+- **Upgrade check**: The transformers.js memory leak was reported as open as of early 2025. Check the release notes before upgrading — a fix may land in a minor version.
 
 **Warning signs:**
-- LLM API returns context window errors after 60+ minutes of operation
-- Agent repeats tasks it completed in earlier turns
-- Agent references items it no longer has (dropped or consumed earlier)
-- Mind loop latency increases as history grows (model processing longer context)
+- Node.js process RSS growing steadily session-over-session without a bound
+- `heapUsed` exceeding 500MB for a Mineflayer + mind agent process (baseline is ~100MB)
+- ONNX inference calls taking longer than at startup (latency degradation under memory pressure)
 
-**Phase to address:** Phase 3 (Mind loop + memory) — the conversation structure must be designed with overflow prevention built in, not retrofitted.
+**Phase to address:** Memory Phase — add heap monitoring from the first session; implement query embedding cache before production multi-agent deployment.
 
 ---
 
-### Pitfall 7: mineflayer-pathfinder Gets Stuck in GoalFollow Sprinting Loop
+## Moderate Pitfalls
+
+### Pitfall 7: Context Window Stuffing — "Lost in the Middle" for Build History and Locations
 
 **What goes wrong:**
-When using `GoalFollow` to track a moving entity, the bot overshoots the target, overcorrects, and enters a tight sprint-stop-sprint cycle. In extreme cases, the bot locks its movement controls in "sprinting" state while physically unable to move, burning CPU and causing the bot to appear frozen or jittering. This is distinct from the unreachable-goal hang (Pitfall 1) — the bot is moving, just not making progress toward the goal.
+As Jeffrey and John build more structures over many sessions, `getBuildHistoryForPrompt()` and `getLocationsForPrompt()` each grow. If injected as-is into every system prompt, the LLM faces the "lost in the middle" problem: information at positions 40-70% of the context window receives 30% less attention than information at the start or end. Build history from 3 sessions ago is attended to at random. The LLM starts making contradictory decisions ("build a house near the river" — but a house was built at the river 2 sessions ago, already in world knowledge).
 
-**Why it happens:**
-Documented in mineflayer-pathfinder issue #332. The pathfinder recomputes the path every tick when following a moving entity. If the entity moves faster than the bot can replan, the computed path is always stale. The control state becomes desynchronized from the goal state, leading to stuck sprint keys.
-
-**How to avoid:**
-For entity following, use `GoalFollow` with a tolerance radius (e.g., 3 blocks) rather than distance 0. This prevents constant recomputation when the bot is "close enough." For aggressive following (combat), implement a custom follow loop using `bot.lookAt()` + manual movement controls instead of relying on the pathfinder. Always add a safety escape: if `bot.entity.velocity` magnitude is near zero for 3 consecutive ticks while `GoalFollow` is active, reset pathfinder state.
-
-**Warning signs:**
-- Bot velocity near zero but `bot.pathfinder.isMoving()` returns true
-- Bot spinning rapidly around a target entity
-- `pathfinder` goal remains active for > 60s without reaching target
-- CPU usage spikes when multiple bots use GoalFollow simultaneously
-
-**Phase to address:** Phase 2 (Navigation skill) — movement safety harness needed before any entity-following or social behavior.
+**Prevention:**
+- Cap build history at 5 entries (most recent), not a flat file dump.
+- Cap locations at entries within 200 blocks of current position (already partially implemented with distance filtering in `locations.js`).
+- For the system prompt, always put the most critical information (identity, essential knowledge) at the start AND end of the prompt, with memory/history in the less-attended middle. This exploits the U-shaped attention curve.
+- Before v2.3 adds more context sections, measure total system prompt length in tokens on a realistic session and ensure it stays under 4,000 tokens (leaving room for the user message with game state + RAG).
 
 ---
 
-### Pitfall 8: Bot Kicked for Flying After Respawn
+### Pitfall 8: Duplicate Work — Both Agents Mine the Same Ore Vein
 
 **What goes wrong:**
-After the bot dies and respawns, the server's anti-cheat kicks the bot for flying. This happens because mineflayer's physics simulation pauses during the respawn packet exchange — the bot is technically not applying gravity for 1-2 ticks. Paper's built-in movement validation detects this as "flying" and issues a kick. With anti-cheat plugins (Grim, Themis), this is even more aggressive.
+Jeffrey and John both see the same iron ore vein in their field of view. Jeffrey's think() cycle decides `!mine item:iron_ore count:8`. Before Jeffrey's skill completes, John's think() cycle also decides `!mine item:iron_ore count:8`. Jeffrey mines the 8 ores. John navigates to the same spot, finds no iron ore, and reports failure. Neither agent told the other what it was doing. This wastes 30-60 seconds of agent time per occurrence and causes spurious failure logs.
 
-**Why it happens:**
-Documented in mineflayer issue #671. The `restartPhysics` fix was merged in PR #1013, but the timing window between the respawn packet and the first position packet still exists on some server configurations. Paper's `spawn-protection` and movement validation settings can exacerbate this.
-
-**How to avoid:**
-Listen to the `spawn` event and add a short delay (100-200ms) before issuing any movement command after respawn. Set `bot.physics.gravity` to the correct vanilla value in the `spawn` handler as a safety measure. If using Paper, set `allow-flight: true` in `server.properties` — this disables the built-in flight check while keeping plugin-level anti-cheat intact. This is acceptable on a private server.
-
-**Warning signs:**
-- Bot disconnects with "Flying is not enabled" immediately after death
-- Disconnect happens consistently at respawn but not at initial join
-- Log shows disconnect within 2 seconds of the `spawn` event
-
-**Phase to address:** Phase 1 (Bot setup) — respawn handling must be correct before any survival gameplay is attempted.
+**Prevention:**
+- Implement a lightweight shared activity log: a single JSON file (owned by Agent 1, read-only for Agent 2) listing `{ agent, task, target, startedAt }`. Before starting a resource task, each agent checks if the same target is already claimed.
+- The simpler alternative: use the chat system. Jeffrey should say "going to mine iron at 120,40,80" before starting. John reads partner chat context and avoids the same coordinates. The social system already tracks partner last chat.
+- Coordinate via task specialization in SOUL files: Jeffrey focuses on building, John focuses on gathering. Reduces the category of tasks both agents want to do simultaneously.
 
 ---
 
-### Pitfall 9: VeinMiner/Timber Plugin Requires Client-Side Activation Packet
+### Pitfall 9: Background Memory Agent Starves the Game Loop
 
 **What goes wrong:**
-VeinMiner (the main Paper plugin, not to be confused with the datapack) requires a client-side mod to send activation packets over the custom payload channel. Without these packets, the plugin operates in "server-side only" mode with no automatic vein mining. Mineflayer bots do not send the VeinMiner client handshake packet, so the plugin thinks no compatible client is connected and disables its automatic features for that player.
+A background memory agent that runs LLM summarization/compression of session logs on a timer sounds attractive ("let the agent reflect on its day"). In practice, on Glass's 4-core machine with 2 active game agents + Paper server already claiming 3+ cores, a third LLM call triggered by a 10-minute timer can saturate MiniMax M2.7's request queue. If the LLM API has rate limits, the background call delays the next think() call for the active agents, making them appear "frozen" in-game for 3-5 seconds.
 
-**Why it happens:**
-VeinMiner uses `BukkitMessagingChannel` / custom payload packets for client-server handshaking. The plugin's activation state per-player depends on the client declaring itself VeinMiner-compatible. Without the declaration, the server-side plugin defaults to requiring explicit activation (right-click activation mode or command). A bot can still trigger VeinMiner manually via a command or keybind emulation, but automatic vein-mining on block break will not work.
-
-**How to avoid:**
-Two options: (1) Configure the VeinMiner plugin to use "command activation" mode rather than "client activation" mode, which removes the packet requirement. (2) Send the VeinMiner client handshake packet from the bot using `bot._client.write('custom_payload', ...)` with the VeinMiner channel name. Option 1 is simpler — just change one line in the plugin config. Verify which VeinMiner variant is installed (the GitHub 2008Choco version vs the Hangar DestenyLP version — they have different configs).
-
-**Warning signs:**
-- Bot mines one log and tree does not auto-fell
-- Other human players get tree-felling but bots do not
-- Plugin admin logs show bot as "not VeinMiner client connected"
-
-**Phase to address:** Phase 1 (Server setup) — verify plugin behavior with bots in the first integration test. If it doesn't work out of the box, switch to command activation mode immediately.
+**Prevention:**
+- Background memory processing must be triggered only when agents are confirmed idle (no skill running, no active chat).
+- Rate-limit background calls to once every 30 minutes maximum.
+- Do not use the same LLM for background compression and active play simultaneously — if the API is busy, defer compression until the next idle window.
+- Consider doing memory compression locally (rule-based deduplication, not LLM-based) to avoid consuming API quota for non-gameplay tasks.
 
 ---
 
-### Pitfall 10: Multi-Agent Chat Flooding Causes All Bots to See Duplicate Events
+### Pitfall 10: Voyager-style Skill Bloat — Too Many Stored Behaviors
 
 **What goes wrong:**
-In a multi-agent setup, every bot listens to `bot.on('chat', ...)` for coordination messages. When Bot A sends a chat message, every bot including Bot A receives it. If bots are not filtering their own messages, they process their own output as new input, creating a feedback loop: Bot A says something, Bot A hears itself, Bot A responds to itself, Bot B hears both, Bot B responds, etc. Chat volume grows exponentially.
+Voyager's skill library grew to hundreds of JavaScript functions. When the retrieval query was ambiguous, the agent retrieved and injected 3-5 skill functions (each 10-50 lines) into the prompt, using significant context budget on code that was rarely relevant. For v2.3, if episodic memory stores "what I did to succeed" as raw action sequences, these sequences become very long very fast and crowd out current game state.
 
-**Why it happens:**
-Mineflayer's `chat` event fires for all chat messages regardless of sender. The `username` field in the event identifies the sender, but code that doesn't filter on `username !== bot.username` will process all messages including self-sent ones. In the v1 codebase, `_seenChatMessages` tracked this, but with multiple bots in the same process or separate processes, there is no shared state to deduplicate across bots.
-
-**How to avoid:**
-Every `chat` listener must filter `if (username === bot.username) return`. For cross-agent coordination, use a dedicated channel: either a scoreboard sidebar, a private `/msg`, or a custom plugin channel — never public chat. Implement a rate limit on outgoing chat: max 1 message per 3 seconds per bot to respect Paper's chat throttling and avoid kick for spam.
-
-**Warning signs:**
-- Chat logs show a bot replying to its own messages
-- Chat message volume doubles every few seconds after agents start talking
-- Bots get kicked for "Sending chat messages too quickly"
-- One bot's chat triggers action responses in all other bots simultaneously
-
-**Phase to address:** Phase 3 (Multi-agent coordination) — design the communication protocol before connecting multiple bots.
-
----
-
-### Pitfall 11: Skill Functions Must Handle Async Errors or They Leak Promises
-
-**What goes wrong:**
-A skill function that calls `bot.dig()`, `bot.pathfinder.goto()`, or `bot.placeBlock()` and does not `await` in a `try/catch` will leak unhandled promise rejections. When an unhandled rejection fires, Node.js emits an `unhandledRejection` event. Without a global handler, the process crashes. With a global handler that ignores it (like v1's crash recovery), the skill appears to succeed while the actual operation failed silently. The Mind loop gets a `{ success: true }` from a skill that threw internally.
-
-**Why it happens:**
-Mineflayer's async API uses promises throughout. The pattern `bot.dig(block)` returns a promise — calling it without `await` or `.catch()` in an async context silently drops the rejection. Junior contributors to the skill library frequently write `bot.dig(block)` without await inside an async function, which looks correct (no warning from the linter) but drops the error.
-
-**How to avoid:**
-Every skill function is `async` and uses `try/catch` wrapping all mineflayer API calls. Skill functions return `{ success: boolean, error?: string, result?: any }` — never throw. The Mind loop never needs to catch skill exceptions — skills always return a structured result. Enforce this pattern with a code review checklist. Add an ESLint rule for `no-floating-promises` (with `@typescript-eslint/no-floating-promises` if TypeScript is adopted).
-
-**Warning signs:**
-- `UnhandledPromiseRejectionWarning` in Node.js output
-- Skill function returns `{ success: true }` but the expected game state change didn't happen
-- Intermittent failures in skills that work correctly 80% of the time
-- Skills appear faster than expected (early return before async operation completes)
-
-**Phase to address:** Phase 1 (Core skill functions) — establish the error handling pattern before writing any skill. All skills must follow the same return contract.
-
----
-
-### Pitfall 12: LLM Hallucinates Invalid Item Names Even With Mineflayer
-
-**What goes wrong:**
-The v1 item name normalization problem carries forward. Even with Mineflayer's direct API, the Mind loop receives LLM output like `mine("oak log")`, `craft("wooden_planks")`, `equip("sticks")`, `place("dirt_block")`. These go into skill function calls that use `bot.registry.itemsByName[name]` — which returns `undefined` for non-canonical names — and the skill throws `TypeError: Cannot read properties of undefined`. If skills don't guard against this, the Mind loop crashes.
-
-**Why it happens:**
-LLMs learn Minecraft vocabulary from mixed sources: wiki (display names like "Oak Log"), forum posts (colloquial like "wood"), and code samples (registry names like "oak_log"). Even when prompted with "use exact Minecraft registry names", models occasionally output display names or pluralized forms. This is fundamentally a training data issue — the LLM associates the concept with multiple surface forms.
-
-**How to avoid:**
-The item name normalization layer from v1 (`crafter.js` + normalizer) must be ported to v2. Wrap `bot.registry.itemsByName[name]` in a `resolveItem(name)` function that normalizes before lookup. Include the canonical name list in the Mind loop system prompt as a reference. For skill function parameters that accept item names, validate and normalize at the skill boundary before any API call.
-
-The known mappings still apply (from v1 post-mortem):
-- `"wooden planks"` / `"planks"` → `oak_planks`
-- `"sticks"` → `stick`
-- `"wood"` / `"log"` → `oak_log`
-- `"cobble"` → `cobblestone`
-- `"iron ore"` → `raw_iron` (1.18+ rename)
-- Any display name with spaces → snake_case equivalent
-
-**Warning signs:**
-- `TypeError: Cannot read properties of undefined (reading 'id')` in skill functions
-- Mind loop gets `{ success: false, error: "Unknown item: wooden_planks" }` from craft skill
-- LLM uses a mix of registry names and display names in the same turn
-- Agent fails to use items it demonstrably has (wrong name lookup)
-
-**Phase to address:** Phase 1 (Core skill functions) — item name resolution is a prerequisite for every skill.
-
----
-
-### Pitfall 13: Keepalive Disconnects During Long LLM Calls
-
-**What goes wrong:**
-MiniMax M2.7 has 0.5-2s latency per call. During the Mind loop LLM call, the bot is idle — not sending any packets. Paper servers enforce a keepalive timeout: if the bot doesn't respond to the server's keepalive ping within 30 seconds, it gets kicked with "Timed out." This is not a problem for fast LLMs (< 5s), but if the LLM call is slow, retries, or the Mind loop is doing intensive preprocessing, the bot can miss keepalive packets.
-
-**Why it happens:**
-Documented in mineflayer issues #2076 and #2673. Mineflayer handles keepalive automatically — it responds to keepalive packets in the physics tick loop. However, if the Node.js event loop is blocked (e.g., synchronous JSON parsing of a large state object, or a sync `fs.writeFileSync` call inside the Mind loop), keepalive responses are delayed. Paper's default timeout is 30s, which is usually sufficient for MiniMax M2.7, but retry storms can push latency to 10-20s.
-
-**How to avoid:**
-Never block the Node.js event loop inside the Mind loop. All file I/O must be async. All JSON serialization of large state objects should use `setImmediate` to yield between chunks if the object is large. Set `checkTimeoutInterval: 60000` in the mineflayer bot options to be more lenient than the default. On Paper, the keepalive timeout is configured in `server.properties` — for a private server, increasing it to 60s is reasonable.
-
-**Warning signs:**
-- Bots disconnect without error, just "Timed out" in server logs
-- Disconnects correlate with long LLM calls (retries, slow model responses)
-- Bot behaves fine at low load but disconnects under heavy processing
-- Keepalive timeout message appears, not a kick for behavior
-
-**Phase to address:** Phase 1 (Bot harness) — async I/O discipline and keepalive options must be set before any sustained operation.
-
----
-
-### Pitfall 14: Paper Plugin Anti-Cheat Flags Rapid Bot Actions
-
-**What goes wrong:**
-Mineflayer bots can perform actions faster than a human player — instant block breaking (unless tool speed is respected), instant inventory operations, perfectly timed clicks. Paper anti-cheat plugins (or even vanilla Paper's built-in checks) detect this as cheating and kick the bot. Specifically: rapid crafting, instant block break (ignoring break time), and instant container open/close are the common triggers.
-
-**Why it happens:**
-Mineflayer's `bot.dig()` respects break time by default (it simulates the break duration). However, if `forceLook: true` is used or the bot cancels and restarts digs rapidly, anti-cheat sees repeated partial break packets as cheating. The bot's packet timing is also perfectly regular (no jitter), which some anti-cheat plugins flag as bot-like behavior.
-
-**How to avoid:**
-Use `bot.dig(block)` without `forceLook` to respect natural break timing. Do not cancel and restart digs unless necessary. For the private Paper server, do not install aggressive anti-cheat plugins (Grim, AAC). The vanilla Paper movement checks can be disabled with `allow-flight: true` (for flying-related kicks). For crafting and containers, add small random delays (50-200ms) between operations to humanize the pattern — relevant if the server ever has human observers.
-
-**Warning signs:**
-- Bots get kicked for "hacking" or "cheating" messages from a plugin
-- Kick messages reference "FastBreak," "FastPlace," "InventoryHack"
-- Bots work fine on vanilla but get kicked on the production Paper server
-- Kicks correlate with specific skill executions (dig loop, crafting chain)
-
-**Phase to address:** Phase 1 (Server setup) — verify bot operation against the actual Paper server with its plugin stack before investing in skill development.
-
----
-
-### Pitfall 15: Migration from v1 — Old Memory Files Are Incompatible
-
-**What goes wrong:**
-The v1 agent stores memory in `agent/data/{name}/MEMORY.md`, `notepad.txt`, `skills/*/SKILL.md`, and `context/`. These files contain v1-specific references: action names like `place(x, y, z)`, `break_block(x, y, z)`, `look_at_block(x, y, z)` — all of which are replaced by Mineflayer skill function names. If v2 loads v1 MEMORY.md files, the LLM will try to call v1 actions that no longer exist, generating invalid skill calls and confusing the agent about its own capabilities.
-
-**Why it happens:**
-MEMORY.md is written by the LLM using whatever action vocabulary was current at the time. The v1 lessons reference HTTP-bridge semantics explicitly. A v2 agent loading v1 memory reads "use look_at_block before break_block to avoid drift" and tries to call a `look_at_block` skill that doesn't exist.
-
-**How to avoid:**
-Do not migrate v1 memory files directly to v2. Create new per-agent data directories for v2. Port the useful strategic knowledge (general Minecraft progression tips, base locations) manually into new MEMORY.md files using v2 vocabulary. Keep v1 data files archived but not in the v2 agent data path. Specifically: `agent/data/jeffrey_v1/` → read-only archive; `agent/data/jeffrey/` → fresh v2 directory.
-
-**Warning signs:**
-- v2 agent attempts actions like `look_at_block`, `break_block(x,y,z)`, `interact_block` from v1 vocabulary
-- MEMORY.md references coordinates in v1 absolute format that v2 skills don't accept
-- Agent references "the HTTP bridge" or "mod-side" concepts in its reasoning
-- Skill function library returns "unknown skill" for actions the agent thinks it knows
-
-**Phase to address:** Phase 0 (Migration setup) — clean data directory creation must happen before any v2 agent is started.
+**Prevention:**
+- Store skill outcomes as natural language summaries ("built 5-block pillar by jump-placing cobblestone") not raw action logs.
+- Cap episodic memory entries at 100 characters each.
+- Use recency + relevance scoring when selecting which memories to inject, not just FIFO.
 
 ---
 
@@ -331,13 +223,12 @@ Do not migrate v1 memory files directly to v2. Create new per-agent data directo
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Not wrapping pathfinder in a timeout | Simpler skill code | Bot hangs permanently on unreachable goals; entire agent freezes | Never — add timeout in every navigation skill |
-| Using `bot.recipesFor()` directly | Easy recipe lookup | Fails for non-oak wood variants and any tag-based recipe | Never for production crafting; use minecraft-data with tag resolution |
-| Trusting `bot.dig()` return value without verification | One less async check | Silent failures on protected blocks; bot thinks it mined, proceeds with bad state | Never in survival gameplay; always verify block changed |
-| Rolling window of 90 conversation turns | Captures full session history | Context overflow at ~90min; LLM loses earlier context; agent becomes incoherent | Never beyond MVP testing; cap at 40 turns with summarization |
-| No item name normalization layer | Faster initial build | Any LLM hallucination corrupts skill calls; `undefined` errors throughout | Never — port normalization from v1 before first skill test |
-| Synchronous fs.writeFileSync in Mind loop | Simpler code | Blocks event loop; delays keepalive responses; potential disconnect | MVP only; switch to async writes before extended sessions |
-| Single process for all bots | No IPC complexity | One crash kills all bots; one bot's CPU spike delays others' keepalive | Only for 2 bots; use separate processes for 5+ |
+| Append-only MEMORY.md with no eviction | Simple to implement | Context bloat, contradictions, prompt degradation after 20+ sessions | Only with a hard per-category cap (already present in v2.0) |
+| Single `_generated.json` for all LLM blueprints | Simple file management | Second agent overwrites first agent's active build if both design simultaneously | Never — use per-agent `_generated_{name}.json` or add timestamp suffix |
+| Full players.json injected in every prompt | Complete social context | Grows unbounded as server is populated; 50 player entries = wasted context budget | Never — filter to nearby + non-stranger, already implemented |
+| Shared `knowledge/` corpus between both agents | Saves disk space | No issue — read-only corpus. This is fine. | Always acceptable |
+| BM25 + vector re-index on every startup | Simple code path | ~30-60 second cold start delays agent readiness; slows down reconnect after crash | Only during development; pre-built index already implemented for production |
+| No inter-agent coordination protocol | Fastest to ship | Duplicate work, chat loops, conflicting builds accumulate over time | Acceptable for v2.3 Phase 1; requires mitigation before ambitious multi-phase builds |
 
 ---
 
@@ -345,14 +236,12 @@ Do not migrate v1 memory files directly to v2. Create new per-agent data directo
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| Paper server + bots | Using online-mode auth when server is offline-mode | Set `auth: 'offline'` explicitly; offline Paper ignores auth but mineflayer defaults may try Microsoft auth and fail |
-| VeinMiner plugin | Assuming bots trigger vein mining automatically | Configure plugin for command/server-side activation; do not rely on client packet handshake |
-| mineflayer-pathfinder + Paper chunks | Calling goto() before chunks are loaded at spawn | Wait for `bot.waitForChunksToLoad()` after `spawn` event before any pathfinding |
-| MiniMax M2.7 + Mind loop | Blocking Node.js event loop during LLM response processing | Keep all processing async; LLM response parsing must not block |
-| Multi-agent + Paper chat | All bots listening to all chat without self-filter | Always check `username !== bot.username` before processing chat events |
-| Paper spawn protection | Placing or digging near spawn (0,0) for testing | Test mining and placing away from spawn; set spawn-protection=0 in server.properties for dev |
-| mineflayer-collect-block plugin | Assuming it works with Paper anti-cheat | This plugin uses rapid click packets; can trigger anti-cheat; prefer manual dig + pickup pattern |
-| Crafting without crafting table | Calling craft for 3x3 recipes without placing table first | Skill must auto-place crafting table if inventory recipe requires one; check recipe size before crafting |
+| MiniMax M2.7 + blueprint generation | Asking LLM to produce large grids (15x15+) in one shot | Hard-cap prompt rules at 10x10 max; retry with error feedback on validation failure |
+| `@huggingface/transformers` in Node.js | Loading embedder model fresh on every startup | Pre-embed on first run, persist `LocalIndex` to disk; load from disk on subsequent runs (already done in `knowledgeStore.js`) |
+| `vectra` LocalIndex + multi-agent | Both agents initializing the same index directory concurrently | Each agent should use a separate `AGENT_NAME`-prefixed index path, or pre-embed once as a shared build step |
+| Mineflayer chunk caching | Letting bots explore indefinitely without unloading chunks | Mineflayer does not unload chunks automatically (issue #1123); for long sessions, monitor RSS and restart on a schedule |
+| Paper server event lag + `placeBlock` timeout | Assuming 5s timeout is safe on loaded server | The existing timeout is already a known issue; build.js wraps placeBlock with retry; do not increase block rate in v2.3 |
+| `writeFileSync` concurrent writes | Two agents writing to same JSON on the same tick | Per-agent data directories + atomic rename pattern for any file with concurrent writer risk |
 
 ---
 
@@ -360,26 +249,25 @@ Do not migrate v1 memory files directly to v2. Create new per-agent data directo
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Full state snapshot in every conversation turn | Context fills in 60-90min; LLM context errors | Delta state format; only changed fields per turn | After ~60 minutes at 15-30s Mind loop interval |
-| `bot.findBlocks()` with large radius | Synchronous scan blocks event loop for 50-200ms | Use small radius (16-32 blocks); chunk scan progressively | At radius > 64, on a populated chunk |
-| Pathfinder running with very large range | A* search space explodes; pathfinder uses CPU for 5-10s | Set `bot.pathfinder.thinkTimeout = 5000` AND add external wall clock timeout | When destination is > 200 blocks away in complex terrain |
-| Writing memory files synchronously on every turn | Event loop blocked every 15-30s | Async file writes; dirty-flag batch flush every 60s | Constant impact from first use; worsens with multiple bots |
-| `bot.inventory.items()` called repeatedly in tight loop | Array allocation on every call | Cache inventory snapshot; update only on `inventory.updateSlot` event | When called > 10 times per second in skill code |
-| Multiple bots in one Node.js process without setImmediate breaks | One bot's LLM call delays all others' physics ticks | Separate processes per bot, or use worker threads for LLM calls | At 3+ bots in same process |
+| RAG retrieval on every think() call | Each think() takes extra 200-400ms for embedding + vector search | Cache identical query strings for 5-10 seconds; skip RAG for `idle` triggers when bot state hasn't changed | Day one with active agents |
+| Two agents both doing BM25+vector search simultaneously | Double CPU on 4-core Glass machine during retrieval | Pre-built shared index (read-only after startup); BM25 is fast (~5ms), vector search is the bottleneck | Immediately with 2 agents |
+| Build verification polling too aggressive | `[body/build] verifying block...` logs every 50ms; event loop starved | Post-place verification should be event-driven (`blockUpdate` event), not polled | With builds > 100 blocks |
+| Social memory `interactions` array unbounded per player | players.json grows as agent talks more; injected into every prompt | Cap at 20 interactions per player (already done in `social.js`) | After 40+ sessions |
+| Session JSONL files not pruned | Sessions dir fills disk over weeks of play | `pruneSessionLogs()` already keeps last 10 files; verify this runs on every shutdown | After 10+ days of sessions |
+| Embedding model cold start on reconnect | 30-60s delay after bot crashes and reconnects | Pre-embed script should run in CI/deploy step, not on agent startup | On every crash+reconnect cycle |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Navigation skill:** Often missing external wall-clock timeout — verify that `goto(unreachableBlock)` returns failure within 30s, not hangs forever
-- [ ] **Mine skill:** Often missing post-dig block verification — verify `mine("oak_log")` fails gracefully on a protected block instead of reporting success
-- [ ] **Craft skill:** Often missing tag-based recipe resolution — verify `craft("crafting_table")` works when bot has `spruce_planks` (not just `oak_planks`)
-- [ ] **Place skill:** Often missing post-place block verification — verify `place()` timeout error does not falsely report failure when block was placed
-- [ ] **Chest skill:** Often missing window lifecycle cleanup — verify that after a failed chest operation, the next chest operation succeeds (window not stuck open)
-- [ ] **Multi-agent chat:** Often missing self-message filter — verify bots do not respond to their own chat messages in a multi-bot test
-- [ ] **Respawn handling:** Often missing physics restart delay — verify bots do not get kicked for flying after death on the production Paper server
-- [ ] **Context window:** Often underestimated — verify Mind loop runs for 2 hours continuously without context overflow errors
-- [ ] **Item name normalization:** Often missing plural/display-name variants — test `craft("sticks")`, `equip("wooden sword")`, `mine("oak log")` all normalize and succeed
+- [ ] **Persistent memory:** Often ships without deduplication — verify that two sessions where the bot "dies to a creeper" do not create two identical "Died: killed by creeper. Be more careful." entries in lessons.
+- [ ] **Build history:** Often missing cross-agent visibility — verify that John can see Jeffrey's completed builds in his prompt, not just John's own builds.
+- [ ] **Multi-agent coordination:** Often passes with 1 agent in testing — verify specifically that two agents running simultaneously do not corrupt each other's data files. Run both together for 10 minutes and inspect all JSON files for validity.
+- [ ] **Blueprint retry loop:** Often ships with "try once, fail silently" — verify that a validation failure on `!design` triggers at most 2 retries with error feedback injected, not zero retries.
+- [ ] **Material pre-calculation:** Often ships without checking inventory before build — verify that a build paused for `missingMaterials` correctly resumes after gathering, rather than restarting from block 0.
+- [ ] **RAG embedding cache:** Often missing entirely — verify that two identical consecutive RAG queries (common on idle triggers) do not fire two embedding inferences.
+- [ ] **Background memory agent:** Often runs without idle check — verify it does NOT fire during an active skill or during a chat exchange.
+- [ ] **Chat loop prevention:** Often passes in single-agent testing — verify with two agents chatting that neither enters a run of > 3 consecutive `!chat` responses without a skill action in between.
 
 ---
 
@@ -387,69 +275,49 @@ Do not migrate v1 memory files directly to v2. Create new per-agent data directo
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Pathfinder hang (bot frozen) | LOW | Stop the bot process; add external timeout wrapper; redeploy |
-| Silent dig failure (block protected) | LOW | Add post-dig block check to skill wrapper; no data loss |
-| placeBlock timeout false negatives | LOW | Add post-placement block check; reduce false failure rate |
-| Context window overflow in production | MEDIUM | Trim history to last 20 turns; add summarization step; resume session |
-| VeinMiner not triggering for bots | LOW | Change plugin config to server-side/command activation; no code change needed |
-| Bot kicked for flying after respawn | LOW | Add gravity fix to spawn handler; redeploy; no data loss |
-| v1 memory files loaded by v2 agent | MEDIUM | Archive v1 data directory; create fresh v2 data directory; re-run agent |
-| Chat flood loop from self-messages | LOW | Add `username !== bot.username` filter; hot-fix without restart |
-| Keepalive disconnect during LLM retry storm | LOW | Make all I/O async; increase Paper keepalive timeout; no data loss |
-| Crafting broken for non-oak wood | LOW | Fix recipe resolution in craft skill; test all plank variants |
+| MEMORY.md bloat discovered after 30 sessions | MEDIUM | Write a one-time migration script: parse MEMORY.md, dedup entries by 20-char prefix similarity, keep most recent 15 lessons/8 strategies/8 worldKnowledge, write back. Do not delete sessions/ JSONL — they remain as audit trail. |
+| Shared file corruption (JSON parse failure on startup) | LOW | Agent already falls back to empty memory on parse error (try-catch in loadMemory). Fix: add per-agent dirs immediately. Replay lost knowledge from sessions/ JSONL using a migration script. |
+| Chat loop (both agents stuck chatting) | LOW | Add `consecutiveChatActions` counter and inject action prompt. Restart agents if already in loop. |
+| Blueprint generation quality too low for ambitious builds | HIGH | Reduce maximum blueprint size in design prompt rules (e.g., 8x8x6 max). Add retry loop with error injection. Accept that LLM-generated builds will be modest — supplement with a library of hand-crafted large blueprints. |
+| Embedding model memory leak causing OOM | MEDIUM | Scheduled nightly restart (add to `launch-agents.sh`). Add heap monitoring. Check transformers.js release notes for fix. |
+| Duplicate agent work (both mined same vein) | LOW | Log coordination failures. Implement activity-claim file as next patch. Short-term: rely on SOUL personality differentiation (gatherer vs builder). |
 
 ---
 
-## Pitfall-to-Phase Mapping
+## Phase-Specific Warnings
 
-| Pitfall | Prevention Phase | Verification |
-|---------|------------------|--------------|
-| Pathfinder indefinite hang | Phase 1: Core skills | Call `goto(bedrock_block)` — must return failure within 30s |
-| dig() silent success on protected block | Phase 1: Core skills | Mine in spawn protection zone — must return `{ success: false }` |
-| placeBlock blockUpdate timeout | Phase 1: Core skills | Place block on loaded Paper server under entity load — no false failures |
-| Crafting recipe tag mismatch | Phase 2: Crafting skill | Craft crafting_table with spruce_planks — must succeed |
-| Window lifecycle race | Phase 1: Core skills | Open chest, throw error mid-operation, open same chest again — must succeed |
-| Context window overflow | Phase 3: Mind loop | Run 2-hour continuous session — no context overflow errors |
-| GoalFollow sprint lock | Phase 2: Navigation skill | Follow a moving entity for 5 minutes — bot must not freeze |
-| Respawn flying kick | Phase 1: Bot setup | Kill bot intentionally 3 times — no flying kicks on Paper server |
-| VeinMiner client handshake | Phase 1: Server setup | Mine a log with VeinMiner plugin active — verify behavior matches expectation |
-| Multi-agent chat flood | Phase 3: Multi-agent | Start 2 bots, send chat message — verify bots don't enter feedback loop |
-| Skill promise leak | Phase 1: Core skills | All skills return structured result; no unhandledRejection events in 1hr test |
-| Item name hallucination | Phase 1: Core skills | Feed 20 known hallucinated names to normalizer — all resolve correctly |
-| Keepalive disconnect | Phase 1: Bot harness | Run bot idle for 10 minutes with slow simulated LLM — no disconnects |
-| Anti-cheat flags rapid actions | Phase 1: Server setup | Run dig loop and crafting chain — no kicks on production Paper server |
-| v1 memory file incompatibility | Phase 0: Migration | v2 agent loads fresh data dir — no v1 action names appear in reasoning |
+| Phase Topic | Likely Pitfall | Mitigation |
+|-------------|---------------|------------|
+| Episodic memory design | Unbounded entries; stale facts injected verbatim | Hard caps + temporal decay from day one |
+| Background memory agent | Starves game loop LLM calls if poorly timed | Idle-only trigger + 30-minute minimum interval |
+| LLM blueprint generation (ambitious builds) | Grid counting errors; material underestimation | Validation retry loop + pre-computed material check before any build starts |
+| Multi-agent coordination protocol | Chat loops; duplicate task execution | Chat deduplication window + consecutive-chat-action limit |
+| Shared activity state (build plans, task claims) | Concurrent write corruption | Atomic rename writes; per-agent ownership with read-only cross-agent access |
+| RAG context injection growth | System prompt token explosion | Measure prompt length before and after each new context section; enforce 4,000 token ceiling on system prompt |
+| Long-running production sessions | Mineflayer chunk leak + embedding tensor leak | Heap monitoring + nightly restart cadence |
 
 ---
 
 ## Sources
 
-**Mineflayer GitHub Issues (HIGH confidence — official bug tracker):**
-- [#3494: bot.dig doesn't fail when physically impossible](https://github.com/PrismarineJS/mineflayer/issues/3494) — silent success on protected blocks
-- [#3791: Cannot use most features with Grim anti-cheat](https://github.com/PrismarineJS/mineflayer/issues/3791) — flying check failures every tick
-- [#3549: recipesFor only recognizes oak_planks](https://github.com/PrismarineJS/mineflayer/issues/3549) — wood tag matching broken
-- [#3492: problem with 1.21.1](https://github.com/PrismarineJS/mineflayer/issues/3492) — advancement packet deserialization errors
-- [#3360: windowOpen did not fire within timeout](https://github.com/PrismarineJS/mineflayer/issues/3360) — 20s chest open hang
-- [#2757: blockUpdate did not fire within timeout](https://github.com/PrismarineJS/mineflayer/issues/2757) — entity-load-induced placeBlock failure
-- [#2673: bots disconnecting with keepalive timeout](https://github.com/PrismarineJS/mineflayer/issues/2673) — keepalive disconnect pattern
-- [#671: bot kicked for flying](https://github.com/PrismarineJS/mineflayer/issues/671) — respawn physics gap causing anti-cheat kick
-
-**mineflayer-pathfinder GitHub Issues (HIGH confidence):**
-- [#222: Pathfinding hangs on unbreakable block](https://github.com/PrismarineJS/mineflayer-pathfinder/issues/222) — thinkTimeout does not fire in hanging state
-- [#332: Bot constantly stuck with GoalFollow](https://github.com/PrismarineJS/mineflayer-pathfinder/issues/332) — sprint lock, control state desync
-- [#273: Pathfinder stuck with partial computed path](https://github.com/PrismarineJS/mineflayer-pathfinder/issues/273) — active goal + incomplete path = stuck
-
-**VeinMiner (MEDIUM confidence — official GitHub):**
-- [VeinMiner by 2008Choco](https://github.com/2008Choco/VeinMiner) — client-side mod activation requirement, optional companion mod
-
-**Mindcraft project (MEDIUM confidence — community project similar to ours):**
-- [Mindcraft FAQ](https://github.com/kolbytn/mindcraft/blob/main/FAQ.md) — "mineflayer's pathfinder is imperfect"; "brain disconnected" for LLM API errors; Node 18/20 required
-- [Mindcraft README](https://github.com/kolbytn/mindcraft) — code execution sandboxed at 750ms; action limits; skill storage pattern
-
-**v1 post-mortem (HIGH confidence — first-party):**
-- `/home/bigphoot/.claude/projects/-home-bigphoot-Desktop-hermescraft/memory/project_v11_diagnosis.md`
-- Item name normalization patterns (sticks, oak_planks_4, wooden_door, etc.) — confirmed failure modes from live testing
+- [Collaborating Action by Action: A Multi-agent LLM Framework for Embodied Reasoning (arXiv 2504.17950)](https://arxiv.org/html/2504.17950v1)
+- [Why Do Multi-Agent LLM Systems Fail? — MAST taxonomy, NeurIPS 2025](https://arxiv.org/abs/2503.13657)
+- [LLMs Fail at Minecraft Collab — Mindcraft benchmark analysis (DEV.to)](https://dev.to/aimodels-fyi/llms-fail-at-minecraft-collab-new-benchmark-exposes-ai-teamwork-weakness-53dg)
+- [Design Patterns for Long-Term Memory in LLM-Powered Architectures (Serokell)](https://serokell.io/blog/design-patterns-for-long-term-memory-in-llm-powered-architectures)
+- [Memori: A Persistent Memory Layer for Efficient, Context-Aware LLM Agents (arXiv 2603.19935)](https://arxiv.org/html/2603.19935)
+- [How Memory Management Impacts LLM Agents (arXiv 2505.16067)](https://arxiv.org/html/2505.16067v2)
+- [Context Rot: Why LLMs Degrade as Context Grows (Morph/Redis)](https://www.morphllm.com/context-rot)
+- [Lost in the Middle: How Language Models Use Long Contexts (arXiv 2307.03172)](https://arxiv.org/abs/2307.03172)
+- [A LLM Benchmark based on the Minecraft Builder Dialog Agent Task (arXiv 2407.12734)](https://arxiv.org/abs/2407.12734)
+- [Voyager: An Open-Ended Embodied Agent with Large Language Models — limitations analysis](https://medium.com/trueagi/voyager-for-minecraft-under-the-hood-3e6cc7e3cb25)
+- [Mineflayer chunks don't unload — memory leak (issue #1123)](https://github.com/PrismarineJS/mineflayer/issues/1123)
+- [Mineflayer huge memory usage with multiple bots (discussion #2251)](https://github.com/PrismarineJS/mineflayer/discussions/2251)
+- [Transformers.js memory leak under WebGPU/ONNX (issue #860)](https://github.com/huggingface/transformers.js/issues/860)
+- [Node.js writeFile concurrent write corruption (issue #1058)](https://github.com/nodejs/node/issues/1058)
+- [Fix Infinite Loops in Multi-Agent Chat Frameworks (Markaicode)](https://markaicode.com/fix-infinite-loops-multi-agent-chat/)
+- [RAG vs Memory: Token Crisis in Agentic Tasks (agamjn.com)](https://agamjn.com/technical/2025/10/11/token-crisis-in-agentic-tasks.html)
+- v2.0 codebase direct analysis: `mind/memory.js`, `mind/knowledgeStore.js`, `mind/index.js`, `mind/social.js`, `mind/prompt.js`
 
 ---
-*Pitfalls research for: HermesCraft v2.0 — Mineflayer rewrite, Mind + Body architecture, Paper 1.21.1*
-*Researched: 2026-03-22*
+*Pitfalls research for: HermesCraft v2.3 — persistent memory, vision, build planning, multi-agent coordination*
+*Researched: 2026-03-23*
