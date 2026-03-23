@@ -10,6 +10,7 @@ import { initModes } from './body/modes.js'
 import { initBuild } from './body/skills/build.js'
 import { initChestMemory } from './body/skills/chest.js'
 import { initBuildHistory, loadBuildHistory, saveBuildHistory } from './mind/build-history.js'
+import { initBuildPlanner } from './mind/buildPlanner.js'
 import { initKnowledge, loadKnowledge } from './mind/knowledge.js'
 import { initKnowledgeStore } from './mind/knowledgeStore.js'
 import { initBackgroundBrain } from './mind/backgroundBrain.js'
@@ -39,6 +40,8 @@ async function main() {
   initBuild(config)
   initBuildHistory(config)
   loadBuildHistory()
+  initBuildPlanner(config)
+  console.log('[hermescraft] build planner initialized')
 
   // 3.6. Init knowledge corpus (build all chunks at startup)
   initKnowledge(config)

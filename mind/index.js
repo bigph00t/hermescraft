@@ -21,6 +21,7 @@ import { captureScreenshot, queryVLM, buildVisionForPrompt } from './vision.js'
 import { getMinimapSummary } from './minimap.js'
 import { scanArea } from '../body/skills/scan.js'
 import { logEvent, queryRecent, queryNearby } from './memoryDB.js'
+import { planBuild, auditMaterials, getBuildPlanForPrompt, getActivePlan, buildExpectedBlockMap, saveBuildPlan } from './buildPlanner.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 // BLUEPRINTS_DIR mirrors the path in body/skills/build.js — co-located with blueprint JSONs
@@ -379,6 +380,7 @@ async function think(bot, context) {
       locations: getLocationsForPrompt(bot.entity?.position),
       buildContext,
       buildHistory: getBuildHistoryForPrompt(),
+      buildPlanContext: getBuildPlanForPrompt(),
       ragContext,
       memoryContext,
       brainState,
@@ -462,6 +464,44 @@ async function think(bot, context) {
       return
     }
 
+    // !plan — create a multi-section build plan for large structures (BLD-01, BLD-02)
+    // Handled here (before dispatch) because it requires multiple LLM calls and
+    // special plan management. The registry entry is only a fallback/help-text stub.
+    if (result.command === 'plan') {
+      const description = result.args.description || ''
+      if (!description) {
+        console.log('[mind] !plan missing description')
+        lastActionTime = Date.now()
+        return
+      }
+      console.log('[mind] planning build:', description)
+      skillRunning = true
+      const pos = bot.entity.position
+      const planResult = await planBuild(
+        description, queryLLM, buildDesignPrompt, validateBlueprint,
+        { x: Math.round(pos.x), y: Math.round(pos.y), z: Math.round(pos.z) }
+      )
+      skillRunning = false
+      console.log('[mind] plan result:', planResult.success ? `OK — ${planResult.sections} sections, ${planResult.totalBlocks} blocks` : planResult.reason)
+      lastActionTime = Date.now()
+
+      if (planResult.success) {
+        // Run material audit immediately (BLD-03)
+        const plan = getActivePlan()
+        if (plan) {
+          const inventory = bot.inventory.items().map(i => ({ name: i.name, count: i.count }))
+          auditMaterials(inventory, plan)
+          saveBuildPlan(plan)
+          console.log('[mind] material audit:', plan.materialAudit?.ready ? 'ready to build' : 'missing materials')
+        }
+        addWorldKnowledge(`Planned "${description}" at ${Math.round(pos.x)},${Math.round(pos.y)},${Math.round(pos.z)} — multi-section build plan created`)
+        logEvent(bot, 'build', `plan: ${description}`, { command: 'plan', success: true, planId: planResult.planId })
+      }
+
+      setTimeout(() => think(bot, { trigger: 'skill_complete', skillName: 'plan', skillResult: planResult }), 0)
+      return
+    }
+
     // !see — capture screenshot and describe via VLM
     // Handled here (before dispatch) like !design because it requires async VLM calls
     // and a consume-once result variable.
@@ -534,6 +574,53 @@ async function think(bot, context) {
                 .slice(0, 5)
                 .map(([k, v]) => `${k}*${v}`)
                 .join(', ')
+          }
+
+          // BLD-04/SPA-02: Blueprint-aware verification — diff placed blocks against expected
+          const activePlan = getActivePlan()
+          if (activePlan) {
+            const activeSection = activePlan.sections.find(s => s.status === 'active')
+            if (activeSection && activeSection.blueprintFile) {
+              try {
+                const { Vec3 } = await import('vec3')
+                const sectionBp = JSON.parse(readFileSync(activeSection.blueprintFile, 'utf-8'))
+                const expectedMap = buildExpectedBlockMap(sectionBp, pbx, pby, pbz)
+                const repairs = []
+                for (const [coordKey, blockName] of expectedMap.entries()) {
+                  const [cx, cy, cz] = coordKey.split(',').map(Number)
+                  const actual = bot.blockAt(new Vec3(cx, cy, cz))
+                  if (!actual || actual.name === 'air') {
+                    repairs.push({ x: cx, y: cy, z: cz, block: blockName, issue: 'missing' })
+                  } else if (actual.name !== blockName) {
+                    repairs.push({ x: cx, y: cy, z: cz, block: blockName, issue: 'wrong_type', found: actual.name })
+                  }
+                }
+                if (repairs.length > 0) {
+                  _postBuildScan = `Build verification: ${repairs.length} blocks need repair.\n` +
+                    repairs.slice(0, 10).map(r => `  ${r.issue}: ${r.block} at ${r.x},${r.y},${r.z}${r.found ? ' (found: ' + r.found + ')' : ''}`).join('\n')
+                  // BLD-05: Track repair attempts — increment counter, skip section after 3 failures
+                  activeSection.repairAttempts = (activeSection.repairAttempts || 0) + 1
+                  if (activeSection.repairAttempts >= 3) {
+                    activeSection.status = 'done'
+                    console.log(`[mind] section ${activeSection.id} — marking done after 3 repair attempts (${repairs.length} blocks unrepairable)`)
+                  }
+                  saveBuildPlan(activePlan)
+                } else {
+                  // Section is perfect — mark done and advance
+                  activeSection.status = 'done'
+                  saveBuildPlan(activePlan)
+                  console.log(`[mind] section ${activeSection.id} verified OK — marked done`)
+                  // Check if all sections done
+                  if (activePlan.sections.every(s => s.status === 'done')) {
+                    activePlan.status = 'done'
+                    saveBuildPlan(activePlan)
+                    _postBuildScan = `BUILD PLAN COMPLETE: "${activePlan.description}" — all ${activePlan.sections.length} sections verified.`
+                  }
+                }
+              } catch (err) {
+                console.log('[mind] blueprint diff failed (non-fatal):', err.message)
+              }
+            }
           }
         }
       } catch { /* non-fatal */ }

@@ -77,6 +77,11 @@ const REGISTRY = new Map([
   ['design',   (_bot, _args) => {
     return Promise.resolve({ success: false, reason: 'design must be handled by the Mind loop — description:"your idea here"' })
   }],
+  // !plan is handled in mind/index.js think() BEFORE dispatch is called (like !design).
+  // This entry ensures listCommands() includes 'plan' for help text.
+  ['plan',     (_bot, _args) => {
+    return Promise.resolve({ success: false, reason: 'plan must be handled by the Mind loop — description:"your idea here"' })
+  }],
   // !wiki is handled in mind/index.js respondToChat() BEFORE dispatch is called.
   // This entry ensures listCommands() includes 'wiki' for command documentation.
   ['wiki',     (_bot, _args) => {

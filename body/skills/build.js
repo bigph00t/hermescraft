@@ -112,9 +112,10 @@ export function getBuildProgress() {
  * @param {number} originX
  * @param {number} originY
  * @param {number} originZ
- * @returns {Promise<{success: boolean, placed?: number, total?: number, blueprintName?: string, reason?: string, missing?: string[], message?: string}>}
+ * @param {string} [blueprintPath] — optional direct file path (used by buildPlanner section execution)
+ * @returns {Promise<{success: boolean, placed?: number, total?: number, blueprintName?: string, reason?: string, missing?: string[], message?: string, failedPlacements?: object[]}>}
  */
-export async function build(bot, blueprintName, originX, originY, originZ) {
+export async function build(bot, blueprintName, originX, originY, originZ, blueprintPath) {
   // ── Resume check ──
   // If there's an active paused build, resume it instead of starting fresh.
   // Prevents building the same structure multiple times at different offsets.
@@ -135,12 +136,19 @@ export async function build(bot, blueprintName, originX, originY, originZ) {
   }
 
   // ── Load Blueprint ──
-  // Try both with and without underscores since callers may use either form
-  let blueprintFile = join(BLUEPRINTS_DIR, blueprintName + '.json')
-  if (!existsSync(blueprintFile)) {
-    // Try converting name to kebab-case filename (small_cabin -> small-cabin)
-    const kebab = blueprintName.replace(/_/g, '-')
-    blueprintFile = join(BLUEPRINTS_DIR, kebab + '.json')
+  // If a direct blueprint path is provided (from buildPlanner section execution),
+  // use it instead of resolving against BLUEPRINTS_DIR
+  let blueprintFile
+  if (blueprintPath && existsSync(blueprintPath)) {
+    blueprintFile = blueprintPath
+  } else {
+    // Try both with and without underscores since callers may use either form
+    blueprintFile = join(BLUEPRINTS_DIR, blueprintName + '.json')
+    if (!existsSync(blueprintFile)) {
+      // Try converting name to kebab-case filename (small_cabin -> small-cabin)
+      const kebab = blueprintName.replace(/_/g, '-')
+      blueprintFile = join(BLUEPRINTS_DIR, kebab + '.json')
+    }
   }
 
   let blueprint
@@ -196,22 +204,23 @@ export async function build(bot, blueprintName, originX, originY, originZ) {
   _buildQueue = queue
 
   // ── Pre-flight Area Check ──
-  // Scan ground level footprint. If >50% non-air, abort — site is occupied.
+  // Scan ONE ABOVE ground level. Ground itself being solid is expected — we check
+  // if the space where walls/interior go is already occupied (trees, builds, etc).
   const footprintBlocks = blueprint.size.x * blueprint.size.z
   // Skip site check when resuming — the site has our own blocks from the previous run
   if (!isResume) {
     let solidCount = 0
     for (let dx = 0; dx < blueprint.size.x; dx++) {
       for (let dz = 0; dz < blueprint.size.z; dz++) {
-        const b = bot.blockAt(new Vec3(originX + dx, originY, originZ + dz))
-        if (b && b.name !== 'air') solidCount++
+        const b = bot.blockAt(new Vec3(originX + dx, originY + 1, originZ + dz))
+        if (b && b.name !== 'air' && b.name !== 'short_grass' && b.name !== 'tall_grass' && b.name !== 'fern') solidCount++
       }
     }
-    if (solidCount > footprintBlocks * 0.5) {
+    if (solidCount > footprintBlocks * 0.75) {
       return {
         success: false,
         reason: 'site_blocked',
-        message: `Too many blocks at build site (${solidCount}/${footprintBlocks} occupied). Choose flatter terrain.`,
+        message: `Build site has ${solidCount} blocks in the way (${footprintBlocks} total). Clear some blocks or try a more open spot nearby.`,
       }
     }
   }
@@ -254,6 +263,7 @@ export async function build(bot, blueprintName, originX, originY, originZ) {
   // ── Placement Loop ──
   let totalPlaced = startIndex
   let saveCounter = 0
+  const failedPlacements = []
 
   for (let i = 0; i < remainingQueue.length; i++) {
     // Check interrupt before every block
@@ -304,6 +314,7 @@ export async function build(bot, blueprintName, originX, originY, originZ) {
     if (!nav.success) {
       // Block unreachable — skip and continue (terrain may block)
       console.log(`[build] nav failed for (${entry.x},${entry.y},${entry.z}): ${nav.reason}, skipping`)
+      failedPlacements.push({ x: entry.x, y: entry.y, z: entry.z, block: entry.block, reason: 'nav_failed' })
       totalPlaced++
       _activeBuild.completedIndex = totalPlaced
       continue
@@ -349,6 +360,7 @@ export async function build(bot, blueprintName, originX, originY, originZ) {
     if (!refBlock) {
       // No solid neighbor — skip this block (floating, will be placed when neighbors exist)
       console.log(`[build] no reference block for (${entry.x},${entry.y},${entry.z}), skipping`)
+      failedPlacements.push({ x: entry.x, y: entry.y, z: entry.z, block: entry.block, reason: 'no_reference_block' })
       totalPlaced++
       _activeBuild.completedIndex = totalPlaced
       continue
@@ -375,6 +387,7 @@ export async function build(bot, blueprintName, originX, originY, originZ) {
       console.log(`[build] ${totalPlaced}/${queue.length} ${entry.block} at (${entry.x},${entry.y},${entry.z})`)
     } else {
       console.log(`[build] place failed at (${entry.x},${entry.y},${entry.z}): ${placed.reason}, skipping`)
+      failedPlacements.push({ x: entry.x, y: entry.y, z: entry.z, block: entry.block, reason: placed.reason || 'place_failed' })
       totalPlaced++
       _activeBuild.completedIndex = totalPlaced
     }
@@ -387,7 +400,7 @@ export async function build(bot, blueprintName, originX, originY, originZ) {
     if (existsSync(_stateFile)) unlinkSync(_stateFile)
   } catch {}
 
-  return { success: true, placed: totalPlaced, total: queue.length, blueprintName }
+  return { success: true, placed: totalPlaced, total: queue.length, blueprintName, failedPlacements }
 }
 
 /**
