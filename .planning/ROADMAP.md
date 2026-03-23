@@ -31,7 +31,7 @@ See: `.planning/milestones/v2.2-ROADMAP.md` for full details.
 ## Phases
 
 - [ ] **Phase 14: RunPod Infrastructure** - Deploy A6000 48GB pod with dual-model serving (27B main + 9B background)
-- [ ] **Phase 15: Dual-Brain Architecture** - Background brain module with shared state, insight injection, constraint system
+- [x] **Phase 15: Dual-Brain Architecture** - Background brain module with shared state, insight injection, constraint system (completed 2026-03-23)
 - [ ] **Phase 16: Vision System** - Screenshot capture + VLM processing + spatial understanding database
 - [ ] **Phase 17: Memory Foundation** - SQLite event log with importance scoring, spatial tagging, cross-session persistence
 - [ ] **Phase 18: Memory Integration** - Episodic retrieval in LLM calls, reflection journals, background brain memory consolidation
@@ -67,10 +67,10 @@ Plans:
   3. Main brain reads brain-state.json with 5s TTL cache and injects relevant insights into the system prompt
   4. Ring buffers cap all state: 20 insights, 50 spatial entries, 100 partner observations
   5. GPU contention is negligible — main brain and background brain don't block each other
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 15-01-PLAN.md — Core background brain module (mind/backgroundBrain.js) + env var docs
-- [ ] 15-02-PLAN.md — Wiring into agent startup, think loop, system prompt + smoke tests
+- [x] 15-02-PLAN.md — Wiring into agent startup, think loop, system prompt + smoke tests
 
 ### Phase 16: Vision System
 **Goal**: Agents can "see" their world via screenshots, processed by VLM into spatial understanding
@@ -159,7 +159,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 14. RunPod Infrastructure | 1/2 | In Progress|  |
-| 15. Dual-Brain Architecture | 1/2 | In Progress|  |
+| 15. Dual-Brain Architecture | 2/2 | Complete   | 2026-03-23 |
 | 16. Vision System | 0/TBD | Not started | - |
 | 17. Memory Foundation | 0/TBD | Not started | - |
 | 18. Memory Integration | 0/TBD | Not started | - |
