@@ -67,6 +67,6 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 11. Knowledge Corpus | v2.2 | 3/3 | Complete   | 2026-03-23 |
+| 11. Knowledge Corpus | v2.2 | 3/3 | Complete    | 2026-03-23 |
 | 12. KnowledgeStore | v2.2 | 0/TBD | Not started | - |
 | 13. Prompt Integration | v2.2 | 0/TBD | Not started | - |
