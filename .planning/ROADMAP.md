@@ -34,7 +34,7 @@ See: `.planning/milestones/v2.2-ROADMAP.md` for full details.
 - [x] **Phase 15: Dual-Brain Architecture** - Background brain module with shared state, insight injection, constraint system (completed 2026-03-23)
 - [x] **Phase 16: Vision System** - Screenshot capture + VLM processing + spatial understanding database (completed 2026-03-23)
 - [x] **Phase 17: Memory Foundation** - SQLite event log with importance scoring, spatial tagging, cross-session persistence (completed 2026-03-23)
-- [ ] **Phase 18: Memory Integration** - Episodic retrieval in LLM calls, reflection journals, background brain memory consolidation
+- [x] **Phase 18: Memory Integration** - Episodic retrieval in LLM calls, reflection journals, background brain memory consolidation (completed 2026-03-23)
 - [ ] **Phase 19: Enhanced Spatial + Building** - Entity awareness, build verification, LLM build specs, section decomposition, material planning
 - [ ] **Phase 20: Gameplay Loops** - Animal farming, crop farming, mob hunting, exploration, trading, enchanting, nether, progression
 - [ ] **Phase 21: Multi-Agent Coordination** - Shared task registry, chat dedup, spatial task splitting, activity broadcasting
@@ -109,9 +109,9 @@ Plans:
   2. An agent that died to a creeper last session references that experience when exploring caves in the current session
   3. Background brain produces reflection journals — LLM-authored strategy summaries from recent experiences
   4. Total memory context stays within 4,000-token budget
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
-- [ ] 18-01-PLAN.md — Memory retrieval in think() + prompt injection + reflection journals + smoke tests (MEM-02, MEM-04)
+- [x] 18-01-PLAN.md — Memory retrieval in think() + prompt injection + reflection journals + smoke tests (MEM-02, MEM-04)
 
 ### Phase 19: Enhanced Spatial + Building
 **Goal**: Agents have rich entity awareness, can verify builds, and can plan/execute 500+ block structures
@@ -169,7 +169,7 @@ Plans:
 | 15. Dual-Brain Architecture | 2/2 | Complete    | 2026-03-23 |
 | 16. Vision System | 2/2 | Complete    | 2026-03-23 |
 | 17. Memory Foundation | 1/1 | Complete    | 2026-03-23 |
-| 18. Memory Integration | 0/1 | Not started | - |
+| 18. Memory Integration | 1/1 | Complete   | 2026-03-23 |
 | 19. Enhanced Spatial + Building | 0/TBD | Not started | - |
 | 20. Gameplay Loops | 0/TBD | Not started | - |
 | 21. Multi-Agent Coordination | 0/TBD | Not started | - |
