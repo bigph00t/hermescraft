@@ -225,7 +225,16 @@ Villagers have professions based on their workstation. Librarians (bookshelf) se
 
 ## STORAGE
 
-Use !deposit to store items in chests, !withdraw to retrieve them. Build organized storage: separate chests for ores, building blocks, food, tools. Deposit excess inventory regularly — full inventory means missed drops. Keep food and tools on you, everything else in chests.`)
+Use !deposit to store items in chests, !withdraw to retrieve them. Build organized storage: separate chests for ores, building blocks, food, tools. Deposit excess inventory regularly — full inventory means missed drops. Keep food and tools on you, everything else in chests.
+
+## ENCHANTING
+
+Enchanting requires: enchanting table + 15 bookshelves (in a U-shape, 1 block away, 1 block up). Use lapis lazuli + experience levels. Level 30 enchants need all 15 bookshelves. Prioritize: sharpness/protection/efficiency/unbreaking. Combine enchanted books at an anvil. Fishing rod with Luck of the Sea III is a top-tier enchanted book source.
+
+## NETHER
+
+Build a nether portal: 4×5 obsidian frame (corners optional), ignite with flint and steel. Nether resources: nether quartz (XP + redstone), ancient debris (Y=15, blast mining), blaze rods (fortress, needed for brewing + eyes of ender), nether wart (fortress, brewing ingredient), glowstone. Survival: bring fire resistance potions, gold armor (piglins), cobblestone for bridging. Never mine straight down — lava ocean at Y=31.`)
+
 
   // Part 3: Memory — lessons, strategies, world knowledge from previous sessions
   if (options.memory) {
