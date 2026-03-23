@@ -185,4 +185,4 @@ Plans:
 | 19. Enhanced Spatial + Building | 2/2 | Complete    | 2026-03-23 |
 | 20. Gameplay Loops | 2/2 | Complete    | 2026-03-23 |
 | 21. Multi-Agent Coordination | 2/2 | Complete    | 2026-03-23 |
-| 22. Polish & Tool Fixes | 2/2 | Complete   | 2026-03-23 |
+| 22. Polish & Tool Fixes | 2/2 | Complete    | 2026-03-23 |
