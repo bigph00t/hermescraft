@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@huggingface/transformers": "^3.8.1",
+    "canvas": "^3.2.2",
     "minecraft-data": "^3.105.0",
     "mineflayer": "^4.35.0",
     "mineflayer-pathfinder": "^2.4.5",
