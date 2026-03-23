@@ -5,28 +5,9 @@ import { navigateToBlock } from '../navigate.js'
 import { digBlock } from '../dig.js'
 import { normalizeBlockName } from '../normalizer.js'
 import { isInterrupted } from '../interrupt.js'
+import { canHarvestWith } from '../tools.js'
 
 const mcData = minecraftData('1.21.1')
-
-// ── Tool Harvest Check ──
-
-/**
- * Check whether the currently held item can harvest a block at full-drop tier.
- * Uses the block's harvestTools map from minecraft-data: a hash of { itemId: true }
- * listing every item type that can properly mine the block.
- *
- * If block.harvestTools is undefined or empty, any tool (or bare hands) works.
- * If block.harvestTools exists but heldItemType is null, hands cannot harvest it.
- *
- * @param {import('mineflayer').Block} block - block object with harvestTools map
- * @param {number|null} heldItemType - bot.heldItem.type, or null if empty hand
- * @returns {boolean}
- */
-function canHarvestWith(block, heldItemType) {
-  if (!block.harvestTools) return true          // no tool restriction — any tool works
-  if (heldItemType === null) return false        // bare hands, but block requires a tool
-  return !!block.harvestTools[heldItemType]
-}
 
 // ── Mine Skill ──
 

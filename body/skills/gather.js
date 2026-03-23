@@ -5,6 +5,7 @@ import { navigateToBlock } from '../navigate.js'
 import { digBlock } from '../dig.js'
 import { normalizeBlockName } from '../normalizer.js'
 import { isInterrupted } from '../interrupt.js'
+import { canHarvestWith } from '../tools.js'
 
 const mcData = minecraftData('1.21.1')
 
@@ -61,7 +62,16 @@ export async function gather(bot, blockName, count = 1, options = {}) {
 
       // Equip best tool for this block type before navigating — silent catch
       // because failing to equip (no suitable tool) should not abort gather
-      try { await bot.tool.equipForBlock(target) } catch {}
+      try { await bot.tool.equipForBlock(target, { requireHarvest: true }) } catch {}
+
+      // Verify held tool can harvest this block — skip candidate if not (unlike mine.js
+      // which hard-stops, gather continues to next candidate since many gather targets
+      // like wood/dirt have no tool restriction and can always be gathered bare-handed)
+      const heldType = bot.heldItem ? bot.heldItem.type : null
+      if (!canHarvestWith(target, heldType)) {
+        console.log(`[gather] cannot harvest ${normalized} at tier — skipping block`)
+        continue
+      }
 
       if (isInterrupted(bot)) break
 
