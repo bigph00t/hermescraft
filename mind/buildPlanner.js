@@ -415,6 +415,50 @@ export function getBuildPlanForPrompt() {
   return lines.join('\n')
 }
 
+// ── Multi-Agent Section Claiming ──
+
+// claimBuildSection(agentName, planId) — claim the next available pending section for this agent
+// Handles stale claims (>10 min) by treating them as expired — Pitfall 5 (crash recovery)
+// Returns the claimed section object, or null if no available section or plan not found
+export function claimBuildSection(agentName, planId) {
+  const plan = loadBuildPlan(planId)
+  if (!plan) return null
+
+  const TEN_MIN = 10 * 60 * 1000
+
+  const section = plan.sections.find(s => {
+    if (s.status !== 'pending') return false
+    if (s.claimedBy === null || s.claimedBy === agentName) return true
+    // Allow claiming if existing claim is stale (agent crashed)
+    if (s.claimedBy !== null && s.claimedAt) {
+      const age = Date.now() - new Date(s.claimedAt).getTime()
+      if (age > TEN_MIN) return true
+    }
+    return false
+  })
+
+  if (!section) return null
+
+  section.claimedBy = agentName
+  section.claimedAt = new Date().toISOString()
+  saveBuildPlan(plan)
+
+  return section
+}
+
+// releaseSection(agentName, planId, sectionId) — release a section claim back to null
+export function releaseSection(agentName, planId, sectionId) {
+  const plan = loadBuildPlan(planId)
+  if (!plan) return
+
+  const section = plan.sections.find(s => s.id === sectionId && s.claimedBy === agentName)
+  if (!section) return
+
+  section.claimedBy = null
+  section.claimedAt = null
+  saveBuildPlan(plan)
+}
+
 // ── Expected Block Map ──
 
 // buildExpectedBlockMap(blueprint, originX, originY, originZ) — Map<"x,y,z", blockName>
