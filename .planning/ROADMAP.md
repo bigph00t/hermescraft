@@ -7,7 +7,7 @@
 - [x] **v2.0** - Mineflayer Rewrite — Phases 1-6 (shipped 2026-03-22)
 - [x] **v2.1** - Creative Building + Bug Fixes — Phases 7-10 (shipped 2026-03-22)
 - [x] **v2.2** - Minecraft RAG — Phases 11-13 (shipped 2026-03-23)
-- [ ] **v2.3** - Persistent Memory & Ambitious Building — Phases 14-19
+- [ ] **v2.3** - Persistent Memory & Ambitious Building — Phases 14-22
 
 ---
 
@@ -26,113 +26,138 @@ See: `.planning/milestones/v2.2-ROADMAP.md` for full details.
 
 ## v2.3 Persistent Memory & Ambitious Building
 
-**Milestone Goal:** Transform agents from session-scoped bots into truly learning, growing beings that remember everything, plan massive builds, and coordinate complex multi-phase projects together.
+**Milestone Goal:** Transform agents into learning, growing beings with persistent memory, dual-brain reasoning, vision, ambitious building, and full Minecraft gameplay mastery. Deploy custom Qwen3.5-27B model on RunPod A100 with background 9B brain.
 
 ## Phases
 
-- [ ] **Phase 14: Memory Foundation** - Persistent cross-session event log with importance scoring and spatial tagging
-- [ ] **Phase 15: Memory Prompt Integration** - Close the memory loop — retrieved experiences appear in every LLM call
-- [ ] **Phase 16: Enhanced Spatial Intelligence** - Entity awareness, post-build scanning, and area familiarity
-- [ ] **Phase 17: Ambitious Build Planning** - LLM-authored build specs for 500+ block structures with material planning and verification
-- [ ] **Phase 18: Gameplay Loops** - Animal farming, crop farming, mob hunting, exploration, trading, and progression skills
-- [ ] **Phase 19: Multi-Agent Coordination** - Shared task registry, chat deduplication, and activity broadcasting
+- [ ] **Phase 14: RunPod Infrastructure** - Deploy A100 pod with dual-model serving (27B main + 9B background)
+- [ ] **Phase 15: Dual-Brain Architecture** - Background brain module with shared state, insight injection, constraint system
+- [ ] **Phase 16: Vision System** - Screenshot capture + VLM processing + spatial understanding database
+- [ ] **Phase 17: Memory Foundation** - SQLite event log with importance scoring, spatial tagging, cross-session persistence
+- [ ] **Phase 18: Memory Integration** - Episodic retrieval in LLM calls, reflection journals, background brain memory consolidation
+- [ ] **Phase 19: Enhanced Spatial + Building** - Entity awareness, build verification, LLM build specs, section decomposition, material planning
+- [ ] **Phase 20: Gameplay Loops** - Animal farming, crop farming, mob hunting, exploration, trading, enchanting, nether, progression
+- [ ] **Phase 21: Multi-Agent Coordination** - Shared task registry, chat dedup, spatial task splitting, activity broadcasting
+- [ ] **Phase 22: Polish & Tool Fixes** - Tool auto-equipping, bug fixes, prompt tuning, overnight stability
 
 ## Phase Details
 
-### Phase 14: Memory Foundation
+### Phase 14: RunPod Infrastructure
+**Goal**: Custom Qwen3.5-27B model running on RunPod A100, replacing MiniMax M2.7, with secondary 9B model for background brain
+**Depends on**: Phase 13 (existing agent system)
+**Requirements**: Infrastructure — no REQ-IDs (enabling phase)
+**Success Criteria** (what must be TRUE):
+  1. RunPod A100 SXM 80GB pod is running with vLLM/llama-server serving Qwen3.5-27B on port 8000
+  2. Secondary Qwen3.5-9B running on port 8001 on the same pod
+  3. Both Luna and Max agents connect to the new model and produce coherent responses
+  4. Response latency is under 3 seconds for 128-token generation (main brain)
+  5. Glass .env updated to point at RunPod endpoint instead of MiniMax
+**Plans**: TBD
+
+### Phase 15: Dual-Brain Architecture
+**Goal**: Each agent has a background brain (9B) that runs every 30-60s, producing insights, plans, and constraints that the main brain (27B) reads on each tick
+**Depends on**: Phase 14
+**Requirements**: Infrastructure — enabling phase
+**Success Criteria** (what must be TRUE):
+  1. Background brain module runs on a 30-second interval, calling the 9B model asynchronously
+  2. Background brain writes structured JSON to `data/<agent>/brain-state.json` (insights, plans, spatial hazards, constraints)
+  3. Main brain reads brain-state.json with 5s TTL cache and injects relevant insights into the system prompt
+  4. Ring buffers cap all state: 20 insights, 50 spatial entries, 100 partner observations
+  5. GPU contention is negligible — main brain and background brain don't block each other
+**Plans**: TBD
+
+### Phase 16: Vision System
+**Goal**: Agents can "see" their world via screenshots, processed by VLM into spatial understanding
+**Depends on**: Phase 14, Phase 15
+**Requirements**: Infrastructure — enabling phase
+**Success Criteria** (what must be TRUE):
+  1. prismarine-viewer renders the bot's perspective headlessly on RunPod
+  2. `!see` command captures a screenshot, sends to Qwen2.5-VL-7B, returns natural language description
+  3. Background brain periodically processes screenshots into spatial awareness entries
+  4. Screenshots are stored in `data/<agent>/screenshots/` with timestamps for history
+  5. Top-down minimap generation from block data as lightweight alternative
+**Plans**: TBD
+
+### Phase 17: Memory Foundation
 **Goal**: Agents accumulate a persistent, spatially-tagged event log across sessions — no experience is ever lost
-**Depends on**: Phase 13 (Prompt Integration)
+**Depends on**: Phase 14
 **Requirements**: MEM-01, MEM-03, SPA-03
 **Success Criteria** (what must be TRUE):
-  1. After an agent session ends and restarts, experiences from the prior session exist in `data/<agent>/experiences.jsonl` with timestamps and coordinates
+  1. After an agent session ends and restarts, experiences from the prior session exist in SQLite with timestamps and coordinates
   2. Deaths, build completions, and discoveries are assigned importance scores (1-10) — deaths score 10, routine actions score 2 or below
   3. Every logged event carries (x, z, dimension) coordinates enabling queries like "what do I know about this location?"
-  4. The event log is capped and never grows unbounded — FIFO pruning keeps it manageable across weeks of play
+  4. The event log is capped with FIFO pruning — never grows unbounded across weeks of play
 **Plans**: TBD
 
-Plans:
-- [ ] 14-01: TBD
-
-### Phase 15: Memory Prompt Integration
-**Goal**: Retrieved past experiences appear in every LLM call alongside RAG knowledge — agents demonstrably reference prior sessions
-**Depends on**: Phase 14
+### Phase 18: Memory Integration
+**Goal**: Retrieved past experiences appear in every LLM call — agents demonstrably reference prior sessions
+**Depends on**: Phase 15, Phase 17
 **Requirements**: MEM-02, MEM-04
 **Success Criteria** (what must be TRUE):
-  1. Every `think()` call injects top-K relevant past experiences into the system prompt (retrieved in parallel with knowledge RAG via `Promise.all`)
+  1. Every think() call injects top-K relevant past experiences into the system prompt via Promise.all with knowledge RAG
   2. An agent that died to a creeper last session references that experience when exploring caves in the current session
-  3. Periodic reflection journals exist in `data/<agent>/journal/` — LLM-authored summaries of recent experiences turned into strategy lessons
-  4. Total memory context in the system prompt stays within the 4,000-token system prompt ceiling
+  3. Background brain produces reflection journals — LLM-authored strategy summaries from recent experiences
+  4. Total memory context stays within 4,000-token budget
 **Plans**: TBD
 
-Plans:
-- [ ] 15-01: TBD
-
-### Phase 16: Enhanced Spatial Intelligence
-**Goal**: Agents have richer awareness of entities around them, can verify builds spatially, and know what territory they have and haven't explored
-**Depends on**: Phase 14
-**Requirements**: SPA-01, SPA-02, SPA-04
+### Phase 19: Enhanced Spatial + Building
+**Goal**: Agents have rich entity awareness, can verify builds, and can plan/execute 500+ block structures
+**Depends on**: Phase 16, Phase 17
+**Requirements**: SPA-01, SPA-02, SPA-04, BLD-01, BLD-02, BLD-03, BLD-04, BLD-05
 **Success Criteria** (what must be TRUE):
-  1. Agent prompts include nearby mobs, animals, and villagers with types, distances, and health — not just a generic entity count
-  2. After a build completes, the agent automatically scans the structure, detects missing or wrong blocks, and reports discrepancies
-  3. The agent distinguishes explored vs unexplored territory based on accumulated spatial memory entries
+  1. Agent prompts include nearby mobs, animals, villagers with types, distances, and health
+  2. LLM generates structured build specs from natural language — deterministic code handles coordinates
+  3. Builds over 100 blocks decompose into sections that persist across session restarts
+  4. Agent reports exact material list and won't start without sufficient inventory
+  5. Post-build scan detects missing/wrong blocks and auto-repairs
 **Plans**: TBD
 
-Plans:
-- [ ] 16-01: TBD
-
-### Phase 17: Ambitious Build Planning
-**Goal**: Agents can plan, gather materials for, and execute 500+ block structures with self-verification and retry
-**Depends on**: Phase 14, Phase 16
-**Requirements**: BLD-01, BLD-02, BLD-03, BLD-04, BLD-05
+### Phase 20: Gameplay Loops
+**Goal**: Agents pursue rich, human-like gameplay — farming, hunting, exploring, trading, progressing gear
+**Depends on**: Phase 17
+**Requirements**: GPL-01 through GPL-10
 **Success Criteria** (what must be TRUE):
-  1. `!plan` command generates a structured JSON build spec (style, dimensions, materials, features) from a natural language description
-  2. A build over 100 blocks is automatically decomposed into sections — each section executes and persists independently, surviving session restarts
-  3. Before any build begins, the agent reports the exact material list and won't start until inventory is sufficient
-  4. After a build completes, the agent scans the result, identifies missing or incorrect blocks, and patches them automatically
-  5. Failed block placements trigger an LLM-guided retry loop with error feedback injected — not silent failure
+  1. Agents breed and manage animal pens autonomously
+  2. Agents plant, grow, harvest crops with auto-replant and bone meal
+  3. Agents proactively hunt hostile mobs for drops
+  4. Agents explore systematically and log findings to spatial memory
+  5. Agents pursue wood → stone → iron → diamond progression and manage smelting
 **Plans**: TBD
 
-Plans:
-- [ ] 17-01: TBD
-
-### Phase 18: Gameplay Loops
-**Goal**: Agents pursue rich, human-like gameplay activities — farming, hunting, exploring, trading, and progressing their gear
-**Depends on**: Phase 14
-**Requirements**: GPL-01, GPL-02, GPL-03, GPL-04, GPL-05, GPL-06, GPL-07, GPL-08, GPL-09, GPL-10
+### Phase 21: Multi-Agent Coordination
+**Goal**: Multiple agents coordinate without duplicate work, chat loops, or state conflicts
+**Depends on**: Phase 17, Phase 18, Phase 19
+**Requirements**: COO-01 through COO-04
 **Success Criteria** (what must be TRUE):
-  1. Agents breed and manage animal pens, harvest food and materials, and maintain pen population autonomously via `!farm_animals`
-  2. Agents plant, grow, and harvest crops with auto-replant and bone meal use via `!farm_crops`
-  3. Agents proactively hunt hostile mobs for drops (bones, string, gunpowder, ender pearls) via `!hunt` — distinct from reactive self-defense
-  4. Agents explore systematically, discover villages/temples/biomes, and log findings to spatial memory
-  5. Agents actively pursue tool and armor upgrades from wood through diamond, smelting ores and managing furnace fuel efficiently
+  1. Claimed tasks visible in shared registry — no duplicate work
+  2. Chat loops impossible — forced non-chat action after 3 consecutive chats
+  3. Large builds split spatially — each agent owns its section
+  4. Each agent sees partner's current activity without asking
 **Plans**: TBD
 
-Plans:
-- [ ] 18-01: TBD
-
-### Phase 19: Multi-Agent Coordination
-**Goal**: Multiple agents coordinate without duplicate work, chat loops, or file corruption — each sees what the other is doing
-**Depends on**: Phase 14, Phase 15, Phase 17, Phase 18
-**Requirements**: COO-01, COO-02, COO-03, COO-04
+### Phase 22: Polish & Tool Fixes
+**Goal**: Fix accumulated bugs, tune prompts, ensure overnight stability
+**Depends on**: All prior phases
+**Requirements**: Bug fixes, stability
 **Success Criteria** (what must be TRUE):
-  1. When one agent claims a task (mine iron, build east wing), the other agent sees it as claimed and picks a different task — no duplicate work
-  2. Agents cannot enter a chat loop — after 3 consecutive `!chat` actions a non-chat action is forced, and same-message deduplication prevents echo spirals
-  3. A large build is decomposed into spatial sections, each agent claims its section via the shared registry, and both execute in parallel without colliding
-  4. Each agent sees a live activity summary of its partner (what skill is running, last known location) without needing to ask via chat
+  1. Agents auto-equip best tool before mining/gathering (no more mining with fists)
+  2. Agents run 12+ hours without crashes or disconnects
+  3. Prompt tuning: chat frequency, building ambition, exploration drive all feel natural
+  4. Memory, brain-state, and spatial database all persist correctly across restarts
 **Plans**: TBD
-
-Plans:
-- [ ] 19-01: TBD
 
 ## Progress
 
-**Execution Order:** 14 → 15 → 16 → 17 → 18 → 19
+**Execution Order:** 14 → 15 → 16 → 17 → 18 → 19 → 20 → 21 → 22
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 14. Memory Foundation | 0/TBD | Not started | - |
-| 15. Memory Prompt Integration | 0/TBD | Not started | - |
-| 16. Enhanced Spatial Intelligence | 0/TBD | Not started | - |
-| 17. Ambitious Build Planning | 0/TBD | Not started | - |
-| 18. Gameplay Loops | 0/TBD | Not started | - |
-| 19. Multi-Agent Coordination | 0/TBD | Not started | - |
+| 14. RunPod Infrastructure | 0/TBD | Not started | - |
+| 15. Dual-Brain Architecture | 0/TBD | Not started | - |
+| 16. Vision System | 0/TBD | Not started | - |
+| 17. Memory Foundation | 0/TBD | Not started | - |
+| 18. Memory Integration | 0/TBD | Not started | - |
+| 19. Enhanced Spatial + Building | 0/TBD | Not started | - |
+| 20. Gameplay Loops | 0/TBD | Not started | - |
+| 21. Multi-Agent Coordination | 0/TBD | Not started | - |
+| 22. Polish & Tool Fixes | 0/TBD | Not started | - |
