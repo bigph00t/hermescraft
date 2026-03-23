@@ -408,6 +408,17 @@ assert('llm.js reads MAX_TOKENS from env', _llmSrc.includes("process.env.MAX_TOK
 assert('llm.js passes max_tokens to API call', _llmSrc.includes('max_tokens:') || _llmSrc.includes('max_tokens :'))
 assert('llm.js default MODEL_NAME is hermes', _llmSrc.includes("|| 'hermes'"))
 
+// Phase 20 prompt sections (GPL-05 through GPL-10) — source-level check
+const _promptSrcP20 = _readFileSync(_join(_here, '../mind/prompt.js'), 'utf-8')
+assert('prompt.js has FARMING section', _promptSrcP20.includes('## FARMING'))
+assert('prompt.js has HUNTING section', _promptSrcP20.includes('## HUNTING'))
+assert('prompt.js has PROGRESSION section', _promptSrcP20.includes('## PROGRESSION'))
+assert('prompt.js has TRADING section', _promptSrcP20.includes('## TRADING'))
+assert('prompt.js has STORAGE section', _promptSrcP20.includes('## STORAGE'))
+assert('prompt.js has !harvest in command reference', _promptSrcP20.includes('!harvest'))
+assert('prompt.js has !hunt in command reference', _promptSrcP20.includes('!hunt'))
+assert('prompt.js has !explore in command reference', _promptSrcP20.includes('!explore'))
+
 // ── Section 14: Knowledge Corpus ──
 
 section('Knowledge Corpus')
@@ -688,7 +699,7 @@ assert('mind/index.js has post-build scan try/catch', _indexSrc.includes('Post-b
 
 section('Memory DB (Phase 17)')
 
-import { mkdtempSync, rmSync } from 'fs'
+import { mkdtempSync, rmSync, existsSync as _existsSync } from 'fs'
 import { tmpdir } from 'os'
 
 // Module import and export validation
@@ -891,6 +902,71 @@ assert('mind/index.js has max 3 repair attempts (BLD-05)', _indexSrcP02.includes
 const _startSrcP02 = _readFileSync(_join(_here, '../start.js'), 'utf-8')
 assert('start.js imports initBuildPlanner', _startSrcP02.includes('initBuildPlanner'))
 assert('start.js calls initBuildPlanner(config)', _startSrcP02.includes('initBuildPlanner(config)'))
+
+// ── Section 26: Phase 20 — Gameplay Loops (GPL-01 through GPL-10) ──
+
+section('Phase 20 — Gameplay Loops (GPL-01 through GPL-10)')
+
+// New body skill imports
+const harvestMod = await import('../body/skills/harvest.js')
+assert('body/skills/harvest: harvest exported', typeof harvestMod.harvest === 'function')
+
+const huntMod = await import('../body/skills/hunt.js')
+assert('body/skills/hunt: hunt exported', typeof huntMod.hunt === 'function')
+
+const exploreMod = await import('../body/skills/explore.js')
+assert('body/skills/explore: explore exported', typeof exploreMod.explore === 'function')
+
+// Prompt progression hint export
+const promptP20 = await import('../mind/prompt.js')
+assert('mind/prompt: buildProgressionHint exported', typeof promptP20.buildProgressionHint === 'function')
+
+// Progression hint with mock bot — test no-items case
+const noGearHint = promptP20.buildProgressionHint({ inventory: { items: () => [] } })
+assert('buildProgressionHint returns string for empty inventory', typeof noGearHint === 'string' && noGearHint.includes('NONE'))
+
+// Progression hint with iron pickaxe
+const ironHint = promptP20.buildProgressionHint({ inventory: { items: () => [{ name: 'iron_pickaxe', count: 1 }] } })
+assert('buildProgressionHint detects iron tier', ironHint.includes('IRON'))
+
+// Registry count update verification
+const registryP20 = await import('../mind/registry.js')
+const cmdsP20 = registryP20.listCommands()
+assert('registry has 27 commands after Phase 20', cmdsP20.length === 27)
+assert('registry has !harvest command', cmdsP20.includes('harvest'))
+assert('registry has !hunt command', cmdsP20.includes('hunt'))
+assert('registry has !explore command', cmdsP20.includes('explore'))
+
+// Source-level: index.js RAG routing for new skills
+const _indexSrcP20 = _readFileSync(_join(_here, '../mind/index.js'), 'utf-8')
+assert('index.js has harvest RAG routing', _indexSrcP20.includes("skill === 'harvest'"))
+assert('index.js has hunt RAG routing', _indexSrcP20.includes("skill === 'hunt'"))
+assert('index.js has explore RAG routing', _indexSrcP20.includes("skill === 'explore'"))
+assert('index.js has explore discovery logging', _indexSrcP20.includes('skillResult.discoveries'))
+assert('index.js EVT_MAP has harvest', _indexSrcP20.includes("harvest: 'craft'"))
+assert('index.js EVT_MAP has hunt', _indexSrcP20.includes("hunt: 'combat'"))
+assert('index.js EVT_MAP has explore', _indexSrcP20.includes("explore: 'discovery'"))
+
+// Knowledge corpus: gameplay-loops.md exists with sufficient content
+const _glpPath = _join(_here, '../knowledge/gameplay-loops.md')
+const _glpExists = _existsSync(_glpPath)
+assert('knowledge/gameplay-loops.md exists', _glpExists)
+if (_glpExists) {
+  const _glpSrc = _readFileSync(_glpPath, 'utf-8')
+  const _glpSections = (_glpSrc.match(/^## /gm) || []).length
+  assert('gameplay-loops.md has 20+ strategy sections', _glpSections >= 20)
+  assert('gameplay-loops.md mentions !harvest', _glpSrc.includes('!harvest'))
+  assert('gameplay-loops.md mentions !hunt', _glpSrc.includes('!hunt'))
+  assert('gameplay-loops.md mentions !explore', _glpSrc.includes('!explore'))
+  assert('gameplay-loops.md mentions enchanting', _glpSrc.includes('enchant'))
+  assert('gameplay-loops.md mentions nether', _glpSrc.includes('nether') || _glpSrc.includes('Nether'))
+  assert('gameplay-loops.md mentions villager trading', _glpSrc.includes('villager') || _glpSrc.includes('Villager'))
+  assert('gameplay-loops.md mentions storage', _glpSrc.includes('storage') || _glpSrc.includes('chest'))
+}
+
+// Source-level: prompt.js buildUserMessage result extras
+assert('prompt.js handles harvested result', _promptSrcP20.includes('result.harvested'))
+assert('prompt.js handles discoveries result', _promptSrcP20.includes('result.discoveries'))
 
 // ── Final Summary ──
 
