@@ -1,547 +1,533 @@
-# Architecture Research
+# Architecture Patterns
 
-**Domain:** Mineflayer-based Minecraft AI agent — Mind + Body architecture
+**Domain:** Minecraft AI agent RAG knowledge system (Node.js ESM, in-process)
 **Researched:** 2026-03-22
-**Confidence:** HIGH (Mindcraft source read directly from GitHub; mineflayer-pathfinder official repo verified; AIRI agent DeepWiki cross-checked)
+**Confidence:** HIGH for retrieval libraries; MEDIUM for optimal chunk sizing (empirical tuning needed); HIGH for data source coverage analysis
 
 ---
 
-## Standard Architecture
+## 1. Previous Architecture (Retained)
 
-### System Overview
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                            MIND LAYER                                │
-│                                                                      │
-│  ┌──────────────┐  ┌────────────────┐  ┌──────────────────────────┐ │
-│  │ SelfPrompter │  │    Prompter    │  │        History           │ │
-│  │ (goal loop)  │  │  (LLM client)  │  │  (conversation window)   │ │
-│  │ idle > 2s    │  │  build prompts │  │  compress / summarize    │ │
-│  └──────┬───────┘  └───────┬────────┘  └──────────────────────────┘ │
-│         └──────────────────┘                                         │
-│                      │ dispatch(!command)                            │
-├──────────────────────┼──────────────────────────────────────────────┤
-│                   BODY LAYER                                         │
-│                      │                                               │
-│  ┌───────────────────▼────────────────────────────────────────────┐ │
-│  │                      ActionManager                              │ │
-│  │  stop() → interrupt_code=false → runAction() → return result   │ │
-│  └───────────────────┬────────────────────────────────────────────┘ │
-│                      │                                               │
-│  ┌───────────────────▼────────────┐  ┌──────────────────────────┐  │
-│  │         Skills Library         │  │     ModeController        │  │
-│  │  navigate / gather / build     │  │  self_defense, unstuck    │  │
-│  │  craft / equip / interact      │  │  item_pickup, preserve    │  │
-│  │  each checks bot.interrupt_code│  │  runs every 300ms         │  │
-│  └───────────────────┬────────────┘  └──────────────────────────┘  │
-│                      │                                               │
-├──────────────────────┼──────────────────────────────────────────────┤
-│               MINEFLAYER BOT                                         │
-│  ┌───────────────────▼────────────────────────────────────────────┐ │
-│  │  bot.dig()  bot.placeBlock()  bot.craft()  bot.equip()          │ │
-│  │  bot.pathfinder.goto(goal)    bot.entity.position               │ │
-│  │  bot.on('chat')  bot.on('health')  bot.on('death')              │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-└──────────────────────────────────────────────────────────────────────┘
-                              │ TCP (Minecraft protocol, no HTTP)
-                    Minecraft Server (Paper 1.21.1)
-```
-
-### Component Responsibilities
-
-| Component | Responsibility | Implementation |
-|-----------|----------------|----------------|
-| SelfPrompter | Drives the goal loop — when agent is idle > 2s, re-prompts LLM with current goal | `update()` on 300ms tick; re-runs loop when idle accumulates |
-| Prompter | Sends conversation history to LLM, returns text containing `!command` syntax | `openai` client pointed at MiniMax M2.7, no streaming |
-| History | Rolling conversation window; compresses old turns to a memory summary | In-memory array; archives full session to JSONL |
-| ActionManager | Serializes execution — one action at a time; handles interrupt; timeout watchdog; returns structured result | Promise chain; `bot.interrupt_code` flag |
-| Skills Library | Async primitives: `goToPosition`, `collectBlock`, `placeBlock`, `craftRecipe`, etc. | Each checks `bot.interrupt_code` in loops; returns boolean |
-| ModeController | Priority-ordered reactive behaviors; fires every 300ms independent of LLM | `interrupts: ['all']` for survival; lower for ambient |
-| ConversationManager | Routes incoming chat — player messages pause goal loop and trigger LLM call | `bot.on('chat')` listener |
-| Memory | MEMORY.md (lessons), notepad.txt (scratchpad), context/ (pinned plans) | File-backed, read at init, written async |
-| Agent | Top-level orchestrator — wires bot, all subsystems, event handlers, lifecycle | Single `Agent` class |
+The existing ARCHITECTURE.md documented the v2.0 Mind+Body mineflayer rewrite. That content is preserved below the RAG section. This section covers the new knowledge retrieval layer added to that architecture.
 
 ---
 
-## Recommended Project Structure
+## 2. RAG Knowledge System Architecture
+
+### The Core Problem
+
+The current agent has ~50 hardcoded MC facts (~600 tokens) injected on every tick. This covers less than 5% of what a competent MC player knows. The full domain (recipes, biomes, mobs, ores, farming, combat, redstone, structures, building, survival) runs to ~500-800 knowledge chunks at any reasonable granularity.
+
+Options:
+
+| Approach | Token cost/tick | Coverage | Complexity |
+|----------|----------------|----------|------------|
+| Current (50 facts, all injected) | ~600 tokens | 5% | None |
+| Full static injection (800 chunks) | ~40,000 tokens | 100% | None |
+| RAG (top-k retrieval) | ~2,000-4,000 tokens | On-demand | Medium |
+
+With a 200k context model, full static injection is feasible in isolation but collides with existing prompt sections (SOUL, commands, memory, history, game state). Realistically, the game state + history + skills + system prompt is already 8,000-15,000 tokens per tick. Adding 40,000 tokens of MC knowledge every tick on every call would bloat every request substantially and add latency. RAG retrieval pays per query, not per tick — and queries only happen when the agent encounters an unknown.
+
+**Decision: Hybrid approach.** Keep a compact always-present knowledge core (~1,500 tokens) for the highest-frequency facts. Use RAG for deep on-demand retrieval.
+
+---
+
+### Recommended Architecture
+
+```
+┌────────────────────────────────────────────────────────────┐
+│                     AGENT TICK LOOP                         │
+│                                                              │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │              System Prompt Builder                    │   │
+│  │                                                        │   │
+│  │  SOUL + Commands + Memory     (always present)         │   │
+│  │  Core MC Knowledge (~1,500 tokens)   (always present) │   │
+│  │  RAG Context Block (~2,000 tokens)   (per-query)      │   │
+│  └──────────────────────────────────────────────────────┘   │
+│              │                                               │
+│              │ retrieval trigger                             │
+│              ▼                                               │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │                 KnowledgeStore                        │   │
+│  │                                                        │   │
+│  │  retrieve(query, topK=5) → chunks[]                   │   │
+│  │  ├── BM25 keyword index (MiniSearch)                  │   │
+│  │  └── Vector similarity (Vectra + local embeddings)    │   │
+│  │       → hybrid RRF fusion → top-5 chunks              │   │
+│  └──────────────────────────────────────────────────────┘   │
+│              │                                               │
+│              ▼                                               │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │              Knowledge Corpus (~800 chunks)           │   │
+│  │  Built once at startup, cached in memory              │   │
+│  │                                                        │   │
+│  │  minecraft-data recipes → crafting chunks             │   │
+│  │  minecraft-data items/entities/foods → fact chunks    │   │
+│  │  Hand-authored MD files → tactics/building/farming    │   │
+│  │  Auto-generated command docs → !commands reference    │   │
+│  └──────────────────────────────────────────────────────┘   │
+└────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Component: Knowledge Store
+
+**Library: Vectra (in-process, file-backed) for vectors + MiniSearch for BM25.**
+
+**Why Vectra:**
+- Zero external server dependency. Index lives in a JSON file on disk.
+- Loads fully into memory at startup. Lookup latency is <2ms for 800 chunks. (MEDIUM confidence — sub-10ms verified in community benchmarks for <10k vectors)
+- Cosine similarity with metadata filtering via MongoDB-style operators.
+- API matches the project's plain fetch/openai style — no framework overhead.
+- Actively maintained. npm package: `vectra`.
+
+**Why NOT LanceDB:**
+- Requires platform-specific native binary (`@lancedb/lancedb-linux-x64-gnu`). Binary download at install time is fragile on offline/airgapped build environments. Adds ~50MB.
+- Overkill for 800-2,000 chunks. Lance's columnar HNSW index shines at millions of vectors.
+
+**Why NOT Chroma:**
+- Chroma's in-process mode is Python-first. JavaScript client expects a running server process by default.
+- Adds operational complexity contradicting the no-external-server requirement.
+
+**Library: MiniSearch for BM25 keyword matching.**
+- Pure JavaScript, zero dependencies, zero native code.
+- Supports fuzzy matching, field boosting, prefix search.
+- ESM native, current version 7.2.0.
+- For MC knowledge, BM25 handles exact item name lookups better than semantic vectors (searching "oak_planks" should match the oak_planks chunk exactly, not "dark planks similar to oak").
+- npm package: `minisearch`.
+
+**Hybrid RRF fusion:**
+Reciprocal Rank Fusion merges the two ranked lists (BM25 rank and vector rank) with equal weight. The formula is `score = 1/(k + rank_bm25) + 1/(k + rank_vector)` where k=60. Implementation is ~10 lines. The combined result outperforms either method alone on domain-specific knowledge retrieval. (MEDIUM confidence — established in retrieval literature, validated on structured knowledge corpora per NVIDIA 2024 chunking benchmark)
+
+---
+
+### Component: Embedding Model
+
+**Recommendation: `@huggingface/transformers` (v3.x) with `Xenova/all-MiniLM-L6-v2`.**
+
+**Rationale:**
+- Fully local, no API key, no external call latency for index-time embedding.
+- ONNX weights available. Node.js runs via ONNX Runtime (WASM backend). Pure ESM import.
+- Produces 384-dimension vectors per chunk. 800 chunks × 384 dims = ~1.2MB in memory — trivial.
+- Cold start: model download ~20-30MB, ONNX deserialization ~1-3s. After first run, model file is cached by the OS. Startup cost is a one-time penalty.
+- Inference per chunk: ~5-15ms CPU on a modern machine. 800 chunks indexed at startup = ~4-12s. Acceptable for a process that runs for hours.
+- The model's 256-token effective window fits MC knowledge chunks well (see Chunking Strategy below).
+- npm package: `@huggingface/transformers` (requires dynamic import due to ESM structure — see Integration notes).
+
+**Confidence:** HIGH. Xenova/all-MiniLM-L6-v2 ONNX model is officially maintained by HuggingFace and the 384-dim, 256-token limit is documented on the model card.
+
+**Alternative considered: OpenAI `text-embedding-3-small`**
+- Requires API call per chunk at index time. 800 chunks = 800 API calls at startup. Adds latency and cost to every agent startup. Acceptable if local ONNX is problematic, but worse default.
+
+---
+
+### Component: Knowledge Corpus
+
+#### What `minecraft-data` npm covers (HIGH confidence, API docs read directly)
+
+The package at `^3.105.0` (already installed) provides for 1.21.1:
+- `mcData.recipes` — all crafting recipes with ingredient shapes and counts (structured JSON)
+- `mcData.items` — all item IDs, display names, stack sizes
+- `mcData.blocks` — all block IDs, hardness, tool type required, drops
+- `mcData.entities` — all entity types, attributes
+- `mcData.foods` — food items, hunger restored, saturation
+- `mcData.enchantments` — enchantment IDs, max levels, applicable items
+- `mcData.biomes` — biome IDs and names (no descriptive text, just data)
+- `mcData.effects` — status effects
+- `mcData.blockLoot` / `mcData.entityLoot` — drop tables
+
+**What minecraft-data does NOT cover:**
+- Combat tactics (how to fight skeletons, strafe patterns, armor priority)
+- Building techniques (how to make a roof, window placement, material aesthetics)
+- Survival strategies (first night checklist, progression order, food management)
+- Biome descriptions (what spawns in swamps, village locations, biome-specific resources)
+- Ore distribution by Y-level (which depth to mine for diamonds vs iron)
+- Mob behavior (creeper explosion radius, zombie door-breaking, spider climb)
+- Redstone mechanics (signal strength, contraption patterns)
+- Structure locations (how to find villages, temples, strongholds)
+- Gameplay progression heuristics (when to go to Nether, how to prep for Ender Dragon)
+
+**Conclusion:** `minecraft-data` is sufficient for all recipe/item/block/entity factual lookups. It does NOT cover the strategic, behavioral, and contextual knowledge a player needs. That gap requires hand-authored Markdown files.
+
+#### Data Sources
+
+| Source | Generates | Format | Volume |
+|--------|-----------|--------|--------|
+| `minecraft-data` (programmatic) | Recipe chains, item facts, food values, block properties, enchantments | Auto-generated chunks at startup | ~250-350 chunks |
+| Hand-authored Markdown (`agent/knowledge/*.md`) | Building, farming, survival, combat, biomes, structures, mining strategy | Static files parsed at startup | ~300-400 chunks |
+| Auto-generated command docs | `!command` registry, arg signatures, common failure modes | Generated from `GAME_TOOLS` array at startup | ~40-60 chunks |
+
+Total corpus: approximately 600-800 chunks, well within in-memory comfort zone.
+
+---
+
+### Component: Chunking Strategy
+
+**Principle:** Each chunk must be a self-contained, answerable unit. A chunk is the smallest thing the LLM can act on without needing more context from the same chunk. It must also fit within 256 tokens (all-MiniLM-L6-v2 limit) to embed correctly.
+
+#### Chunk Types and Target Sizes
+
+**Type 1: Recipe Chain (auto-generated from `minecraft-data`)**
+
+One chunk per final craftable item, including its full ingredient chain from raw materials.
+
+```
+[RECIPE] iron_pickaxe
+Requires: 3 iron_ingot + 2 stick
+iron_ingot: smelt raw_iron (fuel: wood/coal)
+raw_iron: mine iron_ore (stone pickaxe+ required)
+stick: craft from 2 oak_planks
+oak_planks: craft from 1 oak_log (4 per log)
+Tool tier: iron_pickaxe mines up to diamonds
+```
+
+~80-120 tokens. This is the most valuable single chunk type — agents fail most often because they don't know the full chain (e.g., knowing "iron pickaxe needs iron_ingot" but not knowing raw iron must be smelted first).
+
+**Type 2: Item/Block Fact (auto-generated)**
+
+One chunk per item or block for items with notable properties. Skip purely decorative blocks.
+
+```
+[ITEM] diamond
+Found: Y -64 to Y 16, peak at Y -58
+Requires: iron_pickaxe or better to mine
+Uses: diamond_pickaxe, diamond_sword, diamond_armor, enchanting_table
+Rarity: rare — branch mine at Y -58
+```
+
+~40-60 tokens.
+
+**Type 3: Mob Behavior (hand-authored)**
+
+One chunk per mob type covering threat level, behavior, and countermeasures.
+
+```
+[MOB] creeper
+Threat: explodes on proximity (radius 4 blocks, lethal unarmored)
+Behavior: sneaks up silently. Hisses 1.5s before explosion.
+Countermeasure: sprint backward when hissing starts.
+  One shot from iron sword if timed before hiss.
+  Cats/ocelots cause creepers to flee.
+Drops: gunpowder (0-2), music disc (if killed by skeleton)
+```
+
+~60-100 tokens.
+
+**Type 4: Strategy/Technique (hand-authored)**
+
+One chunk per distinct technique or strategy. These are the chunks most likely to be retrieved during failure states.
+
+```
+[STRATEGY] first_night_survival
+Priority order: wood (3+ logs) → planks → crafting_table → sticks
+→ wooden_pickaxe → mine stone (cobblestone) → stone_pickaxe
+→ mine coal (torch light) → return to surface before dark (time 12000)
+Shelter: simplest = dig 3 blocks into a hillside, block entrance.
+Avoid: fighting mobs on night 1 without armor.
+```
+
+~80-120 tokens.
+
+**Type 5: Command Reference (auto-generated from `GAME_TOOLS`)**
+
+One chunk per command, pulled from the tool definition + known failure modes.
+
+```
+[COMMAND] smart_place
+Purpose: Place a block at crosshair or specified support block.
+Usage: smart_place(item="cobblestone") — places at current crosshair
+       smart_place(item="oak_planks", x=10, y=64, z=20, face="top")
+Requires: item in inventory. Auto-equips.
+Common failure: calling without look_at_block first → places wrong face.
+Pre-condition: call look_at_block(x,y,z) before smart_place.
+```
+
+~60-80 tokens.
+
+**Target chunk token range: 40-150 tokens.** This stays well under the 256-token model limit and leaves headroom for the metadata (type, topic tags, item name) stored alongside.
+
+#### Chunking Rules
+
+1. Never split a recipe chain across chunks — the whole chain must be atomic.
+2. Never create a chunk that requires another chunk for context (e.g., "see also: farming").
+3. Tag every chunk with: `type`, `topic[]`, `item_name` (if applicable), `priority` (0=nice-to-have, 1=normal, 2=always-present).
+4. Chunks with `priority: 2` are injected into every prompt without retrieval (these are the ~1,500-token always-present core).
+
+---
+
+### Component: Retrieval Triggers
+
+**When to retrieve:**
+
+| Trigger | Query | Notes |
+|---------|-------|-------|
+| Agent calls `wiki(query)` tool | The query string verbatim | Explicit LLM request — highest quality signal |
+| Action fails with `error.includes("Cannot craft")` | The item name from the error | Auto-triggered on craft failure |
+| Action fails with `error.includes("Cannot smelt")` | The item name | Auto-triggered |
+| Action fails with `error.includes("not in inventory")` | The item name | Suggests agent needs recipe chain |
+| Agent is about to execute `craft(item)` with unknown recipe | The item name | Proactive injection before crafting |
+| Current phase objective changes | Phase name / objective text | Load relevant phase strategy |
+
+**What NOT to trigger on:**
+- Do not retrieve on every tick. The corpus is not a substitute for game state — it is a supplement for when the agent lacks procedural knowledge.
+- Do not retrieve when action succeeds. Successful agents should not accumulate noise.
+
+**Implementation pattern:**
+
+```javascript
+// agent/knowledge.js
+export async function retrieveForAction(action, gameState) {
+  const queries = []
+
+  // Explicit wiki request
+  if (action.type === 'wiki') {
+    queries.push(action.query)
+  }
+
+  // Craft failure: look up the recipe chain
+  if (action.type === 'craft' || (action.lastError && action.lastError.includes('craft'))) {
+    queries.push(`recipe ${action.item}`)
+  }
+
+  // Phase change: load strategy
+  if (action.phaseChanged) {
+    queries.push(`strategy ${action.newPhase}`)
+  }
+
+  if (queries.length === 0) return ''
+
+  const chunks = []
+  for (const q of queries) {
+    const results = await knowledgeStore.retrieve(q, 5)
+    chunks.push(...results)
+  }
+
+  // Deduplicate and format
+  const seen = new Set()
+  const unique = chunks.filter(c => {
+    if (seen.has(c.id)) return false
+    seen.add(c.id)
+    return true
+  })
+
+  return unique.map(c => c.text).join('\n\n').slice(0, 4000)
+}
+```
+
+---
+
+### Component: Core Knowledge (Always Present)
+
+The ~1,500-token always-present block replaces the current 600-token `GAMEPLAY_INSTRUCTIONS`. It contains:
+
+1. **Tool progression** — wood → stone → iron → diamond → netherite, what each tier can mine
+2. **Essential recipes** — crafting table (4 planks), furnace (8 cobblestone), all tool recipes with material counts
+3. **Ore Y-levels** — coal (Y 45), iron (Y 16), gold (Y -16), diamond (Y -58), redstone (Y -58), copper (Y 48)
+4. **Mob threat summary** — zombie (basic), skeleton (ranged), creeper (explosion), spider (night only), enderman (don't look)
+5. **Food priority** — cooked beef/pork (best), bread, baked potato, raw carrot (last resort)
+6. **Day/night timing** — day starts 0, night starts 12000, sunrise 24000; hostile mobs despawn at dawn
+7. **Command quick-reference** — one-liner per command listing args and purpose
+
+This block is hardcoded in `agent/prompt.js` (replacing `GAMEPLAY_INSTRUCTIONS`) and is never retrieved — it is injected on every tick unconditionally.
+
+---
+
+### Token Budget
+
+| Section | Tokens (approximate) | Frequency |
+|---------|----------------------|-----------|
+| SOUL / identity | 400-800 | Every tick |
+| Core MC knowledge (new) | 1,400-1,600 | Every tick |
+| Commands + forbidden words | 300-500 | Every tick |
+| Memory / lessons | 200-400 | Every tick |
+| Pinned context (5 files × 8000 chars) | 0-8,000 | When present |
+| Phase objectives + skill | 200-400 | When in phased mode |
+| **RAG context block** | **0-4,000** | **On retrieval** |
+| Game state (user message) | 500-1,500 | Every tick |
+| History window (90 msgs) | 6,000-15,000 | Every tick |
+| **Total** | **~10,000-35,000** | |
+
+With a 200k context window, even the high end (~35k) is 17% utilization. RAG injection of 4,000 tokens on retrieval adds 11% in the worst case. Well within budget.
+
+**Comparison to current approach:**
+- Current: ~600 tokens of hardcoded MC facts, zero flexibility
+- Post-RAG: ~1,500 tokens always-present core + 0-4,000 tokens on-demand = 1.5x-8.5x more knowledge, proportionally to need
+
+---
+
+### Integration with `agent/prompt.js`
+
+RAG context is injected into the system prompt (not user message) so it survives conversation wipes. The retrieval happens before `buildSystemPrompt()` is called each tick — not inside it.
+
+```javascript
+// agent/index.js — in the tick loop, before buildSystemPrompt
+
+const ragContext = await knowledgeStore.retrieveForAction({
+  type: lastAction?.type,
+  item: lastAction?.item,
+  lastError: lastResult?.error,
+  phaseChanged: phaseJustChanged,
+  newPhase: currentPhase?.name,
+}, gameState)
+
+const systemPrompt = buildSystemPrompt(agentConfig, phase, {
+  // ... existing params ...
+  ragContext,   // new param
+})
+```
+
+In `buildSystemPrompt()`:
+```javascript
+if (ragContext) {
+  parts.push(`\n== KNOWLEDGE ==\n${ragContext}`)
+}
+```
+
+The `== KNOWLEDGE ==` section appears after pinned context and before game state so it does not interfere with the task planning sections.
+
+---
+
+### Implementation: `agent/knowledge.js` Module
+
+New module following project conventions:
+
+```javascript
+// knowledge.js — Minecraft knowledge corpus + RAG retrieval
+// Responsibilities:
+//   - Build corpus from minecraft-data + hand-authored MD files at startup
+//   - Embed and index all chunks (Vectra + MiniSearch)
+//   - Provide retrieve(query, topK) with hybrid BM25+vector RRF fusion
+//   - Provide alwaysPresentKnowledge() → the 1,500-token static block
+
+export async function initKnowledge(agentConfig) { ... }
+export async function retrieveKnowledge(query, topK = 5) { ... }
+export function alwaysPresentKnowledge() { ... }
+export function getCommandDocs() { ... }   // auto-generated from GAME_TOOLS
+```
+
+The module is initialized once at startup inside `main()` alongside `initMemory()`, `initSkills()` etc. No per-tick I/O — corpus is fully in-memory after init.
+
+---
+
+### Auto-Documenting `!commands`
+
+The `GAME_TOOLS` array in `agent/tools.js` is the source of truth for all commands. At knowledge init time, iterate `GAME_TOOLS` and generate one chunk per tool:
+
+```javascript
+function generateCommandChunks(tools) {
+  return tools.map(tool => {
+    const fn = tool.function
+    const params = Object.entries(fn.parameters.properties || {})
+      .filter(([k]) => k !== 'reason')
+      .map(([k, v]) => `${k}: ${v.type}${v.description ? ` (${v.description})` : ''}`)
+      .join(', ')
+    return {
+      id: `cmd:${fn.name}`,
+      type: 'command',
+      priority: 1,
+      text: `[COMMAND] ${fn.name}\n${fn.description}\nArgs: ${params || 'none'}`,
+    }
+  })
+}
+```
+
+This means command documentation never drifts from the actual registered tools. When a new command is added to `GAME_TOOLS`, its knowledge chunk is generated automatically next time the agent starts.
+
+---
+
+## 3. Architecture from Previous Research (v2.0 Rewrite)
+
+The following content is retained from the earlier v2.0 architecture research and covers the Mind+Body mineflayer agent design. The RAG system described above adds a new subsystem to that architecture — the `KnowledgeStore` — sitting between the prompt builder and the corpus files.
 
 ```
 agent/
-├── index.js                 # entry point — createBot(), init Agent, start
-├── agent.js                 # Agent class — orchestrates all modules
-├── config.js                # loadAgentConfig() — env, SOUL file, profiles
-├── logger.js                # all log functions, rich output, box-drawing
+├── index.js             # entry point
+├── agent.js             # orchestrator
+├── config.js
+├── logger.js
 │
-├── mind/                    # LLM reasoning layer — everything that calls the LLM
-│   ├── prompter.js          # LLM client — send history, receive response
-│   ├── self-prompter.js     # goal loop — re-prompt when idle >= 2000ms
-│   ├── history.js           # conversation window, compression, summarize
-│   └── prompt-builder.js    # buildSystemPrompt(), buildUserMessage()
+├── mind/
+│   ├── prompter.js      # LLM client
+│   ├── self-prompter.js # goal loop
+│   ├── history.js       # conversation window
+│   └── prompt-builder.js
 │
-├── body/                    # skill execution layer — everything that calls Mineflayer
-│   ├── action-manager.js    # one-at-a-time, interrupt, timeout, result
-│   ├── modes.js             # ModeController — reactive autonomous behaviors
-│   ├── commands/            # LLM-visible interface (parsed from !command syntax)
-│   │   ├── index.js         # registry, executeCommand(), parseCommand()
-│   │   ├── navigate.js      # !goTo, !explore, !followPlayer, !stopMoving
-│   │   ├── gather.js        # !collectBlocks, !pickupItem
-│   │   ├── build.js         # !placeBlock, !build, !clearArea
-│   │   ├── craft.js         # !craft, !smelt, !equip
-│   │   ├── combat.js        # !attack, !flee, !defend
-│   │   └── social.js        # !chat, !give, !trade, !respond
-│   └── skills/              # low-level async primitives (not LLM-visible directly)
-│       ├── navigate.js      # goToPosition(), goToPlayer(), explore()
-│       ├── gather.js        # collectBlock(), mineVein()
-│       ├── build.js         # placeBlock(), clearArea()
-│       ├── craft.js         # craftRecipe(), smelt()
-│       ├── combat.js        # attackEntity(), flee()
-│       └── world.js         # getStateSnapshot(), getNearbyBlocks(), getInventory()
+├── body/
+│   ├── action-manager.js
+│   ├── modes.js         # reactive behaviors
+│   └── commands/        # LLM-visible interface
+│       └── skills/      # mineflayer primitives
 │
-├── memory/                  # persistent state — survives crashes and restarts
-│   ├── memory.js            # MEMORY.md, notepad, lessons, skill files
-│   ├── locations.js         # named locations (name → Vec3) + resource patches
-│   └── session-log.js       # JSONL session archive
+├── knowledge/           # NEW: RAG subsystem
+│   ├── knowledge.js     # KnowledgeStore module
+│   ├── corpus/          # hand-authored Markdown chunks
+│   │   ├── biomes.md
+│   │   ├── combat.md
+│   │   ├── building.md
+│   │   ├── farming.md
+│   │   ├── mining.md
+│   │   ├── survival.md
+│   │   ├── redstone.md
+│   │   └── structures.md
+│   └── .index/          # Vectra index files (gitignored, rebuilt on startup)
 │
-├── social/                  # player and multi-agent interaction
-│   ├── conversation.js      # ConversationManager — message routing, priority
-│   └── shared-state.js      # (v2.1+) cross-agent task registry
-│
-├── data/
-│   ├── jeffrey/             # per-agent data directory
-│   │   ├── MEMORY.md        # lessons, strategies
-│   │   ├── notepad.txt      # LLM scratchpad (read/write across ticks)
-│   │   ├── stats.json       # deaths, completions, counters
-│   │   └── context/         # pinned context files (plans, long tasks, ≤5 files)
-│   └── john/
-│       └── ...
-│
-├── SOUL-jeffrey.md          # Jeffrey's personality, backstory, voice
-├── SOUL-john.md             # John's personality, backstory, voice
-└── skills/                  # agentskills.io SKILL.md files (carry over from v1)
-    ├── minecraft-first-night/SKILL.md
-    └── ...
-```
-
-### Structure Rationale
-
-- **mind/ vs body/:** Explicit separation makes LLM call paths visible. No file in `mind/` imports from `body/skills/`. No file in `body/` calls the LLM. The boundary is strict and testable.
-- **commands/ vs skills/:** Commands are the LLM-visible API — their names appear in the system prompt. Skills are internal implementations. Refactoring a skill never changes the LLM's interface. This is the pattern Mindcraft uses.
-- **modes/ as a separate concern:** Modes run on a 300ms timer, independent of the command loop. They are not commands and the LLM never calls them. They fire when conditions are met — hostile nearby, low health, stuck in place. This independence is what makes the agent feel alive between LLM calls.
-- **memory/ flat files:** No database. MEMORY.md, notepad.txt, and context/ files survive crashes, restarts, and git clones. At 2-10 agent scale, file I/O is not a bottleneck.
-
----
-
-## Decision Loop
-
-### Normal Tick (No Interrupts)
-
-```
-SelfPrompter.update() called every 300ms
-    │
-    ├── currentAction running? → skip
-    │
-    ├── idle_time < 2000ms → accumulate, skip
-    │
-    └── idle_time >= 2000ms → trigger LLM loop
-            │
-            ▼
-    world.getStateSnapshot(bot)          ← position, health, inventory, nearby
-    promptBuilder.buildSystemPrompt()    ← SOUL + commands + memory lessons
-    promptBuilder.buildUserMessage()     ← snapshot + notepad + progress
-            │
-            ▼
-    prompter.promptConvo(history)        ← LLM call (15-30s cadence effectively)
-            │
-            ▼
-    containsCommand(response)?
-    │
-    ├── NO (3 consecutive misses → abort loop)
-    │       history.add('assistant', response)
-    │       bot.chat(response) if natural language
-    │
-    └── YES
-            executeCommand(agent, '!commandName(args)')
-                    │
-                    ▼
-              ActionManager.runAction(fn)
-              ├── stop() — set interrupt_code=true, drain current action
-              ├── interrupt_code = false — clear flag for new action
-              ├── fn(agent) — skill execution
-              │       checks bot.interrupt_code in every loop body
-              ├── timeout watchdog (10 min)
-              └── returns {success, message, interrupted, timedout}
-                    │
-                    ▼
-            history.add('assistant', response)
-            history.add('system', result.message)
-            idle_time = 0 → loop back
-```
-
-### Interrupt Flow
-
-```
-Player sends chat message
-    │
-    bot.on('chat') fires
-    │
-    ConversationManager.handleMessage(sender, text)
-    ├── pause SelfPrompter (clear idle accumulator)
-    ├── ActionManager.requestInterrupt()
-    │       sets bot.interrupt_code = true
-    │       awaits current skill to cooperative-exit
-    │
-    └── agent.handleMessage(sender, text)
-            │
-            full LLM call with message priority-injected
-            │
-            executeCommand(...) → resume SelfPrompter
-
-ModeController.update() — fires every 300ms, never awaited longer than 100ms
-    │
-    mode.update(agent)
-    │
-    ├── condition NOT met → skip
-    │
-    └── condition met (e.g. health < 6)
-            │
-            ActionManager.stop()
-            │
-            execute mode behavior (flee, eat, etc.)
-            │
-            emit 'idle' → SelfPrompter resumes
-```
-
-### State Persistence Across Ticks
-
-```
-File System                    In-Memory                    LLM Context
-──────────                     ─────────                    ───────────
-SOUL-jeffrey.md  ──(init)──▶  agentConfig.soul       ──▶  system prompt (every call)
-MEMORY.md        ──(init)──▶  memory.lessons          ──▶  system prompt (every call)
-skills/*/SKILL.md──(init)──▶  skills[]                ──▶  system prompt (relevant)
-notepad.txt      ──(every)──▶ notepadContents         ──▶  user message (every call)
-context/*.md     ──(every)──▶ pinnedContext[]          ──▶  user message (every call)
-stats.json       ──(every)──▶ stats object             ──▶  user message (summary)
-                 ◀──(async)── history.turns        → JSONL session archive
+└── memory/
+    ├── memory.js
+    └── session-log.js
 ```
 
 ---
 
-## Mind-Body Interface Contract
+## 4. Key Decisions Summary
 
-This is the hard boundary. The Mind produces command strings. The Body executes them. Neither layer reaches into the other's internals.
-
-### Command Definition (Body provides, Mind names)
-
-```javascript
-// body/commands/gather.js
-export const collectBlocks = {
-  name: '!collectBlocks',
-  description: 'Mine and collect the specified block type. Use for gathering resources.',
-  params: {
-    blockType: { type: 'BlockName', description: 'Block to collect (e.g. oak_log, stone)' },
-    count:     { type: 'int', domain: [1, 64, '[]'], description: 'How many to collect' },
-  },
-  perform: async (agent, blockType, count) => {
-    // delegates to skills — never imports from mind/
-    const result = await skills.collectBlock(agent.bot, blockType, count)
-    return result ? `Collected ${count} ${blockType}.` : `Failed to collect ${blockType}.`
-  }
-}
-```
-
-### ActionResult (what Body returns to Mind)
-
-Every `command.perform()` runs through `ActionManager.runAction()`. The Mind gets back:
-
-```javascript
-{
-  success: Boolean,       // did the skill complete its stated goal?
-  message: String,        // appended to history as role:'system' turn
-  interrupted: Boolean,   // halted by interrupt_code (mode or player message)
-  timedout: Boolean,      // halted by timeout watchdog
-}
-```
-
-The `message` string is what the LLM reads on the next turn and reasons from.
-
-### Interrupt Contract
-
-Any component may interrupt the Body:
-1. Set `agent.bot.interrupt_code = true`
-2. Optionally call `ActionManager.stop()` to await cooperative drain
-
-Every skill function MUST check `if (bot.interrupt_code) return false` inside every loop body. A skill that omits this check is a defect — it blocks modes and makes the agent unresponsive to chat.
+| Decision | Rationale | Confidence |
+|----------|-----------|------------|
+| Vectra for vector store | Zero external server; in-memory; cosine similarity; file persistence; pure JS | HIGH |
+| MiniSearch for BM25 | Zero dependencies; ESM native; exact item name matching where semantic fails | HIGH |
+| Hybrid RRF fusion | Outperforms either method alone on structured knowledge; minimal code | MEDIUM |
+| all-MiniLM-L6-v2 via @huggingface/transformers | Local ONNX; no API dependency; 384-dim; 256-token window fits MC chunks | HIGH |
+| minecraft-data for recipes/items only | Auto-generates the structural half of corpus; strategic knowledge must be hand-authored | HIGH |
+| 40-150 token chunk size | Fits embedding model's 256-token window; one fact per chunk; actionable standalone | MEDIUM |
+| Retrieval on failure + explicit wiki call only | Prevents per-tick overhead; retrieval is an exception, not the rule | HIGH |
+| Always-present core (~1,500 tokens) replaces current GAMEPLAY_INSTRUCTIONS | Higher coverage; consistent; no retrieval latency for critical survival facts | HIGH |
+| Command docs auto-generated from GAME_TOOLS | Never drifts; zero maintenance; agents always have accurate command reference | HIGH |
 
 ---
 
-## Cooperative Interrupt Pattern (Critical)
+## 5. Pitfalls
 
-```javascript
-// body/skills/gather.js
-export async function collectBlock(bot, blockType, count) {
-  let collected = 0
-  while (collected < count) {
-    if (bot.interrupt_code) return false          // cooperative exit point
+### Pitfall 1: Embedding model cold start blocking the tick loop
+The first startup downloads and deserializes the ONNX model (~2-5s total). Do not block the tick loop. Initialize the knowledge module before entering the tick loop, in the `main()` startup sequence. If the embedding model fails to load, fall back to BM25-only mode — still useful for exact keyword matching.
 
-    const block = bot.findBlock({
-      matching: mc.getBlockId(blockType),
-      maxDistance: 64,
-    })
-    if (!block) break
+### Pitfall 2: Vectra index drift after corpus changes
+If hand-authored Markdown files are edited, the stored vectors will be stale. Solution: hash the corpus files at startup. If any hash differs from what is stored in `.index/corpus.hash`, rebuild the index. Rebuild takes ~4-12s — acceptable at startup, not acceptable mid-session.
 
-    await goToPosition(bot, block.position.x, block.position.y, block.position.z, 2)
-    if (bot.interrupt_code) return false          // check after every await
+### Pitfall 3: Recipe chains not being atomic
+If a recipe chunk is split (ingredients in one chunk, crafting steps in another), retrieval may return only half the chain. The agent gets `iron_pickaxe needs iron_ingot` but not `smelt raw_iron to get iron_ingot`. Result: another failed craft. Atomic recipe chains per chunk are mandatory.
 
-    await bot.dig(block)
-    if (bot.interrupt_code) return false
-    collected++
-  }
-  return collected > 0
-}
-```
+### Pitfall 4: LLM ignoring retrieved knowledge
+If the RAG context is injected but the LLM ignores it, the failure is silent. The prompt section header `== KNOWLEDGE ==` must frame the content as authoritative, not optional. Example framing: `== KNOWLEDGE (use this) ==\n[retrieved chunks here]`.
 
-Checking after every `await` is mandatory. The interrupt flag is set between ticks, not mid-await. An await-heavy function that checks only at loop start can still hold for 200-500ms per iteration, which is acceptable.
+### Pitfall 5: all-MiniLM-L6-v2 poor performance on game jargon
+The model was trained on general English text. Minecraft-specific terms like "creeper", "enderman", "nether" may not embed well. Mitigation: tag chunks with explicit keywords used in the item_name and topic fields; these flow to BM25 which handles exact-match well. The hybrid approach specifically exists to handle this gap.
 
 ---
 
-## Reactive Modes (Body Layer, Independent of LLM)
+## 6. Sources
 
-Modes make the agent feel alive between LLM decisions. They handle emergencies the LLM would be too slow to respond to.
-
-```javascript
-// body/modes.js — ordered by priority (highest first)
-const MODES = [
-  {
-    name: 'self_preservation',
-    interrupts: ['all'],
-    update: async (agent) => {
-      if (agent.bot.health <= 6 && !this.active) {
-        this.active = true
-        await skills.retreat(agent.bot)
-        await skills.eatFood(agent.bot)
-        this.active = false
-      }
-    }
-  },
-  {
-    name: 'self_defense',
-    interrupts: ['all'],
-    update: async (agent) => {
-      const hostile = world.getNearestHostile(agent.bot, 8)
-      if (hostile && !this.active) {
-        this.active = true
-        await skills.equipHighestAttack(agent.bot)
-        await skills.attackEntity(agent.bot, hostile)
-        this.active = false
-      }
-    }
-  },
-  {
-    name: 'unstuck',
-    interrupts: ['all'],
-    // fires if position hasn't changed in 5s during navigation
-    update: async (agent) => { /* ... */ }
-  },
-  {
-    name: 'item_collecting',
-    interrupts: [],            // doesn't interrupt deliberate actions
-    // picks up nearby dropped items when idle
-    update: async (agent) => { /* ... */ }
-  },
-]
-```
-
-Mode updates must complete within ~100ms. Do not `await` a pathfinder.goto inside a mode update — start it async, track `this.active`, check again next tick.
+- Vectra GitHub (`Stevenic/vectra`) — file-backed in-memory model, cosine similarity, zero infrastructure — HIGH confidence (repository README read)
+- MiniSearch npm/GitHub (`lucaong/minisearch`) — BM25 implementation, zero deps, ESM, 7.2.0 — HIGH confidence (npm package page + GitHub README)
+- `@huggingface/transformers` npm (`huggingface/transformers.js`) — v3.x ONNX, all-MiniLM-L6-v2, Node.js ESM, 256-token limit — HIGH confidence (HuggingFace docs + model card)
+- `PrismarineJS/node-minecraft-data` API docs — coverage boundaries established — HIGH confidence (API docs read directly)
+- NVIDIA chunking benchmark 2024 — optimal chunk sizes by content type — MEDIUM confidence (secondary source, WebSearch)
+- Hybrid BM25+vector RRF literature — consistent across multiple sources (2024-2025) — MEDIUM confidence
+- Token budget estimates — based on measured prompt sections in `agent/prompt.js` — HIGH confidence (source read directly)
+- LanceDB native binary requirement — `@lancedb/lancedb-linux-x64-gnu` platform dependency identified — MEDIUM confidence (WebSearch, not directly installed and measured)
+- Mindcraft knowledge approach — no RAG, relies on base LLM knowledge + static examples — HIGH confidence (GitHub README read via WebFetch)
 
 ---
 
-## Multi-Agent Coordination Pattern
-
-Two agents (Jeffrey, John) run as separate Node.js processes. Coordination is loose-coupled by design.
-
-### Primary Channel: In-Game Chat
-
-Agents chat to each other via `bot.chat()`. This is the natural Minecraft communication layer.
-
-```
-Jeffrey process                         John process
-───────────────                         ────────────
-!chat("John, can you smelt              bot.on('chat') fires
-  these ores while I mine?")  ──▶       ConversationManager sees "Jeffrey:" prefix
-                                        SelfPrompter pauses
-                                        LLM call: "Jeffrey asked me to smelt ores"
-                                        → !goToPosition(furnace) → !smelt("iron_ore", 32)
-```
-
-ConversationManager identifies bot messages by cross-referencing agent names. Bot-to-bot messages are tagged `(FROM OTHER BOT)` in history so the LLM knows the sender is an agent.
-
-### Secondary Channel: Shared File (v2.1+, not v2.0)
-
-For structured task handoffs (claim a mine area, register a build zone), `agent/data/shared/coordination.json` with file locking. Not required for v2.0 with 2 agents — chat is sufficient.
-
-### Process Isolation
-
-| Isolation | What it means |
-|-----------|---------------|
-| Separate Node.js process per agent | Crash in Jeffrey does not affect John |
-| Separate `data/{name}/` | Memories, notepad, and context are per-agent |
-| Separate `MC_USERNAME` | Separate Minecraft logins, no shared in-process state |
-| No shared in-memory objects | All coordination via game world or files only |
-
----
-
-## Scaling Considerations
-
-| Scale | Architecture Adjustments |
-|-------|--------------------------|
-| 2 agents (v2.0) | Separate processes, chat coordination — current design is sufficient |
-| 5-10 agents | Add shared task registry (file or SQLite); deduplicate LLM calls for shared goals; rate-limit concurrent calls |
-| 10+ agents | MindServer coordinator process; agents register task ownership; event-based LLM triggering instead of idle polling |
-
-### Scaling Priorities
-
-1. **First bottleneck (2-5 agents):** LLM call rate. At 15-30s cadence, 5 agents = 10-20 calls/min. MiniMax M2.7 is cheap — not a cost problem. If model changes, add staggered start timers to spread calls.
-2. **Second bottleneck (5+ agents):** File I/O contention on shared coordination files. Move to SQLite at that point.
-3. **RAM is not a bottleneck:** Mineflayer bots are ~100MB each. 10 agents = ~1GB on a 15GB host. Headroom is large.
-
----
-
-## Anti-Patterns
-
-### Anti-Pattern 1: LLM Called on Every Game Tick
-
-**What people do:** Fire an LLM call every 2s regardless of whether the previous action has completed (the v1 HermesCraft architecture).
-
-**Why it's wrong:** Skills that take 10-30s (navigate 200 blocks, mine 32 ore) get interrupted before completion. The LLM spends most turns saying "still working on it." Token cost balloons. The v1 diagnosis documented exactly this failure.
-
-**Do this instead:** Call LLM only when idle (all skills complete, no active action). SelfPrompter's 2s idle timer is the correct trigger. Skill execution runs uninterrupted to completion.
-
-### Anti-Pattern 2: HTTP Bridge Between Agent and Game
-
-**What people do:** Separate the agent from the bot with an HTTP server (v1 HermesBridge).
-
-**Why it's wrong:** HTTP round-trips add latency, create race conditions ("another action pending"), require coordinate translation, and need a separate process. The v1 post-mortem listed crosshair drift, coordinate bugs, and 1GB RAM per agent.
-
-**Do this instead:** Mineflayer bot in the same process as the agent. `bot.dig(block)` is a direct async call. Zero HTTP, zero translation layer.
-
-### Anti-Pattern 3: Skill Functions Without interrupt_code Checks
-
-**What people do:** Write skill functions as linear async chains without the cooperative cancel check.
-
-**Why it's wrong:** A navigate call that takes 30s cannot be preempted. Modes can't fire. Player chat is ignored for 30s. Agent gets stuck in action loops with no escape.
-
-**Do this instead:** Every loop body, every await, is followed by `if (bot.interrupt_code) return false`. The interrupt flag is the only safe cancellation mechanism. Treat it as a required invariant for every exported skill function.
-
-### Anti-Pattern 4: Giving the LLM Raw Mineflayer API Access
-
-**What people do:** Let the LLM generate Mineflayer code directly (Voyager-style) — `bot.pathfinder.goto(new GoalNear(...))`.
-
-**Why it's wrong:** API details change. Generated code is brittle. Sandboxing is a security risk. The LLM spends tokens on boilerplate instead of reasoning about what to do next.
-
-**Do this instead:** Command abstraction — `!collectBlocks("oak_log", 5)`. The LLM names intent. Skills handle Mineflayer details. This is Mindcraft's core design choice and it works.
-
-### Anti-Pattern 5: One Monolithic Skills File
-
-**What people do:** Pile all skill functions into one `skills.js` (Mindcraft itself does this — 1,340 lines).
-
-**Why it's wrong:** Impossible to test in isolation. Merge conflicts on every addition. Navigation changes break craft logic by proximity in the file. Onboarding is painful.
-
-**Do this instead:** Split by domain — `navigate.js`, `gather.js`, `build.js`, `craft.js`, `world.js`. Each is independently testable. Commands import only what they need.
-
----
-
-## Integration Points
-
-### External Services
-
-| Service | Integration Pattern | Notes |
-|---------|---------------------|-------|
-| Minecraft Server (Paper 1.21.1) | `mineflayer.createBot()` — direct TCP | No mod, no HTTP, no Xvfb |
-| LLM (MiniMax M2.7) | `openai` client — `chat.completions.create` | Change `baseURL` and `model` only |
-| mineflayer-pathfinder | `bot.loadPlugin(pathfinder)` | `bot.pathfinder.goto(goal)` returns Promise |
-| minecraft-data | `mcData(version)` — block/item IDs, recipes | Used inside skills, not exposed to commands |
-| @mineflayer-navigate or built-in pathfinder | Same as pathfinder | GoalNear, GoalBlock, GoalFollow |
-
-### Internal Boundaries
-
-| Boundary | Communication | Rule |
-|----------|---------------|------|
-| Mind → Body | Command string → `executeCommand()` in commands registry | Mind never calls `skills.*` directly |
-| Body → Mind | `ActionResult.message` appended to `history` | Skills never call Prompter |
-| Modes → ActionManager | `ActionManager.stop()` + `interrupt_code` flag | Modes request stop, do not own execution |
-| Agent → Memory | `memory.load()` at init; `memory.save()` async after changes | Only memory.js writes its files |
-| Multi-agent | `bot.chat()` / in-game chat channel | No IPC sockets, no shared in-memory objects |
-
----
-
-## Build Order
-
-Dependencies are strict — each phase requires the prior phase to be working.
-
-```
-Phase 1 — Bot Foundation
-  mineflayer.createBot() + pathfinder plugin loading
-  ActionManager (interrupt, timeout, result shape)
-  Skills: navigate.js (goToPosition, goToPlayer)
-         world.js (getStateSnapshot)
-         gather.js (collectBlock)
-  Commands: !goTo, !collectBlocks, !stop
-  Verify: bot navigates, mines, and returns result message
-
-Phase 2 — Mind Loop
-  Prompter (openai client, history management)
-  SelfPrompter (idle timer, goal injection, miss counter)
-  prompt-builder (system prompt: SOUL + commands + memory)
-  End-to-end smoke test: agent decides !collectBlocks from LLM
-  Verify: LLM output drives a real block collection
-
-Phase 3 — Survival Modes
-  ModeController (300ms loop)
-  Modes: self_preservation, self_defense, unstuck, item_collecting
-  Verify: spawn hostile → agent fights without LLM call
-          fall into lava → agent retreats without LLM call
-          get stuck → agent recovers without LLM call
-
-Phase 4 — Full Skill Set
-  Skills: build.js (placeBlock, clearArea)
-          craft.js (craftRecipe, smelt)
-          combat.js (attackEntity, flee)
-  Commands: !placeBlock, !craft, !smelt, !attack
-  Crafting chain solver (carry over crafter.js from v1)
-  Memory: MEMORY.md, notepad read/write, context/ pinned files
-
-Phase 5 — Personality + Multi-Agent
-  SOUL file loading per agent (jeffrey, john)
-  ConversationManager (chat routing, bot-to-bot tagging)
-  Per-agent data directories (data/jeffrey/, data/john/)
-  Two agents on server simultaneously
-  Verify: Jeffrey and John coordinate on a task via chat
-```
-
----
-
-## Key Design Decisions
-
-| Decision | Rationale |
-|----------|-----------|
-| SelfPrompter idle timer (2s) rather than fixed interval | Prevents LLM calls while skills are running; cadence is determined by skill duration, not a clock |
-| `interrupt_code` flag (cooperative) rather than Promise.race | Skills need to clean up (close GUIs, stop pathfinder) before returning; forced abort leaves bot in bad state |
-| Commands as parsed text, not tool calls | Simpler to debug; LLM text is human-readable; `tool_choice: required` is model-specific and fragile |
-| Modes at 300ms, not event-driven | Polling at 300ms is cheap; event handlers for every mob-spawn/damage event create handler proliferation; polling is predictable |
-| Separate process per agent, no MindServer for v2.0 | 2 agents don't need coordination infrastructure; add MindServer when scaling to 5+ |
-
----
-
-## Sources
-
-- Mindcraft source (`kolbytn/mindcraft`) — `agent.js`, `action_manager.js`, `modes.js`, `self_prompter.js`, `library/skills.js`, `library/full_state.js`, `library/world.js`, `history.js`, `memory_bank.js`, `process/agent_process.js` — read directly from GitHub raw — HIGH confidence
-- Mindcraft architecture overview — DeepWiki `kolbytn/mindcraft/7-configuration` — module breakdown confirmation — MEDIUM confidence (secondary source, consistent with primary)
-- AIRI Minecraft agent (`moeru-ai/airi`) — DeepWiki `4.1-minecraft-agent` — decision loop, interrupt guards, action queue — MEDIUM confidence (independent implementation, confirms same patterns)
-- mineflayer-pathfinder (`PrismarineJS/mineflayer-pathfinder`) — `GoalNear`, `pathfinder.goto()` Promise API, known issues — HIGH confidence (official repo)
-
----
-
-*Architecture research for: HermesCraft v2.0 Mineflayer Mind + Body rewrite*
+*Architecture research for: HermesCraft Minecraft RAG knowledge milestone*
 *Researched: 2026-03-22*
