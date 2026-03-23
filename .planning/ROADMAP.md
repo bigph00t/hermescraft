@@ -7,7 +7,7 @@
 - [x] **v2.0** - Mineflayer Rewrite — Phases 1-6 (shipped 2026-03-22)
 - [x] **v2.1** - Creative Building + Bug Fixes — Phases 7-10 (shipped 2026-03-22)
 - [x] **v2.2** - Minecraft RAG — Phases 11-13 (shipped 2026-03-23)
-- [ ] **v2.3** - Persistent Memory & Ambitious Building — Phases 14-22
+- [ ] **v2.3** - Persistent Memory & Ambitious Building — Phases 14-26
 
 ---
 
@@ -26,7 +26,7 @@ See: `.planning/milestones/v2.2-ROADMAP.md` for full details.
 
 ## v2.3 Persistent Memory & Ambitious Building
 
-**Milestone Goal:** Transform agents into learning, growing beings with persistent memory, dual-brain reasoning, vision, ambitious building, and full Minecraft gameplay mastery. Deploy custom Qwen3.5-27B model on RunPod A6000 with background 9B brain.
+**Milestone Goal:** Transform agents into learning, growing beings with persistent memory, dual-brain reasoning, vision, ambitious building, and full Minecraft gameplay mastery. Deploy Qwen3.5-35B-A3B MoE (native vision) on RunPod A6000 serving 4 unique agent personalities with text-to-speech proximity voice chat.
 
 ## Phases
 
@@ -39,6 +39,10 @@ See: `.planning/milestones/v2.2-ROADMAP.md` for full details.
 - [x] **Phase 20: Gameplay Loops** - Animal farming, crop farming, mob hunting, exploration, trading, enchanting, nether, progression (completed 2026-03-23)
 - [x] **Phase 21: Multi-Agent Coordination** - Shared task registry, chat dedup, spatial task splitting, activity broadcasting (completed 2026-03-23)
 - [x] **Phase 22: Polish & Tool Fixes** - Tool auto-equipping, bug fixes, prompt tuning, overnight stability (completed 2026-03-23)
+- [ ] **Phase 23: Model Switch + Unified Inference** - Replace 3-model setup with single Qwen3.5-35B-A3B MoE (native vision)
+- [ ] **Phase 24: Four Agents + Prompt Polish** - 4 unique personalities, less prescriptive prompts, proximity chat
+- [ ] **Phase 25: Voice Chat** - TTS bridge + Simple Voice Chat plugin for proximity voice
+- [ ] **Phase 26: RunPod Deployment** - Provision A6000 48GB, deploy full 4-agent stack with TTS
 
 ## Phase Details
 
@@ -171,9 +175,64 @@ Plans:
 - [x] 22-01-PLAN.md — Tool auto-equip fix (shared canHarvestWith utility, gather.js requireHarvest, mine.js refactor) + chat count reset fix (POLISH-EQUIP, POLISH-CHATCOUNT)
 - [x] 22-02-PLAN.md — Graceful shutdown (SIGTERM/SIGINT), scheduled restart (ONNX leak, exit code 42), launch-duo.sh loop fix, smoke tests (POLISH-STABILITY, POLISH-PERSISTENCE)
 
+### Phase 23: Model Switch + Unified Inference
+**Goal**: Replace 3-model architecture (hermes 27B + 9B + VLM) with single Qwen3.5-35B-A3B MoE served via vLLM — native vision, one process for everything
+**Depends on**: Phase 22
+**Requirements**: Infrastructure — enabling phase
+**Success Criteria** (what must be TRUE):
+  1. infra/start-models.sh launches single vLLM instance with Qwen3.5-35B-A3B Q4_K_XL on port 8000
+  2. infra/setup-pod.sh downloads Qwen3.5-35B-A3B from Unsloth (not heretic GGUF + Qwen3.5-9B)
+  3. mind/llm.js MODEL_NAME default updated, MAX_TOKENS tuned for MoE throughput
+  4. mind/backgroundBrain.js uses same VLLM_URL as main brain (no separate port 8001)
+  5. mind/vision.js uses same VLLM_URL for native vision (no separate port 8002)
+  6. .env.runpod simplified to single endpoint
+  7. Smoke tests pass with updated defaults
+**Plans**: TBD
+
+### Phase 24: Four Agents + Prompt Polish
+**Goal**: 4 unique agent personalities with less prescriptive prompting — creative behavior emerges from knowledge + tools, not explicit instructions. Proximity-based chat so agents only hear nearby agents.
+**Depends on**: Phase 23
+**Requirements**: Infrastructure — enabling phase
+**Success Criteria** (what must be TRUE):
+  1. SOUL files exist for all 4 agents: Luna (artist), Max (engineer), Ivy (naturalist), Rust (adventurer)
+  2. launch-quad.sh launches 4 agents in tmux with staggered starts
+  3. System prompt Part 2 is less prescriptive — removes forced chat patterns, lets personality drive behavior
+  4. "YOU TWO" section replaced with group-aware language (4 agents, not just 2)
+  5. Proximity chat: agents only receive/respond to chat messages from players within 32 blocks
+  6. Vision prompting enhanced: agents use !see proactively based on personality (Rust scouts, Luna evaluates builds)
+  7. All 4 SOUL files loaded correctly based on AGENT_NAME env var
+**Plans**: TBD
+
+### Phase 25: Voice Chat
+**Goal**: Text-to-speech for all 4 agents via Simple Voice Chat plugin — each agent has a distinct voice, proximity-based so players hear nearby agents talking
+**Depends on**: Phase 24
+**Requirements**: Infrastructure — enabling phase
+**Success Criteria** (what must be TRUE):
+  1. Simple Voice Chat plugin installed on Paper server (docker-compose.runpod.yml)
+  2. Python TTS bridge script converts agent chat text to audio (XTTS-v2 or Piper)
+  3. 4 distinct voice profiles configured (one per agent personality)
+  4. Audio injected into Simple Voice Chat as proximity audio — fades with distance
+  5. infra/start-stack.sh launches TTS bridge alongside agents
+  6. TTS latency under 500ms per utterance
+**Plans**: TBD
+
+### Phase 26: RunPod Deployment
+**Goal**: Full 4-agent stack running on RunPod A6000 48GB with TTS proximity voice chat
+**Depends on**: Phase 25
+**Requirements**: Infrastructure — enabling phase
+**Success Criteria** (what must be TRUE):
+  1. RunPod A6000 48GB pod running with Qwen3.5-35B-A3B MoE via vLLM on port 8000
+  2. Paper MC server in Docker with Simple Voice Chat plugin
+  3. All 4 agents (Luna, Max, Ivy, Rust) connected and producing coherent responses
+  4. TTS bridge producing audio for all 4 agents
+  5. Response latency under 3 seconds per agent tick
+  6. 4 agents can run concurrently without GPU contention
+  7. System stable for 12+ hours
+**Plans**: TBD
+
 ## Progress
 
-**Execution Order:** 14 → 15 → 16 → 17 → 18 → 19 → 20 → 21 → 22
+**Execution Order:** 14 → 15 → 16 → 17 → 18 → 19 → 20 → 21 → 22 → 23 → 24 → 25 → 26
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -186,3 +245,7 @@ Plans:
 | 20. Gameplay Loops | 2/2 | Complete    | 2026-03-23 |
 | 21. Multi-Agent Coordination | 2/2 | Complete    | 2026-03-23 |
 | 22. Polish & Tool Fixes | 2/2 | Complete    | 2026-03-23 |
+| 23. Model Switch + Unified Inference | 0/TBD | Not started | - |
+| 24. Four Agents + Prompt Polish | 0/TBD | Not started | - |
+| 25. Voice Chat | 0/TBD | Not started | - |
+| 26. RunPod Deployment | 0/TBD | Not started | - |
