@@ -42,12 +42,12 @@ Requirements for Persistent Memory & Ambitious Building milestone.
 - [x] **GPL-02**: Crop farming — plant, grow, harvest wheat/carrots/potatoes; use bone meal; auto-replant
 - [x] **GPL-03**: Mob hunting — actively seek and fight hostiles for drops (bones, string, gunpowder, ender pearls)
 - [x] **GPL-04**: Exploration — systematic world exploration, discover villages/temples/biomes, report findings
-- [ ] **GPL-05**: Villager trading — locate villagers, understand professions, trade for useful items
+- [x] **GPL-05**: Villager trading — locate villagers, understand professions, trade for useful items
 - [x] **GPL-06**: Smelting & furnace management — smelt ores, cook food, manage fuel efficiently
-- [ ] **GPL-07**: Enchanting — build enchanting setup, enchant tools/armor when possible
-- [ ] **GPL-08**: Nether exploration — build portal, explore nether, gather nether resources
-- [ ] **GPL-09**: Storage organization — build and maintain organized chest storage, label and sort
-- [ ] **GPL-10**: Tool/armor progression — actively pursue upgrades from wood → stone → iron → diamond
+- [x] **GPL-07**: Enchanting — build enchanting setup, enchant tools/armor when possible
+- [x] **GPL-08**: Nether exploration — build portal, explore nether, gather nether resources
+- [x] **GPL-09**: Storage organization — build and maintain organized chest storage, label and sort
+- [x] **GPL-10**: Tool/armor progression — actively pursue upgrades from wood → stone → iron → diamond
 
 ## Future Requirements
 
@@ -92,12 +92,12 @@ Requirements for Persistent Memory & Ambitious Building milestone.
 | GPL-02 | Phase 18 | Complete |
 | GPL-03 | Phase 18 | Complete |
 | GPL-04 | Phase 18 | Complete |
-| GPL-05 | Phase 18 | Pending |
+| GPL-05 | Phase 18 | Complete |
 | GPL-06 | Phase 18 | Complete |
-| GPL-07 | Phase 18 | Pending |
-| GPL-08 | Phase 18 | Pending |
-| GPL-09 | Phase 18 | Pending |
-| GPL-10 | Phase 18 | Pending |
+| GPL-07 | Phase 18 | Complete |
+| GPL-08 | Phase 18 | Complete |
+| GPL-09 | Phase 18 | Complete |
+| GPL-10 | Phase 18 | Complete |
 
 **Coverage:**
 - v2.3 requirements: 27 total (note: requirements file previously stated 23 — actual count is 27)

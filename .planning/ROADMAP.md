@@ -36,7 +36,7 @@ See: `.planning/milestones/v2.2-ROADMAP.md` for full details.
 - [x] **Phase 17: Memory Foundation** - SQLite event log with importance scoring, spatial tagging, cross-session persistence (completed 2026-03-23)
 - [x] **Phase 18: Memory Integration** - Episodic retrieval in LLM calls, reflection journals, background brain memory consolidation (completed 2026-03-23)
 - [x] **Phase 19: Enhanced Spatial + Building** - Entity awareness, build verification, LLM build specs, section decomposition, material planning (completed 2026-03-23)
-- [ ] **Phase 20: Gameplay Loops** - Animal farming, crop farming, mob hunting, exploration, trading, enchanting, nether, progression
+- [x] **Phase 20: Gameplay Loops** - Animal farming, crop farming, mob hunting, exploration, trading, enchanting, nether, progression (completed 2026-03-23)
 - [ ] **Phase 21: Multi-Agent Coordination** - Shared task registry, chat dedup, spatial task splitting, activity broadcasting
 - [ ] **Phase 22: Polish & Tool Fixes** - Tool auto-equipping, bug fixes, prompt tuning, overnight stability
 
@@ -138,10 +138,10 @@ Plans:
   3. Agents proactively hunt hostile mobs for drops
   4. Agents explore systematically and log findings to spatial memory
   5. Agents pursue wood → stone → iron → diamond progression and manage smelting
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 20-01-PLAN.md — New body skills (harvest.js, hunt.js, explore.js) + registry wiring + RAG routing + event logging (GPL-01, GPL-02, GPL-03, GPL-04, GPL-06)
-- [ ] 20-02-PLAN.md — Gameplay knowledge corpus + prompt hint sections + progression detection + smoke tests (GPL-01 through GPL-10)
+- [x] 20-02-PLAN.md — Gameplay knowledge corpus + prompt hint sections + progression detection + smoke tests (GPL-01 through GPL-10)
 
 ### Phase 21: Multi-Agent Coordination
 **Goal**: Multiple agents coordinate without duplicate work, chat loops, or state conflicts
@@ -177,6 +177,6 @@ Plans:
 | 17. Memory Foundation | 1/1 | Complete    | 2026-03-23 |
 | 18. Memory Integration | 1/1 | Complete    | 2026-03-23 |
 | 19. Enhanced Spatial + Building | 2/2 | Complete    | 2026-03-23 |
-| 20. Gameplay Loops | 1/2 | In Progress|  |
+| 20. Gameplay Loops | 2/2 | Complete   | 2026-03-23 |
 | 21. Multi-Agent Coordination | 0/TBD | Not started | - |
 | 22. Polish & Tool Fixes | 0/TBD | Not started | - |
