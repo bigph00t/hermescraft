@@ -50,21 +50,21 @@ Requirements for Minecraft RAG milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| RAG-01 | TBD | Pending |
-| RAG-02 | TBD | Pending |
-| RAG-03 | TBD | Pending |
-| RAG-04 | TBD | Pending |
-| RAG-05 | TBD | Pending |
-| RAG-06 | TBD | Pending |
-| RAG-07 | TBD | Pending |
-| RAG-08 | TBD | Pending |
-| RAG-09 | TBD | Pending |
-| RAG-10 | TBD | Pending |
+| RAG-01 | Phase 11 | Pending |
+| RAG-02 | Phase 11 | Pending |
+| RAG-03 | Phase 11 | Pending |
+| RAG-04 | Phase 11 | Pending |
+| RAG-05 | Phase 12 | Pending |
+| RAG-06 | Phase 12 | Pending |
+| RAG-07 | Phase 13 | Pending |
+| RAG-08 | Phase 13 | Pending |
+| RAG-09 | Phase 13 | Pending |
+| RAG-10 | Phase 13 | Pending |
 
 **Coverage:**
 - v2.2 requirements: 10 total
-- Mapped to phases: 0
-- Unmapped: 10
+- Mapped to phases: 10
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-23*
