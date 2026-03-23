@@ -22,3 +22,6 @@ HANDOFF.md
 # Python
 __pycache__/
 *.pyc
+
+# Model cache + vector index (rebuilt at startup)
+.cache/
