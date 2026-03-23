@@ -12,12 +12,11 @@ export function loadAgentConfig() {
   const name = process.env.AGENT_NAME || 'jeffrey'
   const mcUsername = process.env.MC_USERNAME || name
 
-  // Partner name derived from AGENT_NAME — jeffrey<->john, otherwise null
-  let partnerName = process.env.PARTNER_NAME || null
-  if (!partnerName) {
-    if (name === 'jeffrey') partnerName = 'john'
-    else if (name === 'john') partnerName = 'jeffrey'
-  }
+  // All known agent names — used for partner detection and Creator filtering
+  const ALL_AGENTS = ['jeffrey', 'john', 'pcrafty', 'aria']
+  // Partners = all other agents (not just one)
+  const partners = ALL_AGENTS.filter(a => a !== name.toLowerCase())
+  const partnerName = partners[0] || null  // primary partner for social module compat
 
   // Data dir: data/<name>/ relative to project root — v1 put data under agent/, v2 uses top-level data/
   const dataDir = join(PROJECT_ROOT, 'data', name)
