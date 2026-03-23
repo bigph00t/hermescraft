@@ -35,7 +35,7 @@ See: `.planning/milestones/v2.2-ROADMAP.md` for full details.
 - [x] **Phase 16: Vision System** - Screenshot capture + VLM processing + spatial understanding database (completed 2026-03-23)
 - [x] **Phase 17: Memory Foundation** - SQLite event log with importance scoring, spatial tagging, cross-session persistence (completed 2026-03-23)
 - [x] **Phase 18: Memory Integration** - Episodic retrieval in LLM calls, reflection journals, background brain memory consolidation (completed 2026-03-23)
-- [ ] **Phase 19: Enhanced Spatial + Building** - Entity awareness, build verification, LLM build specs, section decomposition, material planning
+- [x] **Phase 19: Enhanced Spatial + Building** - Entity awareness, build verification, LLM build specs, section decomposition, material planning (completed 2026-03-23)
 - [ ] **Phase 20: Gameplay Loops** - Animal farming, crop farming, mob hunting, exploration, trading, enchanting, nether, progression
 - [ ] **Phase 21: Multi-Agent Coordination** - Shared task registry, chat dedup, spatial task splitting, activity broadcasting
 - [ ] **Phase 22: Polish & Tool Fixes** - Tool auto-equipping, bug fixes, prompt tuning, overnight stability
@@ -123,10 +123,10 @@ Plans:
   3. Builds over 100 blocks decompose into sections that persist across session restarts
   4. Agent reports exact material list and won't start without sufficient inventory
   5. Post-build scan detects missing/wrong blocks and auto-repairs
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 19-01-PLAN.md — Build planner core module (mind/buildPlanner.js) with plan/decompose/audit/persist + SPA-01/SPA-04 verification (BLD-01, BLD-02, BLD-03, SPA-01, SPA-04)
-- [ ] 19-02-PLAN.md — Wiring: !plan command, build.js section paths, post-build blueprint diff, repair tracking, prompt injection, startup init (SPA-02, BLD-04, BLD-05)
+- [x] 19-02-PLAN.md — Wiring: !plan command, build.js section paths, post-build blueprint diff, repair tracking, prompt injection, startup init (SPA-02, BLD-04, BLD-05)
 
 ### Phase 20: Gameplay Loops
 **Goal**: Agents pursue rich, human-like gameplay — farming, hunting, exploring, trading, progressing gear
@@ -173,7 +173,7 @@ Plans:
 | 16. Vision System | 2/2 | Complete    | 2026-03-23 |
 | 17. Memory Foundation | 1/1 | Complete    | 2026-03-23 |
 | 18. Memory Integration | 1/1 | Complete    | 2026-03-23 |
-| 19. Enhanced Spatial + Building | 1/2 | In Progress|  |
+| 19. Enhanced Spatial + Building | 2/2 | Complete   | 2026-03-23 |
 | 20. Gameplay Loops | 0/TBD | Not started | - |
 | 21. Multi-Agent Coordination | 0/TBD | Not started | - |
 | 22. Polish & Tool Fixes | 0/TBD | Not started | - |

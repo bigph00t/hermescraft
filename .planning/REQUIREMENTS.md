@@ -19,8 +19,8 @@ Requirements for Persistent Memory & Ambitious Building milestone.
 - [x] **BLD-01**: LLM generates structured build specs (style, dimensions, materials, features) — deterministic code handles coordinates
 - [x] **BLD-02**: Section decomposition for structures over 100 blocks — break large builds into manageable chunks
 - [x] **BLD-03**: Material estimation before building — agent knows what to gather before starting
-- [ ] **BLD-04**: Post-build verification — scan completed structure, detect missing/wrong blocks, auto-repair
-- [ ] **BLD-05**: Build retry with error feedback — failed placements get re-attempted with LLM guidance
+- [x] **BLD-04**: Post-build verification — scan completed structure, detect missing/wrong blocks, auto-repair
+- [x] **BLD-05**: Build retry with error feedback — failed placements get re-attempted with LLM guidance
 
 ### Spatial Intelligence
 
@@ -78,8 +78,8 @@ Requirements for Persistent Memory & Ambitious Building milestone.
 | BLD-01 | Phase 17 | Complete |
 | BLD-02 | Phase 17 | Complete |
 | BLD-03 | Phase 17 | Complete |
-| BLD-04 | Phase 17 | Pending |
-| BLD-05 | Phase 17 | Pending |
+| BLD-04 | Phase 17 | Complete |
+| BLD-05 | Phase 17 | Complete |
 | SPA-01 | Phase 16 | Complete |
 | SPA-02 | Phase 16 | Complete |
 | SPA-03 | Phase 14 | Complete |
