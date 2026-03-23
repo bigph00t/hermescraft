@@ -20,7 +20,7 @@ const SPAWN_TIMEOUT_MS = 30000
 export async function createBot(options = {}) {
   const host = options.host || process.env.MC_HOST || 'localhost'
   const port = options.port || parseInt(process.env.MC_PORT || '25565')
-  const username = options.username || process.env.MC_USERNAME || 'jeffrey'
+  const username = options.username || process.env.MC_USERNAME || 'luna'
 
   const bot = mineflayer.createBot({
     host,
@@ -38,7 +38,11 @@ export async function createBot(options = {}) {
   // Register error/disconnect handlers
   bot.on('error', (err) => console.error('[bot] error:', err.message))
   bot.on('kicked', (reason) => console.error('[bot] kicked:', reason))
-  bot.on('end', () => console.log('[bot] disconnected'))
+  bot.on('end', (reason) => {
+    console.error('[bot] disconnected:', reason || 'unknown')
+    console.log('[bot] exiting process for auto-restart...')
+    setTimeout(() => process.exit(1), 1000)  // let pending I/O flush
+  })
 
   // Return a Promise that resolves on spawn or rejects on timeout
   return new Promise((resolve, reject) => {

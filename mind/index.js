@@ -160,34 +160,81 @@ function formatRagContext(results) {
 }
 
 // deriveRagQuery — construct a RAG query from bot state and trigger context.
-// Returns null when no clear context (skips retrieval to save latency).
+// Inspects health, hunger, time, position, surroundings, inventory, and recent activity
+// to generate the most relevant query. Returns null only when truly nothing is relevant.
 function deriveRagQuery(bot, context) {
-  // After a skill, use the skill name + target for targeted retrieval
+  // ── Priority 1: Urgent survival state (always overrides other context) ──
+  const health = bot.health || 20
+  const food = bot.food || 20
+  const time = bot.time?.timeOfDay || 0
+  const pos = bot.entity?.position
+  const y = pos?.y || 64
+
+  // Low health — inject danger avoidance and recovery
+  if (health <= 10) return 'danger health low healing food escape safety'
+
+  // Low food — inject eating and food gathering
+  if (food <= 10) return 'food hunger eating cooking starvation survival'
+
+  // Night approaching or active — inject shelter and mob safety
+  if (time >= 11500 && time <= 13500) return 'night shelter safety bed torches mob spawning'
+  if (time >= 13500 && time <= 23000) return 'night survival mobs combat shelter darkness'
+
+  // Deep underground — inject mining safety
+  if (y < 0) return 'mining safety lava deep underground danger water bucket'
+  if (y < 40 && y > 0) return 'mining ore depths tools cave safety torches'
+
+  // ── Priority 2: Skill-specific context ──
   if (context.trigger === 'skill_complete' && context.skillName) {
-    const skill = context.skillName  // 'craft', 'mine', 'smelt', 'build', etc.
+    const skill = context.skillName
     const result = context.skillResult
     const target = result?.item || result?.args?.item || ''
+
+    // Mining — include safety rules alongside target info
+    if (skill === 'mine') return `mine ${target} safety lava gravel never dig straight down`
+    // Building — include placement rules
+    if (skill === 'build' || skill === 'design') return `build place blocks placement distance materials ${target}`
+    // Navigation — include movement and traversal
+    if (skill === 'navigate') return `navigate movement traversal getting around terrain`
+    // Gathering — include what's nearby and alternatives
+    if (skill === 'gather') return `gather ${target} finding nearby biome location`
+    // Crafting — include recipe chain
+    if (skill === 'craft') return `craft ${target} recipe ingredients`
+    // Combat — include mob-specific tactics
+    if (skill === 'combat') return `combat fighting mobs damage armor weapons tactics`
+
     if (target) return `${skill} ${target}`
     return skill
   }
-  // Idle — use inventory contents to infer current activity
+
+  // ── Priority 3: Inventory-based activity inference ──
   const items = bot.inventory.items().map(i => i.name)
   if (items.some(n => n.includes('_ore') || n === 'raw_iron' || n === 'raw_gold' || n === 'raw_copper')) {
-    return 'mining ore depths tools'
+    return 'smelting raw ore furnace ingots progression'
   }
-  if (items.some(n => n.includes('planks') || n.includes('log') || n === 'cobblestone')) {
-    return 'building materials crafting'
+  if (items.some(n => n.includes('planks') || n.includes('log'))) {
+    return 'crafting tools wooden planks sticks early game progression'
   }
-  return null  // no clear context — skip injection
+  if (items.length === 0) {
+    return 'early game start first day punch tree wood tools survival'
+  }
+
+  // ── Priority 4: Chat trigger — inject cooperation and social rules ──
+  if (context.trigger === 'chat') return 'cooperation coordination sharing resources building together'
+
+  // ── Priority 5: General idle — inject creative/exploration ideas ──
+  return 'what to do next objectives building exploration creative ideas settlement'
 }
 
 // deriveFailureQuery — precise query for a failed skill to retrieve recovery info.
 function deriveFailureQuery(command, args) {
   if (command === 'craft') return `how to craft ${args?.item || 'item'} recipe ingredients`
-  if (command === 'mine') return `mine ${args?.item || 'ore'} pickaxe tier required`
-  if (command === 'smelt') return `smelt ${args?.item || 'item'} furnace fuel`
-  if (command === 'navigate') return 'navigation pathfinding blocked'
-  if (command === 'build') return `build materials ${args?.blueprint || args?.description || 'structure'}`
+  if (command === 'mine') return `mine ${args?.item || 'ore'} pickaxe tier required tool`
+  if (command === 'smelt') return `smelt ${args?.item || 'item'} furnace fuel blast smoker`
+  if (command === 'navigate') return 'stuck getting out of hole pillar up escape movement'
+  if (command === 'gather') return `gather ${args?.item || 'block'} finding nearby location`
+  if (command === 'build') return `build place blocks placement distance ${args?.description || 'structure'}`
+  if (command === 'farm') return 'farm hoe farmland water seeds'
   return `${command} ${Object.values(args || {}).join(' ')}`
 }
 
