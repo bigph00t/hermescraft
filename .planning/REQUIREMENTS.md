@@ -38,12 +38,12 @@ Requirements for Persistent Memory & Ambitious Building milestone.
 
 ### Gameplay Loops
 
-- [ ] **GPL-01**: Animal farming — breed cows, sheep, pigs, chickens; manage pens; harvest food and materials
-- [ ] **GPL-02**: Crop farming — plant, grow, harvest wheat/carrots/potatoes; use bone meal; auto-replant
-- [ ] **GPL-03**: Mob hunting — actively seek and fight hostiles for drops (bones, string, gunpowder, ender pearls)
-- [ ] **GPL-04**: Exploration — systematic world exploration, discover villages/temples/biomes, report findings
+- [x] **GPL-01**: Animal farming — breed cows, sheep, pigs, chickens; manage pens; harvest food and materials
+- [x] **GPL-02**: Crop farming — plant, grow, harvest wheat/carrots/potatoes; use bone meal; auto-replant
+- [x] **GPL-03**: Mob hunting — actively seek and fight hostiles for drops (bones, string, gunpowder, ender pearls)
+- [x] **GPL-04**: Exploration — systematic world exploration, discover villages/temples/biomes, report findings
 - [ ] **GPL-05**: Villager trading — locate villagers, understand professions, trade for useful items
-- [ ] **GPL-06**: Smelting & furnace management — smelt ores, cook food, manage fuel efficiently
+- [x] **GPL-06**: Smelting & furnace management — smelt ores, cook food, manage fuel efficiently
 - [ ] **GPL-07**: Enchanting — build enchanting setup, enchant tools/armor when possible
 - [ ] **GPL-08**: Nether exploration — build portal, explore nether, gather nether resources
 - [ ] **GPL-09**: Storage organization — build and maintain organized chest storage, label and sort
@@ -88,12 +88,12 @@ Requirements for Persistent Memory & Ambitious Building milestone.
 | COO-02 | Phase 19 | Pending |
 | COO-03 | Phase 19 | Pending |
 | COO-04 | Phase 19 | Pending |
-| GPL-01 | Phase 18 | Pending |
-| GPL-02 | Phase 18 | Pending |
-| GPL-03 | Phase 18 | Pending |
-| GPL-04 | Phase 18 | Pending |
+| GPL-01 | Phase 18 | Complete |
+| GPL-02 | Phase 18 | Complete |
+| GPL-03 | Phase 18 | Complete |
+| GPL-04 | Phase 18 | Complete |
 | GPL-05 | Phase 18 | Pending |
-| GPL-06 | Phase 18 | Pending |
+| GPL-06 | Phase 18 | Complete |
 | GPL-07 | Phase 18 | Pending |
 | GPL-08 | Phase 18 | Pending |
 | GPL-09 | Phase 18 | Pending |

@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Persistent Memory & Ambitious Building
-status: Ready to plan
-stopped_at: Completed 19-02-PLAN.md — !plan wired, blueprint diff, repair tracking, all 473 smoke tests pass
-last_updated: "2026-03-23T22:12:31.433Z"
+status: Ready to execute
+stopped_at: Completed 20-01-PLAN.md — harvest/hunt/explore skills, 27 registry commands, all 477 smoke tests pass
+last_updated: "2026-03-23T22:32:06.448Z"
 progress:
   total_phases: 9
   completed_phases: 5
-  total_plans: 10
-  completed_plans: 9
+  total_plans: 12
+  completed_plans: 10
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** Agents that learn, grow, remember, and build ambitiously — playing Minecraft like real humans
-**Current focus:** Phase 19 — enhanced-spatial-building
+**Current focus:** Phase 20 — gameplay-loops
 
 ## Current Position
 
-Phase: 20
-Plan: Not started
+Phase: 20 (gameplay-loops) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -86,6 +86,15 @@ Plan: Not started
 | Phase 18-memory-integration P01 | 153 | 2 tasks | 5 files |
 | Phase 19-enhanced-spatial-building P01 | 123 | 2 tasks | 2 files |
 | Phase 19-enhanced-spatial-building P02 | 222 | 2 tasks | 6 files |
+| Phase 20-gameplay-loops P01 | 480 | 2 tasks | 6 files |
+
+### Decisions (Phase 20)
+
+- getProperties().age lambda required for crop state check in bot.findBlocks() — block ID matching can't inspect block state age values
+- hunt uses combatLoop (blocking sustained loop) not attackTarget (single non-blocking hit) — !hunt fully engages until mob dies
+- EVT_MAP extended: harvest->craft, hunt->combat, explore->discovery, breed->observation, farm->craft
+- explore returns structured discoveries array enabling N individual logEvent calls per discovery for spatial memory granularity
+- smoke test command count updated 24->27 (Rule 1 fix) — 477 tests pass
 
 ### Decisions (Phase 17)
 
@@ -122,6 +131,6 @@ Plan: Not started
 
 ## Session Continuity
 
-Last session: 2026-03-23T22:07:15.436Z
-Stopped at: Completed 19-02-PLAN.md — !plan wired, blueprint diff, repair tracking, all 473 smoke tests pass
+Last session: 2026-03-23T22:32:06.446Z
+Stopped at: Completed 20-01-PLAN.md — harvest/hunt/explore skills, 27 registry commands, all 477 smoke tests pass
 Resume: `/gsd:execute-phase 14` or `/gsd:autonomous`
