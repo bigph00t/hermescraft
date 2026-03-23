@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Persistent Memory & Ambitious Building
 status: ready_to_plan
-last_updated: "2026-03-23T17:00:00.000Z"
+last_updated: "2026-03-23T17:30:00.000Z"
 progress:
-  total_phases: 0
+  total_phases: 6
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,57 +17,48 @@ progress:
 
 See: .planning/PROJECT.md (updated 2026-03-23)
 
-**Core value:** Agents feel and play like real people — learning, growing, remembering
-**Current focus:** Defining requirements for v2.3
+**Core value:** Agents that feel and play like real people — creative, emotional, with desires, aesthetic sense, and genuine interaction with the world
+**Current focus:** Phase 14 — Memory Foundation
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-03-23 — Milestone v2.3 started
+Phase: 14 of 19 (Memory Foundation — first phase of v2.3)
+Plan: 0 of TBD in current phase
+Status: Ready to plan
+Last activity: 2026-03-23 — v2.3 roadmap created (Phases 14-19)
+
+Progress: [░░░░░░░░░░] 0% (v2.3 starting)
 
 ## Performance Metrics
 
 **Velocity:**
-
-- Total plans completed: 0
-- Average duration: —
-- Total execution time: —
+- Total plans completed: 0 (v2.3); 6 (v2.2) for reference
+- Average duration: not tracked
+- Total execution time: not tracked
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| v2.2 Phase 11-13 (reference) | 6 | - | - |
+| v2.3 Phase 14-19 | TBD | - | - |
 
 *Updated after each plan completion*
-| Phase 11-knowledge-corpus P01 | 2 | 1 tasks | 2 files |
-| Phase 11-knowledge-corpus P02 | 35 | 2 tasks | 7 files |
-| Phase 11-knowledge-corpus P03 | 10 | 2 tasks | 3 files |
-| Phase 12-knowledgestore P01 | 5m | 2 tasks | 5 files |
-| Phase 13-prompt-integration P01 | 2m | 2 tasks | 2 files |
-| Phase 13-prompt-integration P02 | 2m | 2 tasks | 3 files |
+
+**Recent Trend:** v2.2 shipped same day it started — high velocity baseline
 
 ## Accumulated Context
 
-### Key Architecture Decisions
+### Key Architecture Decisions (carried from v2.2)
 
-- Mind + Body split enforced; KnowledgeStore sits between prompt builder and corpus
-- Vectra (in-process, file-backed) for vector search; MiniSearch for BM25 keyword search
-- Hybrid RRF fusion of BM25 + vector results (k=60 formula)
+- Mind + Body split enforced; only registry.js imports from body/
+- KnowledgeStore: hybrid BM25 (MiniSearch) + vector (Vectra) + RRF fusion (k=60)
 - Local all-MiniLM-L6-v2 via @huggingface/transformers — no external API calls
-- minecraft-data covers recipes/items/blocks/entities; strategic knowledge must be hand-authored
-- Retrieval triggers: explicit !wiki call, skill failure, phase change — NOT every tick
-- Always-present core (~1,500 tokens) replaces GAMEPLAY_INSTRUCTIONS; RAG adds 0-4,000 on demand
-- [11-01] Hardcode SMELT_FROM table (20 pairs) — minecraft-data v3.105.0 has no furnace recipe data for 1.21.1
-- [11-01] Pass new Set(visited) to each recursive sub-call so siblings do not falsely block each other in DFS
-- [11-01] Recipe tiebreak: prefer cobblestone/oak variants — mcData returns cobbled_deepslate first for furnace by coincidence
-- [13-01] ESSENTIAL KNOWLEDGE core: tool tiers + ore Y-levels + essential chains + food priority (~150 tokens); crafting chains/building materials/survival details moved to RAG
-- [13-01] ragContext slot (Part 5.7) in buildSystemPrompt between buildHistory and command reference; caller formats with ## RELEVANT KNOWLEDGE header
-- [13-02] !wiki handler inline in respondToChat() before normal chat path — same pattern as !sethome/!design, avoids registry routing
-- [13-02] formatRagContext in mind/index.js not prompt.js — co-located with callers, keeps prompt.js boundary pure
-- [13-02] _lastFailure consumed at START of next think() cycle — ensures failure info available for recovery RAG query
+- Retrieval triggers: !wiki, skill failure, phase change — NOT every tick
+- Always-present core (~1,500 tokens) + dynamic RAG slot (0-4,000 tokens on demand)
+- [Roadmap v2.3]: SPA-03 placed in Phase 14 — coordinates are metadata on the event log, not a separate spatial system
+- [Roadmap v2.3]: Phase 16 depends on Phase 14 only, not Phase 15 — spatial intelligence needs the event log but not prompt integration yet
+- [Roadmap v2.3]: Phase 19 (multi-agent) is last — requires all prior phases stable
 
 ### Pending Todos
 
@@ -75,11 +66,12 @@ None yet.
 
 ### Blockers/Concerns
 
-- Embedding model cold start (~2-5s) must not block tick loop — initialize before tick loop starts
-- Vectra index rebuild needed if hand-authored Markdown files change — hash-check at startup
+- [Phase 17]: MiniMax M2.7 blueprint generation quality unverified vs T2BM (GPT-4 baseline). Plan empirical validation pass (10 test structures) early in Phase 17. May need to reduce size cap below 10x10x8.
+- [Phase 19]: Confirm POSIX renameSync atomicity on Glass filesystem before shipping task registry. Data dir and /tmp must be on the same mount.
+- [ongoing]: Embedding model ONNX tensor memory leak (transformers.js issue #860) — add heap monitoring in Phase 14.
 
 ## Session Continuity
 
-Last session: 2026-03-23T04:53:11.021Z
-Stopped at: Completed 13-02-PLAN.md
+Last session: 2026-03-23
+Stopped at: v2.3 roadmap created. No plans written yet.
 Resume file: None

@@ -71,38 +71,39 @@ Requirements for Persistent Memory & Ambitious Building milestone.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MEM-01 | TBD | Pending |
-| MEM-02 | TBD | Pending |
-| MEM-03 | TBD | Pending |
-| MEM-04 | TBD | Pending |
-| BLD-01 | TBD | Pending |
-| BLD-02 | TBD | Pending |
-| BLD-03 | TBD | Pending |
-| BLD-04 | TBD | Pending |
-| BLD-05 | TBD | Pending |
-| SPA-01 | TBD | Pending |
-| SPA-02 | TBD | Pending |
-| SPA-03 | TBD | Pending |
-| SPA-04 | TBD | Pending |
-| COO-01 | TBD | Pending |
-| COO-02 | TBD | Pending |
-| COO-03 | TBD | Pending |
-| COO-04 | TBD | Pending |
-| GPL-01 | TBD | Pending |
-| GPL-02 | TBD | Pending |
-| GPL-03 | TBD | Pending |
-| GPL-04 | TBD | Pending |
-| GPL-05 | TBD | Pending |
-| GPL-06 | TBD | Pending |
-| GPL-07 | TBD | Pending |
-| GPL-08 | TBD | Pending |
-| GPL-09 | TBD | Pending |
-| GPL-10 | TBD | Pending |
+| MEM-01 | Phase 14 | Pending |
+| MEM-02 | Phase 15 | Pending |
+| MEM-03 | Phase 14 | Pending |
+| MEM-04 | Phase 15 | Pending |
+| BLD-01 | Phase 17 | Pending |
+| BLD-02 | Phase 17 | Pending |
+| BLD-03 | Phase 17 | Pending |
+| BLD-04 | Phase 17 | Pending |
+| BLD-05 | Phase 17 | Pending |
+| SPA-01 | Phase 16 | Pending |
+| SPA-02 | Phase 16 | Pending |
+| SPA-03 | Phase 14 | Pending |
+| SPA-04 | Phase 16 | Pending |
+| COO-01 | Phase 19 | Pending |
+| COO-02 | Phase 19 | Pending |
+| COO-03 | Phase 19 | Pending |
+| COO-04 | Phase 19 | Pending |
+| GPL-01 | Phase 18 | Pending |
+| GPL-02 | Phase 18 | Pending |
+| GPL-03 | Phase 18 | Pending |
+| GPL-04 | Phase 18 | Pending |
+| GPL-05 | Phase 18 | Pending |
+| GPL-06 | Phase 18 | Pending |
+| GPL-07 | Phase 18 | Pending |
+| GPL-08 | Phase 18 | Pending |
+| GPL-09 | Phase 18 | Pending |
+| GPL-10 | Phase 18 | Pending |
 
 **Coverage:**
-- v2.3 requirements: 23 total
-- Mapped to phases: 0 (awaiting roadmap)
-- Unmapped: 23
+- v2.3 requirements: 27 total (note: requirements file previously stated 23 — actual count is 27)
+- Mapped to phases: 27/27
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-23*
+*Traceability updated: 2026-03-23 (roadmap v2.3)*
