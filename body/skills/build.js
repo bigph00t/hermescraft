@@ -119,13 +119,19 @@ export async function build(bot, blueprintName, originX, originY, originZ) {
   // If there's an active paused build, resume it instead of starting fresh.
   // Prevents building the same structure multiple times at different offsets.
   let isResume = false
-  if (_activeBuild && _activeBuild.paused && _activeBuild.completedIndex > 0) {
+  if (_activeBuild && _activeBuild.paused && _activeBuild.completedIndex > 0
+      && _activeBuild.completedIndex < _activeBuild.totalBlocks) {
     console.log(`[build] resuming paused build: ${_activeBuild.blueprintName} at ${_activeBuild.completedIndex}/${_activeBuild.totalBlocks}`)
     blueprintName = _activeBuild.blueprintName
     originX = _activeBuild.origin.x
     originY = _activeBuild.origin.y
     originZ = _activeBuild.origin.z
     isResume = true
+  } else if (_activeBuild && !_activeBuild.paused) {
+    // Previous build completed — clear it so new builds aren't blocked
+    _activeBuild = null
+    _buildQueue = []
+    console.log('[build] cleared completed build state')
   }
 
   // ── Load Blueprint ──
