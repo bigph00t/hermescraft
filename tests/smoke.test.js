@@ -510,6 +510,54 @@ assert('mind/index.js handles !wiki in chat', _indexSrc.includes('!wiki'))
 assert('mind/index.js passes ragContext to buildSystemPrompt', _indexSrc.includes('ragContext,'))
 assert('mind/index.js has Ask me anything about Minecraft response', _indexSrc.includes('Ask me anything about Minecraft'))
 
+// ── Section 17: Background Brain Module (Phase 15) ──
+
+section('Background Brain Module (Phase 15)')
+
+const backgroundBrain = await import('../mind/backgroundBrain.js')
+assert('mind/backgroundBrain: initBackgroundBrain exported', typeof backgroundBrain.initBackgroundBrain === 'function')
+assert('mind/backgroundBrain: getBrainStateForPrompt exported', typeof backgroundBrain.getBrainStateForPrompt === 'function')
+assert('mind/backgroundBrain: only 2 exports', Object.keys(backgroundBrain).length === 2)
+
+// getBrainStateForPrompt returns null when no brain-state.json exists (cold start safety)
+const coldStartResult = backgroundBrain.getBrainStateForPrompt()
+assert('getBrainStateForPrompt returns null on cold start', coldStartResult === null)
+
+// Source-level validation: backgroundBrain.js has required patterns
+const _bgSrc = _readFileSync(_join(_here, '../mind/backgroundBrain.js'), 'utf-8')
+assert('backgroundBrain.js has atomic renameSync', _bgSrc.includes('renameSync'))
+assert('backgroundBrain.js has TTL_MS = 5000', _bgSrc.includes('TTL_MS = 5000'))
+assert('backgroundBrain.js has BACKGROUND_INTERVAL_MS from env', _bgSrc.includes('process.env.BACKGROUND_INTERVAL_MS'))
+assert('backgroundBrain.js has BACKGROUND_MAX_TOKENS default 1024', _bgSrc.includes("'1024'"))
+assert('backgroundBrain.js has _bgRunning guard', _bgSrc.includes('_bgRunning'))
+assert('backgroundBrain.js has finally block clearing _bgRunning', _bgSrc.includes('finally'))
+assert('backgroundBrain.js has ring buffer cap 20 for insights', _bgSrc.includes('20'))
+assert('backgroundBrain.js has OpenAI client for port 8001', _bgSrc.includes('new OpenAI'))
+assert('backgroundBrain.js imports getHistory from llm.js', _bgSrc.includes("from './llm.js'"))
+assert('backgroundBrain.js does NOT import from index.js', !_bgSrc.includes("from './index.js'"))
+assert('backgroundBrain.js does NOT use default export', !_bgSrc.includes('export default'))
+assert('backgroundBrain.js has parseLLMJson with think tag stripping', _bgSrc.includes('<think>'))
+
+// Wiring assertions — start.js must import and call initBackgroundBrain
+assert('start.js imports initBackgroundBrain', _startSrc.includes('initBackgroundBrain'))
+assert('start.js calls initBackgroundBrain(bot, config)', _startSrc.includes('initBackgroundBrain(bot, config)'))
+
+// Wiring assertions — mind/index.js must import and use getBrainStateForPrompt
+assert('mind/index.js imports getBrainStateForPrompt', _indexSrc.includes('getBrainStateForPrompt'))
+assert('mind/index.js passes brainState to buildSystemPrompt', _indexSrc.includes('brainState,') || _indexSrc.includes('brainState:'))
+
+// Wiring assertions — mind/prompt.js must handle brainState option
+const _promptSrc = _readFileSync(_join(_here, '../mind/prompt.js'), 'utf-8')
+assert('mind/prompt.js has brainState injection slot', _promptSrc.includes('options.brainState'))
+assert('mind/prompt.js Part 5.8 comment exists', _promptSrc.includes('Part 5.8'))
+
+// Prompt integration test — brainState option injects into system prompt
+const brainStatePrompt = prompt.buildSystemPrompt(mockBot, { brainState: '## Background Brain (5s ago)\nGoal: Build shelter' })
+assert('brainState option injects into system prompt', brainStatePrompt.includes('## Background Brain'))
+assert('brainState content appears in prompt', brainStatePrompt.includes('Build shelter'))
+const noBrainPrompt = prompt.buildSystemPrompt(mockBot, {})
+assert('no brainState means no Background Brain section', !noBrainPrompt.includes('Background Brain'))
+
 // ── Final Summary ──
 
 console.log(`\n${'='.repeat(40)}`)
