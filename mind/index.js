@@ -15,6 +15,7 @@ import { getActiveBuild, listBlueprints, build } from '../body/skills/build.js'
 import { requestInterrupt } from '../body/interrupt.js'
 import { validateBlueprint } from '../body/blueprints/validate.js'
 import { recordBuild, getBuildHistoryForPrompt } from './build-history.js'
+import { retrieveKnowledge } from './knowledgeStore.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 // BLUEPRINTS_DIR mirrors the path in body/skills/build.js — co-located with blueprint JSONs
@@ -28,6 +29,7 @@ let thinkingInFlight = false
 let idleCheckTimer = null
 let _config = null
 let _pendingChat = null  // queued chat that arrived during think()
+let _lastFailure = null  // { command, args } from previous failed dispatch — consumed by next think()
 
 // ── Async Chat Response (bypasses skill queue) ──
 
@@ -45,6 +47,49 @@ async function respondToChat(bot, sender, message) {
   _chatResponseInFlight = true
 
   try {
+    // ── !wiki command (RAG-07) ──
+    // Handle !wiki before normal chat processing — retrieve knowledge and synthesize answer
+    if (message.trim().startsWith('!wiki')) {
+      const query = message.trim().slice(5).trim()
+      if (!query) {
+        bot.chat('Ask me anything about Minecraft!')
+        return  // finally block will clear _chatResponseInFlight
+      }
+      try {
+        const chunks = await retrieveKnowledge(query, 5)  // top-5 for wiki per user decision
+        if (chunks.length === 0) {
+          bot.chat("Hmm, I'm not sure about that one.")
+          return
+        }
+        const ragContext = formatRagContext(chunks)
+        const wikiPrompt = buildSystemPrompt(bot, {
+          soul: _config?.soulContent,
+          memory: getMemoryForPrompt(),
+          players: getPlayersForPrompt(bot),
+          locations: getLocationsForPrompt(bot.entity?.position),
+          ragContext,
+        })
+        const wikiMessage = buildUserMessage(bot, 'chat', {
+          sender,
+          message: `${sender} asked: ${query} — answer their question naturally using what you know. Be helpful and specific.`,
+        })
+        console.log('[mind] !wiki query:', query, `(${chunks.length} chunks)`)
+        const wikiResult = await queryLLM(wikiPrompt, wikiMessage)
+        if (wikiResult.command === 'chat' && wikiResult.args?.message) {
+          bot.chat(wikiResult.args.message)
+        } else if (wikiResult.reasoning) {
+          // LLM put the answer in reasoning but not in a !chat — extract first useful line
+          bot.chat(wikiResult.reasoning.split('\n').find(l => l.trim().length > 10) || "I know about that but couldn't form an answer.")
+        } else {
+          bot.chat("I know about that but couldn't form an answer.")
+        }
+      } catch (err) {
+        console.error('[mind] !wiki error:', err.message)
+        bot.chat("Sorry, I couldn't look that up right now.")
+      }
+      return  // Don't fall through to normal chat handling
+    }
+
     const systemPrompt = buildSystemPrompt(bot, {
       soul: _config?.soulContent,
       memory: getMemoryForPrompt(),
@@ -96,6 +141,56 @@ async function respondToChat(bot, sender, message) {
   }
 }
 
+// ── RAG Helpers (internal) ──
+
+// formatRagContext — format retrieved chunks into a prompt section.
+// Returns null if no results. Each chunk labeled with [source] attribution.
+// Budget: max 2,000 tokens (~8,000 chars) per user decision.
+function formatRagContext(results) {
+  if (!results || results.length === 0) return null
+  const lines = ['## RELEVANT KNOWLEDGE']
+  for (const { chunk } of results) {
+    lines.push(`[${chunk.source}] ${chunk.text}`)
+    lines.push('')  // blank line between chunks
+  }
+  const text = lines.join('\n')
+  // Enforce 2,000 token budget (~8,000 chars at 4 chars/token)
+  if (text.length > 8000) return text.slice(0, 8000)
+  return text
+}
+
+// deriveRagQuery — construct a RAG query from bot state and trigger context.
+// Returns null when no clear context (skips retrieval to save latency).
+function deriveRagQuery(bot, context) {
+  // After a skill, use the skill name + target for targeted retrieval
+  if (context.trigger === 'skill_complete' && context.skillName) {
+    const skill = context.skillName  // 'craft', 'mine', 'smelt', 'build', etc.
+    const result = context.skillResult
+    const target = result?.item || result?.args?.item || ''
+    if (target) return `${skill} ${target}`
+    return skill
+  }
+  // Idle — use inventory contents to infer current activity
+  const items = bot.inventory.items().map(i => i.name)
+  if (items.some(n => n.includes('_ore') || n === 'raw_iron' || n === 'raw_gold' || n === 'raw_copper')) {
+    return 'mining ore depths tools'
+  }
+  if (items.some(n => n.includes('planks') || n.includes('log') || n === 'cobblestone')) {
+    return 'building materials crafting'
+  }
+  return null  // no clear context — skip injection
+}
+
+// deriveFailureQuery — precise query for a failed skill to retrieve recovery info.
+function deriveFailureQuery(command, args) {
+  if (command === 'craft') return `how to craft ${args?.item || 'item'} recipe ingredients`
+  if (command === 'mine') return `mine ${args?.item || 'ore'} pickaxe tier required`
+  if (command === 'smelt') return `smelt ${args?.item || 'item'} furnace fuel`
+  if (command === 'navigate') return 'navigation pathfinding blocked'
+  if (command === 'build') return `build materials ${args?.blueprint || args?.description || 'structure'}`
+  return `${command} ${Object.values(args || {}).join(' ')}`
+}
+
 // ── Core Think Function ──
 
 // think(bot, context) — the central decision function.
@@ -125,6 +220,30 @@ async function think(bot, context) {
     const blueprintCatalog = listBlueprints()
     const buildContext = getBuildContextForPrompt(activeBuild, blueprintCatalog)
 
+    // ── RAG context injection (RAG-08, RAG-09) ──
+    // Failure overrides context-aware query — more targeted when something just broke
+    let ragQuery = null
+    if (_lastFailure) {
+      ragQuery = deriveFailureQuery(_lastFailure.command, _lastFailure.args)
+      _lastFailure = null  // consume the failure
+    } else {
+      ragQuery = deriveRagQuery(bot, context)
+    }
+
+    let ragContext = null
+    if (ragQuery) {
+      try {
+        const topK = ragQuery.startsWith('how to') ? 3 : 3  // top-3 for all context queries per user decision
+        const chunks = await retrieveKnowledge(ragQuery, topK)
+        ragContext = formatRagContext(chunks)
+        if (ragContext) {
+          console.log('[mind] RAG injected:', ragQuery, `(${chunks.length} chunks)`)
+        }
+      } catch (err) {
+        console.log('[mind] RAG retrieval failed (non-fatal):', err.message)
+      }
+    }
+
     const systemPrompt = buildSystemPrompt(bot, {
       soul: _config?.soulContent,
       memory: getMemoryForPrompt(),
@@ -132,6 +251,7 @@ async function think(bot, context) {
       locations: getLocationsForPrompt(bot.entity?.position),
       buildContext,
       buildHistory: getBuildHistoryForPrompt(),
+      ragContext,
     })
 
     // Inject partner's last chat into user message if available
@@ -213,6 +333,11 @@ async function think(bot, context) {
 
     console.log('[mind] skill result:', result.command, skillResult.success ? 'OK' : skillResult.reason)
     lastActionTime = Date.now()
+
+    // RAG-08: Track failures for auto-lookup on next think() cycle
+    if (!skillResult.success) {
+      _lastFailure = { command: result.command, args: result.args || {} }
+    }
 
     // Record build completion to world knowledge, locations, and build history for cross-session recall (BUILD-03)
     if (result.command === 'build' && skillResult.success) {
