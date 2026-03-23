@@ -32,7 +32,7 @@ See: `.planning/milestones/v2.2-ROADMAP.md` for full details.
 
 - [ ] **Phase 14: RunPod Infrastructure** - Deploy A6000 48GB pod with dual-model serving (27B main + 9B background)
 - [x] **Phase 15: Dual-Brain Architecture** - Background brain module with shared state, insight injection, constraint system (completed 2026-03-23)
-- [ ] **Phase 16: Vision System** - Screenshot capture + VLM processing + spatial understanding database
+- [x] **Phase 16: Vision System** - Screenshot capture + VLM processing + spatial understanding database (completed 2026-03-23)
 - [ ] **Phase 17: Memory Foundation** - SQLite event log with importance scoring, spatial tagging, cross-session persistence
 - [ ] **Phase 18: Memory Integration** - Episodic retrieval in LLM calls, reflection journals, background brain memory consolidation
 - [ ] **Phase 19: Enhanced Spatial + Building** - Entity awareness, build verification, LLM build specs, section decomposition, material planning
@@ -82,10 +82,10 @@ Plans:
   3. Background brain periodically processes screenshots into spatial awareness entries
   4. Screenshots are stored in `data/<agent>/screenshots/` with timestamps for history
   5. Top-down minimap generation from block data as lightweight alternative
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [x] 16-01-PLAN.md — Core vision modules (mind/vision.js, mind/minimap.js) + entity awareness in spatial.js (SPA-01)
-- [ ] 16-02-PLAN.md — Wiring: !see command, prompt injection, background brain vision, post-build scan (SPA-02), smoke tests
+- [x] 16-02-PLAN.md — Wiring: !see command, prompt injection, background brain vision, post-build scan (SPA-02), smoke tests
 
 ### Phase 17: Memory Foundation
 **Goal**: Agents accumulate a persistent, spatially-tagged event log across sessions — no experience is ever lost
@@ -163,7 +163,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 14. RunPod Infrastructure | 1/2 | In Progress|  |
 | 15. Dual-Brain Architecture | 2/2 | Complete    | 2026-03-23 |
-| 16. Vision System | 1/2 | In Progress|  |
+| 16. Vision System | 2/2 | Complete   | 2026-03-23 |
 | 17. Memory Foundation | 0/TBD | Not started | - |
 | 18. Memory Integration | 0/TBD | Not started | - |
 | 19. Enhanced Spatial + Building | 0/TBD | Not started | - |

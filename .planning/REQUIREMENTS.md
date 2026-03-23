@@ -24,10 +24,10 @@ Requirements for Persistent Memory & Ambitious Building milestone.
 
 ### Spatial Intelligence
 
-- [ ] **SPA-01**: Enhanced entity awareness — track nearby mobs, animals, villagers with types, distances, health
-- [ ] **SPA-02**: Post-build scan integration — verify placed blocks match blueprint
+- [x] **SPA-01**: Enhanced entity awareness — track nearby mobs, animals, villagers with types, distances, health
+- [x] **SPA-02**: Post-build scan integration — verify placed blocks match blueprint
 - [ ] **SPA-03**: What-where-when memory tagging — every experience tagged with coordinates for spatial queries
-- [ ] **SPA-04**: Area familiarity — agent knows what's been explored vs unknown territory
+- [x] **SPA-04**: Area familiarity — agent knows what's been explored vs unknown territory
 
 ### Multi-Agent Coordination
 
@@ -80,10 +80,10 @@ Requirements for Persistent Memory & Ambitious Building milestone.
 | BLD-03 | Phase 17 | Pending |
 | BLD-04 | Phase 17 | Pending |
 | BLD-05 | Phase 17 | Pending |
-| SPA-01 | Phase 16 | Pending |
-| SPA-02 | Phase 16 | Pending |
+| SPA-01 | Phase 16 | Complete |
+| SPA-02 | Phase 16 | Complete |
 | SPA-03 | Phase 14 | Pending |
-| SPA-04 | Phase 16 | Pending |
+| SPA-04 | Phase 16 | Complete |
 | COO-01 | Phase 19 | Pending |
 | COO-02 | Phase 19 | Pending |
 | COO-03 | Phase 19 | Pending |
