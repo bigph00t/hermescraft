@@ -26,11 +26,11 @@ See: `.planning/milestones/v2.2-ROADMAP.md` for full details.
 
 ## v2.3 Persistent Memory & Ambitious Building
 
-**Milestone Goal:** Transform agents into learning, growing beings with persistent memory, dual-brain reasoning, vision, ambitious building, and full Minecraft gameplay mastery. Deploy custom Qwen3.5-27B model on RunPod A100 with background 9B brain.
+**Milestone Goal:** Transform agents into learning, growing beings with persistent memory, dual-brain reasoning, vision, ambitious building, and full Minecraft gameplay mastery. Deploy custom Qwen3.5-27B model on RunPod A6000 with background 9B brain.
 
 ## Phases
 
-- [ ] **Phase 14: RunPod Infrastructure** - Deploy A100 pod with dual-model serving (27B main + 9B background)
+- [ ] **Phase 14: RunPod Infrastructure** - Deploy A6000 48GB pod with dual-model serving (27B main + 9B background)
 - [ ] **Phase 15: Dual-Brain Architecture** - Background brain module with shared state, insight injection, constraint system
 - [ ] **Phase 16: Vision System** - Screenshot capture + VLM processing + spatial understanding database
 - [ ] **Phase 17: Memory Foundation** - SQLite event log with importance scoring, spatial tagging, cross-session persistence
@@ -43,16 +43,19 @@ See: `.planning/milestones/v2.2-ROADMAP.md` for full details.
 ## Phase Details
 
 ### Phase 14: RunPod Infrastructure
-**Goal**: Custom Qwen3.5-27B model running on RunPod A100, replacing MiniMax M2.7, with secondary 9B model for background brain
+**Goal**: Custom Qwen3.5-27B heretic fine-tune running on RunPod A6000 48GB, replacing MiniMax M2.7, with secondary 9B model for background brain
 **Depends on**: Phase 13 (existing agent system)
 **Requirements**: Infrastructure — no REQ-IDs (enabling phase)
 **Success Criteria** (what must be TRUE):
-  1. RunPod A100 SXM 80GB pod is running with vLLM/llama-server serving Qwen3.5-27B on port 8000
-  2. Secondary Qwen3.5-9B running on port 8001 on the same pod
+  1. RunPod A6000 48GB pod is running with llama-server serving Qwen3.5-27B heretic Q6_K GGUF on port 8000
+  2. Secondary Qwen3.5-9B running via vLLM on port 8001 on the same pod
   3. Both Luna and Max agents connect to the new model and produce coherent responses
   4. Response latency is under 3 seconds for 128-token generation (main brain)
   5. Glass .env updated to point at RunPod endpoint instead of MiniMax
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 14-01-PLAN.md — RunPod pod provisioning + dual-model deployment
+- [ ] 14-02-PLAN.md — Agent cutover (MAX_TOKENS wiring, env updates) + coherence verification
 
 ### Phase 15: Dual-Brain Architecture
 **Goal**: Each agent has a background brain (9B) that runs every 30-60s, producing insights, plans, and constraints that the main brain (27B) reads on each tick
@@ -152,7 +155,7 @@ See: `.planning/milestones/v2.2-ROADMAP.md` for full details.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 14. RunPod Infrastructure | 0/TBD | Not started | - |
+| 14. RunPod Infrastructure | 0/2 | Planned | - |
 | 15. Dual-Brain Architecture | 0/TBD | Not started | - |
 | 16. Vision System | 0/TBD | Not started | - |
 | 17. Memory Foundation | 0/TBD | Not started | - |
