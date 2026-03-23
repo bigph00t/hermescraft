@@ -16,7 +16,7 @@
 
 ## Phases
 
-- [ ] **Phase 11: Knowledge Corpus** - Build and generate all retrievable knowledge chunks (recipes, facts, strategy, commands)
+- [x] **Phase 11: Knowledge Corpus** - Build and generate all retrievable knowledge chunks (recipes, facts, strategy, commands) (completed 2026-03-23)
 - [ ] **Phase 12: KnowledgeStore** - Implement hybrid vector + BM25 retrieval engine with local embeddings
 - [ ] **Phase 13: Prompt Integration** - Wire retrieval into the agent mind loop, implement !wiki, auto-lookup, and context injection
 
@@ -32,12 +32,12 @@
   3. All blocks, items, foods, mobs, and biomes from minecraft-data have fact chunks with key properties
   4. Hand-authored Markdown files cover building, farming, mining, combat, survival, biomes, and structures with ~300 chunks total
   5. Every registered !command has an auto-generated chunk with args, usage pattern, and failure modes derived from GAME_TOOLS
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 11-01-PLAN.md — Recipe chain resolver (RAG-01): mind/knowledge.js module scaffold + buildRecipeChunks with smelting table and cycle detection
 - [x] 11-02-PLAN.md — Strategic knowledge files (RAG-03): 7 hand-authored Markdown files in knowledge/ covering mining, combat, survival, biomes, building, farming, structures
-- [ ] 11-03-PLAN.md — Fact chunks, command chunks, and wiring (RAG-02, RAG-03, RAG-04): buildFactChunks, buildCommandChunks, buildStrategyChunks + start.js integration + smoke tests
+- [x] 11-03-PLAN.md — Fact chunks, command chunks, and wiring (RAG-02, RAG-03, RAG-04): buildFactChunks, buildCommandChunks, buildStrategyChunks + start.js integration + smoke tests
 
 ### Phase 12: KnowledgeStore
 **Goal**: A working retrieval module that takes a query string and returns the most relevant chunks using hybrid BM25 + vector search
@@ -67,6 +67,6 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 11. Knowledge Corpus | v2.2 | 2/3 | In Progress|  |
+| 11. Knowledge Corpus | v2.2 | 3/3 | Complete   | 2026-03-23 |
 | 12. KnowledgeStore | v2.2 | 0/TBD | Not started | - |
 | 13. Prompt Integration | v2.2 | 0/TBD | Not started | - |
