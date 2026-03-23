@@ -109,7 +109,9 @@ Plans:
   2. An agent that died to a creeper last session references that experience when exploring caves in the current session
   3. Background brain produces reflection journals — LLM-authored strategy summaries from recent experiences
   4. Total memory context stays within 4,000-token budget
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 18-01-PLAN.md — Memory retrieval in think() + prompt injection + reflection journals + smoke tests (MEM-02, MEM-04)
 
 ### Phase 19: Enhanced Spatial + Building
 **Goal**: Agents have rich entity awareness, can verify builds, and can plan/execute 500+ block structures
@@ -167,7 +169,7 @@ Plans:
 | 15. Dual-Brain Architecture | 2/2 | Complete    | 2026-03-23 |
 | 16. Vision System | 2/2 | Complete    | 2026-03-23 |
 | 17. Memory Foundation | 1/1 | Complete    | 2026-03-23 |
-| 18. Memory Integration | 0/TBD | Not started | - |
+| 18. Memory Integration | 0/1 | Not started | - |
 | 19. Enhanced Spatial + Building | 0/TBD | Not started | - |
 | 20. Gameplay Loops | 0/TBD | Not started | - |
 | 21. Multi-Agent Coordination | 0/TBD | Not started | - |
