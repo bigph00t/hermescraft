@@ -77,6 +77,11 @@ const REGISTRY = new Map([
   ['design',   (_bot, _args) => {
     return Promise.resolve({ success: false, reason: 'design must be handled by the Mind loop — description:"your idea here"' })
   }],
+  // !wiki is handled in mind/index.js respondToChat() BEFORE dispatch is called.
+  // This entry ensures listCommands() includes 'wiki' for command documentation.
+  ['wiki',     (_bot, _args) => {
+    return Promise.resolve({ success: false, reason: 'wiki is handled by chat response — use !wiki query in chat' })
+  }],
   ['scan', (bot, args) => {
     const pos = bot.entity.position
     // Default: 16x8x16 box centered on bot if no coords given

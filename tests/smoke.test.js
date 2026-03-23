@@ -148,9 +148,9 @@ assert('body/skills/chest: withdrawFromChest exported', typeof chest.withdrawFro
 section('Registry Completeness')
 
 const commands = registry.listCommands()
-assert('registry has 21 commands', commands.length === 21)
+assert('registry has 22 commands', commands.length === 22)
 
-const expectedCmds = ['gather', 'mine', 'craft', 'smelt', 'navigate', 'chat', 'drop', 'idle', 'combat', 'deposit', 'withdraw', 'build', 'design', 'scan', 'farm', 'breed', 'mount', 'dismount', 'look', 'give', 'material']
+const expectedCmds = ['gather', 'mine', 'craft', 'smelt', 'navigate', 'chat', 'drop', 'idle', 'combat', 'deposit', 'withdraw', 'build', 'design', 'scan', 'farm', 'breed', 'mount', 'dismount', 'look', 'give', 'material', 'wiki']
 for (const cmd of expectedCmds) {
   assert(`registry has !${cmd}`, commands.includes(cmd))
 }
@@ -473,6 +473,36 @@ assert('knowledgeStore uses .cache/models for model cache', _ksSrc.includes('.ca
 assert('knowledgeStore imports vectra', _ksSrc.includes('vectra'))
 assert('knowledgeStore imports minisearch', _ksSrc.includes('minisearch'))
 assert('knowledgeStore boosts id field', _ksSrc.includes('id: 3') || _ksSrc.includes("id: 3"))
+
+// ── Section 16: RAG Integration (Phase 13) ──
+
+section('RAG Integration (Phase 13)')
+
+// mind/index.js exports unchanged after RAG wiring
+assert('mind/index: initMind still exported', typeof mindIndex.initMind === 'function')
+assert('mind/index: isSkillRunning still exported', typeof mindIndex.isSkillRunning === 'function')
+assert('mind/index: designAndBuild still exported', typeof mindIndex.designAndBuild === 'function')
+
+// Registry includes wiki command
+const ragCommands = registry.listCommands()
+assert('registry: wiki command registered', ragCommands.includes('wiki'))
+assert('registry: design command still registered', ragCommands.includes('design'))
+assert('registry: gather command still registered', ragCommands.includes('gather'))
+
+// wiki stub returns failure (handled in respondToChat, not dispatch)
+const wikiResult = await registry.dispatch({}, 'wiki', {})
+assert('registry: wiki dispatch returns failure', wikiResult.success === false)
+assert('registry: wiki dispatch mentions chat', wikiResult.reason.includes('chat'))
+
+// Source-level assertions — RAG wiring patterns present in mind/index.js
+assert('mind/index.js imports retrieveKnowledge', _indexSrc.includes('retrieveKnowledge'))
+assert('mind/index.js has _lastFailure state', _indexSrc.includes('_lastFailure'))
+assert('mind/index.js has formatRagContext helper', _indexSrc.includes('formatRagContext'))
+assert('mind/index.js has deriveRagQuery helper', _indexSrc.includes('deriveRagQuery'))
+assert('mind/index.js has deriveFailureQuery helper', _indexSrc.includes('deriveFailureQuery'))
+assert('mind/index.js handles !wiki in chat', _indexSrc.includes('!wiki'))
+assert('mind/index.js passes ragContext to buildSystemPrompt', _indexSrc.includes('ragContext,'))
+assert('mind/index.js has Ask me anything about Minecraft response', _indexSrc.includes('Ask me anything about Minecraft'))
 
 // ── Final Summary ──
 
