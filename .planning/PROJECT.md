@@ -33,8 +33,8 @@ Agents must feel and play like real people — creative, emotional, with desires
 
 ### Active
 
-- [ ] Minecraft RAG — full game knowledge (recipes, blocks, mobs, biomes) queryable on demand
-- [ ] Tool/command RAG — agents understand their own !commands deeply via indexed documentation
+- [x] Minecraft RAG — full game knowledge (recipes, blocks, mobs, biomes) queryable on demand — Validated in Phase 11: Knowledge Corpus (2,677 chunks)
+- [x] Tool/command RAG — agents understand their own !commands deeply via indexed documentation — Validated in Phase 11: Knowledge Corpus (22 command chunks)
 - [ ] Auto-lookup on failure — when skills fail, automatically retrieve correct approach
 - [ ] Context-aware knowledge injection — inject relevant MC info based on current activity
 - [ ] !wiki command — agents query MC knowledge mid-gameplay
@@ -54,6 +54,8 @@ Agents must feel and play like real people — creative, emotional, with desires
 **Shipped:** v2.0 Mineflayer Rewrite (2026-03-22)
 
 The v2.0 rewrite is complete. 24 JavaScript modules across `body/` (skills, primitives, modes) and `mind/` (LLM client, prompt builder, command registry, config, memory, social, locations). 3,389 lines of code. 4 blueprint JSONs. Entry point: `npm run start:v2`.
+
+**Phase 11 complete (2026-03-23):** Knowledge corpus built — 2,677 chunks (782 recipes, 1,662 facts, 211 strategy, 22 commands). `mind/knowledge.js` with 4 generators wired into `start.js`. 10 hand-authored knowledge files in `knowledge/` covering mining, combat, farming, survival, biomes, structures, building, tool-mastery, creative-flows, objectives.
 
 Architecture: `start.js` → `createBot()` → init subsystems → `initMind(bot, config)` → `initModes(bot, isSkillRunning)`. Event-driven Mind loop (chat/skill_complete/idle triggers). 9 registry commands (!gather, !mine, !craft, !smelt, !navigate, !chat, !idle, !combat, !build, !deposit, !withdraw). 300ms body tick with 6-priority survival cascade.
 
@@ -116,4 +118,4 @@ Architecture: `start.js` → `createBot()` → init subsystems → `initMind(bot
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-03-22 after v2.1 milestone start*
+*Last updated: 2026-03-23 after Phase 11 completion*
