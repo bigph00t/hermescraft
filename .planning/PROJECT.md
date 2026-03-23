@@ -57,7 +57,9 @@ The v2.0 rewrite is complete. 24 JavaScript modules across `body/` (skills, prim
 
 **Phase 11 complete (2026-03-23):** Knowledge corpus built — 2,677 chunks (782 recipes, 1,662 facts, 211 strategy, 22 commands). `mind/knowledge.js` with 4 generators wired into `start.js`. 10 hand-authored knowledge files in `knowledge/` covering mining, combat, farming, survival, biomes, structures, building, tool-mastery, creative-flows, objectives.
 
-Architecture: `start.js` → `createBot()` → init subsystems → `initMind(bot, config)` → `initModes(bot, isSkillRunning)`. Event-driven Mind loop (chat/skill_complete/idle triggers). 9 registry commands (!gather, !mine, !craft, !smelt, !navigate, !chat, !idle, !combat, !build, !deposit, !withdraw). 300ms body tick with 6-priority survival cascade.
+**Phase 12 complete (2026-03-23):** KnowledgeStore retrieval engine — `mind/knowledgeStore.js` with hybrid BM25 + vector search + RRF fusion (k=60). Local all-MiniLM-L6-v2 embeddings via @huggingface/transformers. Top-8 results with scores. 267 smoke tests passing.
+
+Architecture: `start.js` → `createBot()` → init subsystems → `initKnowledge` → `loadKnowledge` → `initKnowledgeStore` → `initMind(bot, config)` → `initModes(bot, isSkillRunning)`. Event-driven Mind loop (chat/skill_complete/idle triggers). 9 registry commands (!gather, !mine, !craft, !smelt, !navigate, !chat, !idle, !combat, !build, !deposit, !withdraw). 300ms body tick with 6-priority survival cascade.
 
 ## Current Milestone: v2.2 Minecraft RAG
 
@@ -118,4 +120,4 @@ Architecture: `start.js` → `createBot()` → init subsystems → `initMind(bot
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-03-23 after Phase 11 completion*
+*Last updated: 2026-03-23 after Phase 12 completion*
