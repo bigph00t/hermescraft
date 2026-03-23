@@ -752,6 +752,37 @@ assert('mind/index.js imports logEvent', _indexSrc.includes("logEvent") && _inde
 assert("mind/index.js calls logEvent in death handler", _indexSrc.includes("logEvent(bot, 'death'"))
 assert('mind/index.js calls logEvent on dispatch success', _indexSrc.includes('EVT_MAP'))
 
+// ── Section 21: Memory Integration (Phase 18) ──
+
+section('Memory Integration — Phase 18 (MEM-02, MEM-04)')
+
+// Source-level assertions for MEM-02: memory retrieval in think()
+const _indexSrcP18 = _readFileSync(_join(_here, '../mind/index.js'), 'utf-8')
+assert('mind/index.js has deriveMemoryQuery function', _indexSrcP18.includes('function deriveMemoryQuery'))
+assert('mind/index.js has retrieveMemoryContext function', _indexSrcP18.includes('function retrieveMemoryContext'))
+assert('mind/index.js has formatMemoryContext function', _indexSrcP18.includes('function formatMemoryContext'))
+assert('mind/index.js imports queryRecent from memoryDB', _indexSrcP18.includes('queryRecent'))
+assert('mind/index.js imports queryNearby from memoryDB', _indexSrcP18.includes('queryNearby'))
+assert('mind/index.js passes memoryContext to buildSystemPrompt', _indexSrcP18.includes('memoryContext'))
+assert('formatMemoryContext caps at 4000 chars', _indexSrcP18.includes('4000'))
+assert('formatMemoryContext includes Past Experiences header', _indexSrcP18.includes('Past Experiences'))
+
+// Source-level assertions for prompt injection slot
+const _promptSrcP18 = _readFileSync(_join(_here, '../mind/prompt.js'), 'utf-8')
+assert('prompt.js has memoryContext option slot', _promptSrcP18.includes('options.memoryContext'))
+
+// Source-level assertions for MEM-04: reflection journals
+const _bgBrainSrc = _readFileSync(_join(_here, '../mind/backgroundBrain.js'), 'utf-8')
+assert('backgroundBrain.js has generateReflectionJournal function', _bgBrainSrc.includes('generateReflectionJournal'))
+assert('backgroundBrain.js has REFLECTION_INTERVAL_MS constant', _bgBrainSrc.includes('REFLECTION_INTERVAL_MS'))
+assert('backgroundBrain.js imports logEvent from memoryDB', _bgBrainSrc.includes("import { logEvent }"))
+assert('backgroundBrain.js has lastReflectionAt guard', _bgBrainSrc.includes('lastReflectionAt'))
+assert('backgroundBrain.js calls logEvent with reflection type', _bgBrainSrc.includes("'reflection'"))
+
+// Source-level assertion for importance map
+const _memdbSrcP18 = _readFileSync(_join(_here, '../mind/memoryDB.js'), 'utf-8')
+assert('memoryDB.js IMPORTANCE map has reflection: 9', _memdbSrcP18.includes('reflection:') && _memdbSrcP18.includes('9'))
+
 // ── Final Summary ──
 
 console.log(`\n${'='.repeat(40)}`)

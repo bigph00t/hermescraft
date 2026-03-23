@@ -5,6 +5,7 @@ import { readFileSync, writeFileSync, renameSync, existsSync, mkdirSync } from '
 import { join } from 'path'
 import { getHistory } from './llm.js'
 import { captureScreenshot, queryVLM } from './vision.js'
+import { logEvent } from './memoryDB.js'
 
 // ── Environment Variables ──
 
@@ -13,6 +14,7 @@ const BACKGROUND_MODEL = process.env.BACKGROUND_MODEL_NAME || 'qwen3'
 const BACKGROUND_MAX_TOKENS = parseInt(process.env.BACKGROUND_MAX_TOKENS || '1024', 10)
 const BACKGROUND_INTERVAL_MS = parseInt(process.env.BACKGROUND_INTERVAL_MS || '30000', 10)
 const STARTUP_DELAY_MS = 10000  // wait 10s before first cycle — gives main brain time for first tick
+const REFLECTION_INTERVAL_MS = 30 * 60 * 1000  // 30 minutes between reflection journals
 
 // ── Secondary OpenAI Client (port 8001 — Qwen3.5-9B) ──
 
@@ -186,6 +188,39 @@ Output ONLY this JSON structure (fill in all fields):
 }`
 }
 
+// generateReflectionJournal(recentHistory) — Phase 18 (MEM-04).
+// Calls the background model to synthesize a 1-2 sentence tactical summary of recent activity.
+// Stores the result via logEvent with event_type='reflection' (importance=9).
+// Non-fatal: all errors caught and logged.
+async function generateReflectionJournal(recentHistory) {
+  if (!_bot?.entity) return  // bot not alive — skip
+  const histText = recentHistory
+    .map(m => typeof m.content === 'string' ? m.content.slice(0, 150) : '')
+    .filter(Boolean)
+    .join('\n')
+    .slice(0, 1500)
+  if (!histText) return  // no history to reflect on
+  const prompt = `Summarize in 1-2 sentences what you learned or accomplished recently. Be specific and tactical — mention items, locations, strategies. Output ONLY the summary sentence. No JSON, no markdown, no extra text.`
+  try {
+    const res = await bgClient.chat.completions.create({
+      model: BACKGROUND_MODEL,
+      messages: [
+        { role: 'system', content: `You are ${_agentName}, a Minecraft player reflecting on recent experiences.` },
+        { role: 'user', content: `Recent activity:\n${histText}\n\n${prompt}` },
+      ],
+      max_tokens: 80,
+      temperature: 0.4,
+    })
+    const summary = (res.choices?.[0]?.message?.content || '').trim().slice(0, 480)
+    if (summary && summary.length > 10) {
+      logEvent(_bot, 'reflection', summary, { source: 'background_brain' })
+      console.log('[background-brain] reflection journal:', summary.slice(0, 80))
+    }
+  } catch (err) {
+    console.log('[background-brain] reflection error (non-fatal):', err.message)
+  }
+}
+
 // runBackgroundCycle(bot, config) — the main async background cycle.
 // Sets _bgRunning in try/finally to prevent overlapping calls.
 async function runBackgroundCycle(bot, config) {
@@ -261,6 +296,15 @@ async function runBackgroundCycle(bot, config) {
     // Invalidate TTL cache so next getBrainStateForPrompt() reads the fresh file
     _cachedState = null
     _cacheTime = 0
+
+    // Reflection journal generation (Phase 18 — MEM-04)
+    // Only fire if enough time has passed since last reflection (30 min default)
+    const lastReflection = mergedState.lastReflectionAt || 0
+    if (Date.now() - lastReflection > REFLECTION_INTERVAL_MS) {
+      await generateReflectionJournal(recentHistory)
+      mergedState.lastReflectionAt = Date.now()
+      writeBrainState(mergedState)  // persist the timestamp
+    }
 
     // Periodic vision — capture screenshot and store description in brain-state.json
     // Only fires if Xvfb display is available and main brain isn't thinking

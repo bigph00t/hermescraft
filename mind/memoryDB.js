@@ -14,6 +14,7 @@ let _insertStmt = null
 // death=10, discovery=8, combat=7, build=6, social=5, craft=4, observation=3, movement=2
 const IMPORTANCE = {
   death:       10,
+  reflection:   9,  // Phase 18 — LLM-authored strategy journals from background brain
   discovery:    8,
   combat:       7,
   build:        6,
