@@ -9,11 +9,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const PROJECT_ROOT = dirname(__dirname)
 
 export function loadAgentConfig() {
-  const name = process.env.AGENT_NAME || 'jeffrey'
+  const name = process.env.AGENT_NAME || 'luna'
   const mcUsername = process.env.MC_USERNAME || name
 
   // All known agent names — used for partner detection and Creator filtering
-  const ALL_AGENTS = ['jeffrey', 'john', 'pcrafty', 'aria']
+  const ALL_AGENTS = ['luna', 'max']
   // Partners = all other agents (not just one)
   const partners = ALL_AGENTS.filter(a => a !== name.toLowerCase())
   const partnerName = partners[0] || null  // primary partner for social module compat
