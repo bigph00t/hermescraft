@@ -23,6 +23,9 @@ import { scanArea } from '../body/skills/scan.js'
 import { logEvent, queryRecent, queryNearby } from './memoryDB.js'
 import { planBuild, auditMaterials, getBuildPlanForPrompt, getActivePlan, buildExpectedBlockMap, saveBuildPlan, claimBuildSection } from './buildPlanner.js'
 import { broadcastActivity, getPartnerActivityForPrompt } from './coordination.js'
+import { createProject, getProject, listProjects, recordPlacement,
+         getRemaining, getMissingMaterials, joinProject, completeProject,
+         getLedgerForPrompt, surveyBuildSite } from './buildLedger.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 // BLUEPRINTS_DIR mirrors the path in body/skills/build.js — co-located with blueprint JSONs
@@ -454,6 +457,7 @@ async function think(bot, context) {
       postBuildScan: _postBuildScan,
       partnerActivity: getPartnerActivityForPrompt(),
       partnerNames: _config?.partnerNames || [],
+      buildLedger: getLedgerForPrompt(),
     })
     // Consume-once: clear vision and post-build scan results after injection (like _lastDeath pattern)
     _lastVisionResult = null
@@ -525,6 +529,68 @@ async function think(bot, context) {
       return
     }
 
+    // !builds — list all active build projects from the shared ledger
+    if (result.command === 'builds') {
+      const projects = listProjects()
+      const summary = projects.length === 0
+        ? 'No build projects yet. Use !design to start one.'
+        : projects.map(p => {
+            const pct = p.totalBlocks > 0 ? Math.round(100 * p.placedCount / p.totalBlocks) : 0
+            return `${p.name} (id:${p.id}) at ${p.origin.x},${p.origin.y},${p.origin.z} — ${p.status} ${pct}% (${p.builders.join('+')})`
+          }).join('\n')
+      setTimeout(() => think(bot, { trigger: 'skill_complete', skillName: 'builds',
+        skillResult: { success: true, reason: summary } }), 0)
+      lastActionTime = Date.now()
+      return
+    }
+
+    // !survey — manual terrain scan at current position
+    if (result.command === 'survey') {
+      const width = parseInt(result.args?.width) || 16
+      const depth = parseInt(result.args?.depth) || 16
+      const pos = bot.entity.position
+      const survey = surveyBuildSite(bot, Math.round(pos.x), Math.round(pos.z), width, depth)
+      setTimeout(() => think(bot, { trigger: 'skill_complete', skillName: 'survey',
+        skillResult: { success: true, reason: survey.summary } }), 0)
+      lastActionTime = Date.now()
+      return
+    }
+
+    // !build id:X — resume/contribute to a specific ledger project
+    if (result.command === 'build' && result.args?.id) {
+      const projectId = result.args.id
+      const project = getProject(projectId)
+      if (!project) {
+        setTimeout(() => think(bot, { trigger: 'skill_complete', skillName: 'build',
+          skillResult: { success: false, reason: `Project ${projectId} not found` } }), 0)
+        lastActionTime = Date.now()
+        return
+      }
+      joinProject(projectId, bot.username)
+      console.log('[mind] resuming ledger project:', projectId, project.name)
+      skillRunning = true
+      broadcastActivity('build', { id: projectId, name: project.name }, 'running')
+      const buildResult = await build(bot, '_generated', project.origin.x, project.origin.y, project.origin.z,
+        null, {
+          skipOnMissing: true,
+          onBlockPlaced: (x, y, z, block) => recordPlacement(projectId, x, y, z, block, bot.username),
+          getPlacedBlocks: () => new Set(Object.keys(getProject(projectId)?.placedBlocks || {})),
+        })
+      skillRunning = false
+      const remaining = getRemaining(projectId)
+      if (remaining.length === 0) completeProject(projectId)
+      if (buildResult.success) {
+        recordBuild({
+          name: project.name, origin: project.origin,
+          dimensions: project.blueprint?.size || { x: 0, y: 0, z: 0 },
+          blockCount: buildResult.placed || 0, builder: bot.username, projectId,
+        })
+      }
+      setTimeout(() => think(bot, { trigger: 'skill_complete', skillName: 'build', skillResult: buildResult }), 0)
+      lastActionTime = Date.now()
+      return
+    }
+
     // !design — generate a blueprint from natural language and auto-build it.
     // Handled here (before dispatch) because it requires a separate LLM call and
     // special result recording. The registry entry is only a fallback/help-text stub.
@@ -543,17 +609,23 @@ async function think(bot, context) {
       lastActionTime = Date.now()
 
       // Record successful designs + builds in world knowledge, locations, and build history
-      if (designResult.success) {
+      if (designResult.success || designResult.partial) {
         const pos = bot.entity.position
-        addWorldKnowledge(`Designed and built "${description}" at ${Math.round(pos.x)},${Math.round(pos.y)},${Math.round(pos.z)}`)
-        logEvent(bot, 'build', `design: ${description}`, { command: 'design', success: true })
+        const pId = designResult.projectId || ''
+        const partialNote = designResult.partial ? ' (partial — needs more materials)' : ''
+        addWorldKnowledge(`Designed "${description}" at ${Math.round(pos.x)},${Math.round(pos.y)},${Math.round(pos.z)}${partialNote} [project:${pId}]`)
+        logEvent(bot, 'build', `design: ${description}`, { command: 'design', success: true, projectId: pId })
         saveLocation(`custom_build`, Math.round(pos.x), Math.round(pos.y), Math.round(pos.z), 'build')
+        // Use blueprint dimensions from the project if available
+        const project = pId ? getProject(pId) : null
+        const dims = project?.blueprint?.size || { x: 0, y: 0, z: 0 }
         recordBuild({
           name: description,
           origin: { x: Math.round(pos.x), y: Math.round(pos.y), z: Math.round(pos.z) },
-          dimensions: { x: 0, y: 0, z: 0 },
+          dimensions: dims,
           blockCount: designResult.placed || designResult.total || 0,
           builder: bot.username,
+          projectId: pId,
         })
       }
 
@@ -863,43 +935,46 @@ async function think(bot, context) {
 // ── Design + Build Pipeline ──
 
 // designAndBuild(bot, description) — orchestrates the full !design pipeline:
-//   1. Select 3 reference blueprints from BLUEPRINTS_DIR (excluding _generated.json)
-//   2. Build a dedicated design system prompt with those references
-//   3. Make a SEPARATE LLM call with the design prompt (not the normal game prompt)
-//   4. Extract JSON from the LLM response (strip <think> tags, then parse)
-//   5. Validate with validateBlueprint()
-//   6. Write to _generated.json for build() to load by name
-//   7. Auto-execute build() at the bot's current position
+//   1. Survey terrain at build site
+//   2. Select reference blueprints from BLUEPRINTS_DIR
+//   3. Build a design prompt WITH terrain data
+//   4. LLM call to generate blueprint JSON
+//   5. Extract, validate, write to _generated.json
+//   6. Create project in shared build ledger
+//   7. Auto-execute incremental build with ledger callbacks
 //
-// Returns the build result { success, ... } or { success: false, reason } on failure.
+// Returns the build result { success, projectId, ... } or { success: false, reason }.
 export async function designAndBuild(bot, description) {
-  // ── 1. Select 3 reference blueprints ──
+  const pos = bot.entity.position
+  const originX = Math.round(pos.x)
+  const originY = Math.round(pos.y)
+  const originZ = Math.round(pos.z)
+
+  // ── 1. Survey terrain at build site ──
+  const survey = surveyBuildSite(bot, originX, originZ, 16, 16)
+  console.log('[mind] terrain survey:', survey.summary)
+
+  // ── 2. Select reference blueprints ──
   let refs = []
   try {
     const files = readdirSync(BLUEPRINTS_DIR)
       .filter(f => f.endsWith('.json') && f !== '_generated.json')
-    // Shuffle and take up to 3
     const shuffled = files.sort(() => Math.random() - 0.5).slice(0, 3)
     for (const f of shuffled) {
       try {
         const raw = readFileSync(join(BLUEPRINTS_DIR, f), 'utf-8')
         const bp = JSON.parse(raw)
         refs.push({ name: bp.name || f.replace('.json', ''), json: JSON.stringify(bp, null, 2) })
-      } catch {
-        // Skip unreadable blueprints silently
-      }
+      } catch {}
     }
   } catch (err) {
     console.log('[mind] designAndBuild: could not read blueprints dir:', err.message)
   }
 
-  // ── 2. Build the design prompt ──
-  const designPrompt = buildDesignPrompt(description, refs)
+  // ── 3. Build design prompt WITH terrain data ──
+  const designPrompt = buildDesignPrompt(description, refs, survey)
 
-  // ── 3. Dedicated LLM call with design prompt ──
-  // This call uses the design prompt as the system prompt, replacing the normal game prompt
-  // for this one exchange. The conversation history will include it (acceptable trade-off —
-  // the exchange provides context about what was designed).
+  // ── 4. Dedicated LLM call ──
   let result
   try {
     result = await queryLLM(designPrompt, 'Generate the blueprint now.')
@@ -907,55 +982,54 @@ export async function designAndBuild(bot, description) {
     return { success: false, reason: `LLM call failed: ${err.message}` }
   }
 
-  // ── 4. Extract JSON from response ──
-  // LLM should produce pure JSON. Strip <think> blocks first, then parse.
+  // ── 5. Extract + validate JSON ──
   const stripped = (result.raw || '').replace(/<think>[\s\S]*?<\/think>/g, '').trim()
-
   let jsonString = null
-
-  // First try: direct parse of stripped text
   try {
     JSON.parse(stripped)
     jsonString = stripped
   } catch {
-    // Second try: regex extract the outermost {...} object
     const match = stripped.match(/\{[\s\S]*\}/)
     if (match) {
-      try {
-        JSON.parse(match[0])
-        jsonString = match[0]
-      } catch {
-        jsonString = null
-      }
+      try { JSON.parse(match[0]); jsonString = match[0] } catch { jsonString = null }
     }
   }
+  if (!jsonString) return { success: false, reason: 'LLM did not produce valid JSON' }
 
-  if (!jsonString) {
-    return { success: false, reason: 'LLM did not produce valid JSON' }
-  }
-
-  // ── 5. Validate ──
   const validation = validateBlueprint(jsonString)
   if (!validation.valid) {
     return { success: false, reason: 'Blueprint validation failed: ' + validation.errors.join('; ') }
   }
 
-  // ── 6. Write to _generated.json ──
+  // Write to _generated.json for build() compatibility
   const generatedPath = join(BLUEPRINTS_DIR, '_generated.json')
-  try {
-    writeFileSync(generatedPath, jsonString)
-  } catch (err) {
+  try { writeFileSync(generatedPath, jsonString) } catch (err) {
     return { success: false, reason: `Failed to write generated blueprint: ${err.message}` }
   }
 
-  // ── 7. Auto-execute build at bot's current position ──
-  const pos = bot.entity.position
-  const originX = Math.round(pos.x)
-  const originY = Math.round(pos.y)
-  const originZ = Math.round(pos.z)
+  // ── 6. Create project in shared build ledger ──
+  const blueprint = JSON.parse(jsonString)
+  const project = createProject(
+    blueprint.name || description.slice(0, 30),
+    description,
+    { x: originX, y: originY, z: originZ },
+    blueprint,
+    bot.username
+  )
+  console.log('[mind] created build project:', project.id, project.name)
 
-  const buildResult = await build(bot, '_generated', originX, originY, originZ)
-  return buildResult
+  // ── 7. Auto-execute incremental build with ledger callbacks ──
+  const buildResult = await build(bot, '_generated', originX, originY, originZ, null, {
+    skipOnMissing: true,
+    onBlockPlaced: (x, y, z, block) => recordPlacement(project.id, x, y, z, block, bot.username),
+    getPlacedBlocks: () => new Set(Object.keys(getProject(project.id)?.placedBlocks || {})),
+  })
+
+  // Check if fully complete
+  const remaining = getRemaining(project.id)
+  if (remaining.length === 0) completeProject(project.id)
+
+  return { ...buildResult, projectId: project.id }
 }
 
 // ── Exported Init Function ──

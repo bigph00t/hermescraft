@@ -115,7 +115,11 @@ export function getBuildProgress() {
  * @param {string} [blueprintPath] — optional direct file path (used by buildPlanner section execution)
  * @returns {Promise<{success: boolean, placed?: number, total?: number, blueprintName?: string, reason?: string, missing?: string[], message?: string, failedPlacements?: object[]}>}
  */
-export async function build(bot, blueprintName, originX, originY, originZ, blueprintPath) {
+export async function build(bot, blueprintName, originX, originY, originZ, blueprintPath, options = {}) {
+  // options.skipOnMissing: boolean  — skip blocks with missing materials instead of stopping
+  // options.onBlockPlaced: (x, y, z, block, builder) => void  — callback after each successful placement
+  // options.getPlacedBlocks: () => Set<string>  — returns "x,y,z" keys already placed (for ledger resume)
+  const { skipOnMissing = false, onBlockPlaced = null, getPlacedBlocks = null } = options
   // ── Resume check ──
   // If there's an active paused build, resume it instead of starting fresh.
   // Prevents building the same structure multiple times at different offsets.
@@ -203,28 +207,6 @@ export async function build(bot, blueprintName, originX, originY, originZ, bluep
   // Store full queue in module state so updatePalette can remap remaining entries
   _buildQueue = queue
 
-  // ── Pre-flight Area Check ──
-  // Scan ONE ABOVE ground level. Ground itself being solid is expected — we check
-  // if the space where walls/interior go is already occupied (trees, builds, etc).
-  const footprintBlocks = blueprint.size.x * blueprint.size.z
-  // Skip site check when resuming — the site has our own blocks from the previous run
-  if (!isResume) {
-    let solidCount = 0
-    for (let dx = 0; dx < blueprint.size.x; dx++) {
-      for (let dz = 0; dz < blueprint.size.z; dz++) {
-        const b = bot.blockAt(new Vec3(originX + dx, originY + 1, originZ + dz))
-        if (b && b.name !== 'air' && b.name !== 'short_grass' && b.name !== 'tall_grass' && b.name !== 'fern') solidCount++
-      }
-    }
-    if (solidCount > footprintBlocks * 0.75) {
-      return {
-        success: false,
-        reason: 'site_blocked',
-        message: `Build site has ${solidCount} blocks in the way (${footprintBlocks} total). Clear some blocks or try a more open spot nearby.`,
-      }
-    }
-  }
-
   // ── Resume Support ──
   // If we have a saved state matching this blueprint+origin, resume from completedIndex.
   // Filter queue entries already present in the world.
@@ -240,8 +222,17 @@ export async function build(bot, blueprintName, originX, originY, originZ, bluep
     console.log(`[build] Resuming "${blueprintName}" from block ${startIndex}/${queue.length}`)
   }
 
-  // Also skip already-placed blocks (non-air) in the remaining queue
+  // Also skip already-placed blocks in the remaining queue.
+  // When ledger-backed (getPlacedBlocks provided), filter against the shared placed set
+  // so partner's placements are skipped even if they happened out of order.
+  const placedSet = getPlacedBlocks ? getPlacedBlocks() : null
   const remainingQueue = queue.slice(startIndex).filter(entry => {
+    // Check ledger first (shared across agents)
+    if (placedSet) {
+      const key = `${entry.x},${entry.y},${entry.z}`
+      if (placedSet.has(key)) return false
+    }
+    // Then check world state
     const existing = bot.blockAt(new Vec3(entry.x, entry.y, entry.z))
     return !existing || existing.name === 'air'
   })
@@ -264,6 +255,7 @@ export async function build(bot, blueprintName, originX, originY, originZ, bluep
   let totalPlaced = startIndex
   let saveCounter = 0
   const failedPlacements = []
+  const skippedBlocks = []  // blocks skipped due to missing materials
 
   for (let i = 0; i < remainingQueue.length; i++) {
     // Check interrupt before every block
@@ -279,7 +271,12 @@ export async function build(bot, blueprintName, originX, originY, originZ, bluep
     const itemMeta = mcData.itemsByName[entry.block]
     const inInventory = itemMeta ? bot.inventory.findInventoryItem(itemMeta.id, null) : null
     if (!inInventory) {
-      // Compute all missing materials from remaining placements
+      if (skipOnMissing) {
+        // Skip this block — agent will gather materials and resume later
+        skippedBlocks.push(entry)
+        continue
+      }
+      // Legacy behavior: stop on first missing material
       const missingSet = new Set()
       for (let j = i; j < remainingQueue.length; j++) {
         const rem = remainingQueue[j]
@@ -384,12 +381,37 @@ export async function build(bot, blueprintName, originX, originY, originZ, bluep
       if (saveCounter % 5 === 0) {
         _saveState()
       }
+      // Notify ledger of placement (if callback provided)
+      if (onBlockPlaced) {
+        try { onBlockPlaced(entry.x, entry.y, entry.z, entry.block, bot.username) } catch {}
+      }
       console.log(`[build] ${totalPlaced}/${queue.length} ${entry.block} at (${entry.x},${entry.y},${entry.z})`)
     } else {
       console.log(`[build] place failed at (${entry.x},${entry.y},${entry.z}): ${placed.reason}, skipping`)
       failedPlacements.push({ x: entry.x, y: entry.y, z: entry.z, block: entry.block, reason: placed.reason || 'place_failed' })
       totalPlaced++
       _activeBuild.completedIndex = totalPlaced
+    }
+  }
+
+  // ── Partial Completion (skip-on-missing mode) ──
+  // If blocks were skipped due to missing materials, return partial result
+  if (skippedBlocks.length > 0) {
+    const missingSet = new Set(skippedBlocks.map(b => b.block))
+    _activeBuild.completedIndex = totalPlaced
+    _activeBuild.paused = true
+    _activeBuild.missingMaterials = [...missingSet]
+    _saveState()
+    return {
+      success: true,
+      partial: true,
+      placed: totalPlaced,
+      remaining: skippedBlocks.length,
+      total: queue.length,
+      missingMaterials: [...missingSet],
+      blueprintName,
+      failedPlacements,
+      message: `Placed ${totalPlaced - startIndex} blocks. ${skippedBlocks.length} remaining — need: ${[...missingSet].join(', ')}`,
     }
   }
 

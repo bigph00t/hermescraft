@@ -24,13 +24,14 @@ export function initCoordination(config) {
 }
 
 // broadcastActivity(command, args, status) — atomically write current agent activity to shared file
-export function broadcastActivity(command, args = {}, status = 'running') {
+export function broadcastActivity(command, args = {}, status = 'running', buildProject = null) {
   const payload = {
     agent: _agentName,
     command,
     args,
     status,
     ts: Date.now(),
+    buildProject,
   }
   writeFileSync(_activityTmp, JSON.stringify(payload, null, 2), 'utf-8')
   renameSync(_activityTmp, _activityFile)
@@ -55,6 +56,9 @@ export function getPartnerActivityForPrompt() {
       return `${partner} is idle (${ageS}s ago)`
     }
 
+    if (data.buildProject) {
+      return `${partner} is ${data.status}: ${data.command} — working on "${data.buildProject.name}" (${data.buildProject.progress || 0}%) (${ageS}s ago)`
+    }
     return `${partner} is ${data.status}: ${data.command}${truncatedArgs} (${ageS}s ago)`
   } catch {
     // ENOENT (partner not yet active), or JSON parse error — return null

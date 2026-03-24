@@ -17,6 +17,7 @@ import { initKnowledge, loadKnowledge } from './mind/knowledge.js'
 import { initKnowledgeStore } from './mind/knowledgeStore.js'
 import { initBackgroundBrain } from './mind/backgroundBrain.js'
 import { initMemoryDB } from './mind/memoryDB.js'
+import { initBuildLedger, saveLedger } from './mind/buildLedger.js'
 
 async function main() {
   console.log('[hermescraft] v2 starting...')
@@ -43,7 +44,8 @@ async function main() {
   initBuildHistory(config)
   loadBuildHistory()
   initBuildPlanner(config)
-  console.log('[hermescraft] build planner initialized')
+  initBuildLedger(config)
+  console.log('[hermescraft] build planner + ledger initialized')
 
   // 3.6a. Init multi-agent coordination (Phase 21 — COO-01/COO-04)
   initTaskRegistry(config)
@@ -84,6 +86,7 @@ async function main() {
     savePlayers()
     saveLocations()
     saveBuildHistory()
+    saveLedger()
   }, 60000)
 
   // ── Graceful shutdown — save all state before exit ──
@@ -98,6 +101,7 @@ async function main() {
     savePlayers()
     saveLocations()
     saveBuildHistory()
+    saveLedger()
     process.exit(0)
   }
   process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
@@ -117,6 +121,7 @@ async function main() {
       savePlayers()
       saveLocations()
       saveBuildHistory()
+      saveLedger()
       process.exit(42)
     }
     setTimeout(scheduleRestart, RESTART_INTERVAL_MS)

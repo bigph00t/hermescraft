@@ -14,7 +14,7 @@ import { getHome } from './locations.js'
 //   referenceBlueprints — array of { name: string, json: string } objects (typically 3)
 //
 // Returns a string prompt that instructs the model to output ONLY valid blueprint JSON.
-export function buildDesignPrompt(description, referenceBlueprints) {
+export function buildDesignPrompt(description, referenceBlueprints, terrainSurvey) {
   // Select up to 2 reference examples (fewer = less copying, more creativity)
   const refs = (referenceBlueprints || []).slice(0, 2)
   const refExamples = refs.map(ref => {
@@ -52,8 +52,17 @@ ARCHITECTURE GUIDELINES — make it look REAL, not like a box:
 
 DO NOT copy the reference examples. They show the JSON format, not your design. YOUR structure should have a unique shape, creative material palette, and interesting architectural details that match its purpose.
 
+TERRAIN ADAPTATION: If terrain data is provided below, adapt your design to the landscape. If the ground slopes, use stilts, terracing, or step the foundation. If there are trees or water, incorporate them or design around them. Do NOT assume flat ground unless the terrain says "flat".
+
 Format references:
 ${refExamples}
+${terrainSurvey ? `
+TERRAIN AT BUILD SITE:
+${terrainSurvey.summary}
+Ground elevation range: Y ${terrainSurvey.slopeAssessment.minY} to Y ${terrainSurvey.slopeAssessment.maxY} (${terrainSurvey.slopeAssessment.slope} slope)
+${terrainSurvey.features.length > 0 ? 'Features: ' + terrainSurvey.features.slice(0, 5).map(f => f.description).join(', ') : 'No notable features'}
+
+ADAPT your y:0 layer to this terrain. If slope is gentle/steep, add support columns or step the foundation.` : ''}
 
 Design this: ${description}
 
@@ -72,7 +81,7 @@ export function getBuildContextForPrompt(activeBuild, blueprintCatalog) {
   if (activeBuild) {
     const pct = Math.round(100 * activeBuild.completedIndex / activeBuild.totalBlocks)
     if (activeBuild.paused) {
-      lines.push(`Active build: ${activeBuild.blueprintName} — PAUSED at ${activeBuild.completedIndex}/${activeBuild.totalBlocks} blocks (${pct}%). Need: ${activeBuild.missingMaterials.join(', ')}. Gather the missing materials, then use !build to resume (it will automatically continue where you left off — do NOT start a new build at different coordinates).`)
+      lines.push(`Active build: ${activeBuild.blueprintName} — PAUSED at ${activeBuild.completedIndex}/${activeBuild.totalBlocks} blocks (${pct}%). Need: ${activeBuild.missingMaterials.join(', ')}. Use !build to continue placing available materials, or gather more materials first.`)
     } else {
       lines.push(`Active build: ${activeBuild.blueprintName} — ${activeBuild.completedIndex}/${activeBuild.totalBlocks} blocks placed (${pct}%).`)
     }
@@ -169,10 +178,34 @@ Use your notepad to track your current plan. Check it often. Before starting ANY
 1. Decide what the city needs next (check what's already built via your build history and locations)
 2. Choose a location that fits the city layout (near existing buildings, accessible via paths)
 3. Discuss with your partner — who does what?
-4. Gather ALL materials first
-5. Build in one focused session, checking your vision each turn
+4. Design what you imagine — you DON'T need all materials first
+5. Build what you can with current inventory, gather more, resume until complete
 
 If your notepad is empty, START by writing a city development plan. What buildings exist? What's needed next? Where should things go?
+
+### Building Philosophy
+
+Design what you imagine. Build what you can. Gather what you need. Resume until complete.
+
+- Every block you place is tracked by exact x,y,z in a shared ledger. No work is ever lost.
+- Your partner can see every project and contribute to any build. Use !builds to check status.
+- When you run out of materials mid-build, the build pauses. Gather more, then !build to resume.
+- Design with ANY materials you want — you'll collect them as you go.
+
+### Terrain-Adaptive Building
+
+Build WITH the terrain, not against it:
+- Hills become terraces. Slopes become stilted platforms. Trees become gardens.
+- Your build site terrain is surveyed before you design — the survey data flows into your blueprint.
+- No need to flatten everything first. Embrace natural features. Build on hillsides with stilts.
+- If you WANT to clear an area, you can use !clear. But it's optional, not required.
+
+### Shared Build Projects
+
+All builds are tracked in a shared ledger. You and your partner see every project.
+- !builds — list all active build projects with progress
+- !build id:X — contribute to any project (yours or your partner's)
+- !design description:"..." — design and start a new project
 
 ### City Building (your shared mission)
 
@@ -188,13 +221,12 @@ You are building a CITY — not random scattered structures. Think like an archi
 BEFORE BUILDING — site selection matters:
 - Check your build history and known locations. What exists already? What does the city need next?
 - Pick a spot 10-20 blocks from the nearest existing building. Too close = overlap. Too far = disconnected.
-- Use !scan first. Pick FLAT ground. Avoid water, lava, cliffs, and dense trees.
-- If the site has trees or obstacles, use !clear to flatten the area before designing.
+- Use !scan to understand the terrain. You don't need flat ground — build on slopes, hills, or near water.
 - Face the building entrance toward the town center or main road.
 - Leave 3-5 blocks between buildings for roads and walkways.
 - After building, connect it to existing structures with !road.
 
-DESIGN YOUR OWN BUILDS. You are a creative architect — don't build generic boxes. Think about what makes each structure unique: a tavern has a bar counter and fireplace. A library has tall windows. A blacksmith has a chimney. Let the building's purpose inspire its shape and materials.
+DESIGN YOUR OWN BUILDS. You are a creative architect — don't build generic boxes. Think about what makes each structure unique: a tavern has a bar counter and fireplace. A library has tall windows. A blacksmith has a chimney. Let the building's purpose inspire its shape and materials. Adapt to the terrain — a house on stilts on a hillside is more interesting than a flat box.
 
 Only mention what's in your game state. If a !command fails, try something else — don't talk about errors.
 
@@ -216,19 +248,18 @@ ALWAYS use key:value format for arguments. ALWAYS start chat messages with @name
   parts.push(`## Things you need to know
 
 Tool tiers: WOODEN picks mine stone/coal. STONE mines iron. IRON mines diamond/gold. DIAMOND mines obsidian. Wrong tier = drops NOTHING.
-Logs → planks → sticks. Pickaxe before mining. Cook meat before eating. Never dig straight down.
-
-Hostile mobs: !combat if armed, run if not. Creepers explode — keep distance. Light buildings with torches to prevent spawns.
+Logs → planks → sticks. Pickaxe before mining. Cook meat before eating.
 
 CITY RULE: Build within 150 blocks of home. ALL structures must be part of the city. Navigate back before starting new work.
 
 BUILDING WITH !DESIGN:
-- !design creates a custom blueprint from your description, then auto-builds it
+- !design surveys terrain, designs a blueprint from your description, and starts building it
 - Be SPECIFIC in descriptions: materials, size, features ("8x6 oak and stone inn with two floors, balcony, stone chimney, glass windows")
-- Gather materials BEFORE designing — check inventory first
+- You do NOT need all materials first — build what you can, gather more, then !build to resume
 - Mix materials for style: oak_planks + cobblestone + glass_pane + stone_brick
 - Good roofs: use slabs or stairs, not flat planks. Spruce slabs look great.
 - Add detail: windows (glass_pane), doors (oak_door), interior features
+- Every design creates a shared build project — your partner can contribute with !build id:X
 
 BUILDING WITH !PLAN:
 - !plan breaks large structures (100+ blocks) into sections built one at a time
@@ -303,6 +334,11 @@ Farming: Water within 4 blocks or soil dries. Place water → hoe soil → plant
     parts.push(`## Partner Activity\n${options.partnerActivity}`)
   }
 
+  // Part 5.14: Build ledger — shared project registry with block-level tracking
+  if (options.buildLedger) {
+    parts.push(options.buildLedger)
+  }
+
   // Part 6: !command reference
   parts.push(`## Commands
 
@@ -312,9 +348,12 @@ Farming: Water within 4 blocks or soil dries. Place water → hoe soil → plant
 !smelt item:name fuel:name count:N — smelt in furnace
 !navigate x:N y:N z:N — walk somewhere
 !chat message:"@name text" — say something (MUST start with @name or @all)
-!design description:"detailed text" — design and build a structure (describe materials, size, features in detail)
+!design description:"detailed text" — design and build a structure (surveys terrain, creates shared project, builds incrementally)
 !plan description:"text" — plan a large structure in sections (100+ blocks, walls, multi-room buildings)
-!build — continue building an active plan
+!build — continue building an active project (resumes from where you left off)
+!build id:X — contribute to a specific build project (yours or partner's)
+!builds — list all active build projects with progress
+!survey width:N depth:N — scan terrain at current position
 !material old:block new:block — swap material in active build
 !scan — scan blocks around you
 !give player:name item:name count:N — hand items to someone

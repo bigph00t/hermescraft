@@ -93,6 +93,14 @@ const REGISTRY = new Map([
   ['plan',     (_bot, _args) => {
     return Promise.resolve({ success: false, reason: 'plan must be handled by the Mind loop — description:"your idea here"' })
   }],
+  // !builds is handled in mind/index.js think() BEFORE dispatch is called.
+  ['builds',   (_bot, _args) => {
+    return Promise.resolve({ success: false, reason: 'builds must be handled by the Mind loop' })
+  }],
+  // !survey is handled in mind/index.js think() BEFORE dispatch is called.
+  ['survey',   (_bot, _args) => {
+    return Promise.resolve({ success: false, reason: 'survey must be handled by the Mind loop' })
+  }],
   // !wiki is handled in mind/index.js respondToChat() BEFORE dispatch is called.
   // This entry ensures listCommands() includes 'wiki' for command documentation.
   ['wiki',     (_bot, _args) => {
@@ -167,6 +175,9 @@ const ALIASES = {
   take: 'withdraw',
   sleep: 'idle',
   wait: 'idle',
+  projects: 'builds',
+  list: 'builds',
+  resume: 'build',
 }
 
 // Dispatch a !command to the corresponding body/ skill.
