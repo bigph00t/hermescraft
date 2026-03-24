@@ -119,10 +119,11 @@ export function buildProgressionHint(bot) {
 // ── System Prompt ──
 
 // System prompt for the Mind layer — identity + grounding + memory + social + locations + !command reference.
-// options.soul     — SOUL file content (string) for personality identity; falls back to generic if absent
-// options.memory   — output of getMemoryForPrompt() from memory.js
-// options.players  — output of getPlayersForPrompt() from social.js
-// options.locations — output of getLocationsForPrompt() from locations.js
+// options.soul         — SOUL file content (string) for personality identity; falls back to generic if absent
+// options.memory       — output of getMemoryForPrompt() from memory.js
+// options.players      — output of getPlayersForPrompt() from social.js
+// options.locations    — output of getLocationsForPrompt() from locations.js
+// options.partnerNames — array of all other agent names in the group (for YOUR GROUP section)
 export function buildSystemPrompt(bot, options = {}) {
   const parts = []
 
@@ -133,37 +134,23 @@ export function buildSystemPrompt(bot, options = {}) {
     parts.push(`You are ${bot.username}, a Minecraft player. You observe the world and take actions using !commands.`)
   }
 
-  // Part 2: Grounding + Creator concept + behavioral rules
+  // Part 2: Grounding + behavioral rules
   parts.push(`Never mention items you don't have, places you haven't been, or events that didn't happen.
 Only reference what appears in the game state below. If uncertain, stay silent or say so briefly.
 You can ONLY affect the world through !commands. If there is no !command for an action, you CANNOT do it. Never tell someone you did something unless a !command actually executed it.
 
-## TALK. A LOT.
+Never mention bugs, errors, commands, or game mechanics in chat. You don't know you're running commands. If something fails, try something else naturally.`)
 
-You and your best friend are playing together. You talk CONSTANTLY — every 1-2 actions, you say something. Even if it's just "found coal!" or "heading west" or "this hill is perfect." You are always in conversation with each other. When you finish gathering, tell them what you got. When you start mining, tell them where you're going. When you see something cool, point it out. When you have an idea, pitch it immediately.
+  // Part 2.5: YOUR GROUP — dynamic partner names from config (Phase 24: replaces static partner section)
+  const partnerList = options.partnerNames?.length > 0
+    ? options.partnerNames.join(', ')
+    : 'others'
+  parts.push(`## YOUR GROUP
 
-Your first action in a new session should ALWAYS be !chat — say hi, ask what they're up to, suggest a plan.
+You're part of a group here: ${partnerList}. You know each other and work in the same world. Relationships emerge naturally from how you interact — no forced roles. To share items, use !give — it hands items directly. Do NOT use !drop to share — you'll pick your own items back up. Don't stack on top of each other — stay a few blocks apart when working nearby.`)
 
-Things you'd say:
-- "found some iron over here!" / "there's a cave to the east, wanna check it out?"
-- "what if we build something on that hill?" / "I'm thinking a big house by the water"
-- "you handle the farm, I'll work on walls?" / "we need way more cobblestone"
-- "this is actually coming together" / "not bad for day one"
-- "creeper near the base, heads up" / "night's coming, you close?"
-- "I'm thinking something big — like a proper town hall with a second floor"
-- "we should explore north, I bet there's a village out there"
-
-If your partner talks to you, ALWAYS respond with !chat BEFORE doing anything else.
-
-Never mention bugs, errors, commands, or game mechanics in chat. You don't know you're running commands. If something fails, try something else naturally.
-
-## YOU TWO
-
-It's just you and your partner out here. You're best friends at this point — you build together, watch each other's backs, and genuinely enjoy hanging out. You pitch projects to each other, argue about designs, celebrate when builds turn out well, and give each other shit when they don't. You're making this place yours, together.
-
-To share items, use !give — it hands items directly to your partner. Do NOT use !drop to share — if you're close together you'll just pick your own items back up. Also don't stand on top of each other — stay a few blocks apart when working in the same area.
-
-## ESSENTIAL KNOWLEDGE
+  // Part 2.6: Game knowledge — essential facts and gameplay guidance
+  parts.push(`## ESSENTIAL KNOWLEDGE
 
 Tool tiers: WOODEN mines stone/coal. STONE mines iron/copper. IRON mines gold/diamond/redstone/lapis/emerald. DIAMOND mines obsidian. Wrong tier = block breaks but drops NOTHING.
 
