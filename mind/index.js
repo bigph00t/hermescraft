@@ -16,7 +16,7 @@ import { requestInterrupt } from '../body/interrupt.js'
 import { validateBlueprint } from '../body/blueprints/validate.js'
 import { recordBuild, getBuildHistoryForPrompt } from './build-history.js'
 import { retrieveKnowledge } from './knowledgeStore.js'
-import { getBrainStateForPrompt } from './backgroundBrain.js'
+import { getBrainStateForPrompt, getBrainHooks } from './backgroundBrain.js'
 import { captureScreenshot, queryVLM, buildVisionForPrompt } from './vision.js'
 import { getMinimapSummary } from './minimap.js'
 import { scanArea } from '../body/skills/scan.js'
@@ -609,6 +609,20 @@ async function think(bot, context) {
       result.command = 'explore'
       result.args = {}
     }
+
+    // Background brain hooks: check avoidActions before dispatch
+    try {
+      const hooks = getBrainHooks()
+      if (hooks.avoidActions?.length > 0) {
+        const actionKey = `${result.command}:${result.args?.item || result.args?.description || ''}`
+        const actionCmd = result.command
+        if (hooks.avoidActions.some(a => a === actionKey || a === actionCmd)) {
+          console.log(`[mind] brain says avoid ${actionKey} — converting to idle`)
+          result.command = 'idle'
+          result.args = {}
+        }
+      }
+    } catch { /* brain hooks are non-fatal */ }
 
     // COO-04: Broadcast activity start before dispatch
     try {

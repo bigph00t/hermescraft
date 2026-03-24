@@ -5,7 +5,8 @@ import { readFileSync, writeFileSync, renameSync, existsSync, mkdirSync } from '
 import { join } from 'path'
 import { getHistory } from './llm.js'
 import { captureScreenshot, queryVLM } from './vision.js'
-import { logEvent } from './memoryDB.js'
+import { logEvent, queryRecent } from './memoryDB.js'
+import { getPartnerActivityForPrompt } from './coordination.js'
 
 // ── Environment Variables ──
 
@@ -64,8 +65,33 @@ export function initBackgroundBrain(bot, config) {
   console.log(`[background-brain] initialized — first cycle in ${STARTUP_DELAY_MS / 1000}s`)
 }
 
+// getBrainHooks() — returns actionable hooks from brain state for programmatic use.
+// Main agent calls this to get avoidActions, urgentWarning, suggestedAction.
+// NEVER throws — returns empty object on error.
+export function getBrainHooks() {
+  try {
+    const now = Date.now()
+    let state = _cachedState
+    if (!state || (now - _cacheTime) >= TTL_MS) {
+      if (existsSync(BRAIN_STATE_FILE)) {
+        state = JSON.parse(readFileSync(BRAIN_STATE_FILE, 'utf-8'))
+        _cachedState = state
+        _cacheTime = now
+      }
+    }
+    if (!state) return {}
+    return {
+      avoidActions: state.avoidActions || [],
+      urgentWarning: state.urgentWarning || null,
+      suggestedAction: state.suggestedAction || null,
+    }
+  } catch {
+    return {}
+  }
+}
+
 // getBrainStateForPrompt() — TTL-cached file read for main brain injection.
-// Returns formatted string capped at 1200 chars, or null on cold start / error.
+// Returns formatted string capped at 1500 chars, or null on cold start / error.
 // NEVER throws — all reads wrapped in try/catch.
 export function getBrainStateForPrompt() {
   const now = Date.now()
@@ -139,9 +165,9 @@ function parseLLMJson(raw) {
   }
 }
 
-// buildBackgroundPrompt(recentHistory, gameState, existingState) — prompt for the background brain.
-// The background brain's sole job: analyze history, update plan, extract insights, output JSON.
-function buildBackgroundPrompt(recentHistory, gameState, existingState) {
+// buildBackgroundPrompt(recentHistory, gameState, existingState, extraContext) — prompt for the background brain.
+// Analyzes history + failures + partners, outputs structured JSON with actionable hooks.
+function buildBackgroundPrompt(recentHistory, gameState, existingState, extraContext = {}) {
   const historyText = recentHistory.length > 0
     ? recentHistory.map(m => `${m.role}: ${typeof m.content === 'string' ? m.content.slice(0, 200) : '[content]'}`).join('\n')
     : '(no recent history yet)'
@@ -150,41 +176,57 @@ function buildBackgroundPrompt(recentHistory, gameState, existingState) {
     ? JSON.stringify(existingState.plan, null, 2)
     : '(no existing plan)'
 
-  return `You are the planning brain for a Minecraft agent named ${_agentName}.
-Your job is NOT to take actions. You analyze recent events and maintain a coherent plan.
+  // Build extra context sections
+  const sections = []
+  if (extraContext.recentEvents) {
+    sections.push(`Recent memory events (deaths, discoveries, crafts):\n${extraContext.recentEvents}`)
+  }
+  if (extraContext.partnerActivity) {
+    sections.push(`Partner agents:\n${extraContext.partnerActivity}`)
+  }
+  if (extraContext.inventory) {
+    sections.push(`Inventory:\n${extraContext.inventory}`)
+  }
+  const extraText = sections.length > 0 ? '\n\n' + sections.join('\n\n') : ''
+
+  return `You are the strategic brain for a Minecraft agent named ${_agentName}.
+You do NOT take actions. You analyze events and produce structured guidance for the action brain.
 
 Tasks:
-1. Analyze recent history and extract 1-3 new insights or lessons
-2. Update or maintain the multi-step plan based on recent events
-3. Note spatial hazards and notable locations (at most 3)
-4. Output ONLY valid JSON — no explanation, no markdown fences, no extra text
+1. Maintain a coherent multi-step plan
+2. Extract 1-3 insights from recent events
+3. Note hazards and useful locations
+4. Set urgentWarning if there's an immediate threat or critical need (low health, starvation, nearby danger)
+5. List avoidActions — commands that keep failing and should be skipped (e.g. "craft:stone_pickaxe" if materials are missing)
+6. Suggest a resourceNeeds list — what items to prioritize gathering based on current plan and inventory
+7. If you notice the agent is idle or stuck, provide a suggestedAction
 
 Recent history (last 20 exchanges):
 ${historyText}
 
 Current game state:
-${gameState}
+${gameState}${extraText}
 
-Existing plan (may be stale — update if needed):
+Existing plan (update if needed):
 ${existingPlan}
 
-Output ONLY this JSON structure (fill in all fields):
+Output ONLY valid JSON:
 {
   "plan": {
-    "goal": "primary goal description",
-    "steps": [
-      {"action": "step description", "status": "todo|in_progress|done"}
-    ],
+    "goal": "primary goal",
+    "steps": [{"action": "step", "status": "todo|in_progress|done"}],
     "current_step": 0
   },
-  "insights": ["insight or lesson learned"],
-  "spatial": [
-    {"label": "location name", "note": "what is here", "hazard": false}
-  ],
-  "constraints": ["constraint or rule to follow"],
-  "partnerObs": [],
+  "insights": ["lesson learned"],
+  "spatial": [{"label": "name", "note": "what", "hazard": false}],
+  "constraints": ["rule to follow"],
+  "urgentWarning": null,
+  "avoidActions": [],
+  "suggestedAction": null,
+  "resourceNeeds": [],
+  "socialNotes": [],
   "updated_at": ${Date.now()},
-  "schema_version": 1
+  "schema_version": 2
 }`
 }
 
@@ -240,6 +282,29 @@ async function runBackgroundCycle(bot, config) {
       `Inventory: ${bot?.inventory?.items()?.length ?? 0} item types`,
     ].join(', ')
 
+    // Gather extra context: recent memory events, partner activity, inventory details
+    const extraContext = {}
+    try {
+      const events = queryRecent(_agentName, 15)
+      if (events.length > 0) {
+        extraContext.recentEvents = events
+          .map(e => `[${e.event_type}] ${e.description}`)
+          .join('\n')
+      }
+    } catch {}
+    try {
+      const partnerCtx = getPartnerActivityForPrompt()
+      if (partnerCtx) extraContext.partnerActivity = partnerCtx
+    } catch {}
+    try {
+      const items = bot?.inventory?.items() || []
+      if (items.length > 0) {
+        extraContext.inventory = items
+          .map(i => `${i.name.replace('minecraft:', '')} x${i.count}`)
+          .join(', ')
+      }
+    } catch {}
+
     // Load existing brain state to preserve ring buffer continuity
     let existingState = null
     try {
@@ -249,7 +314,7 @@ async function runBackgroundCycle(bot, config) {
     } catch {}
 
     // Build prompt and call secondary model
-    const prompt = buildBackgroundPrompt(recentHistory, gameState, existingState)
+    const prompt = buildBackgroundPrompt(recentHistory, gameState, existingState, extraContext)
 
     const response = await bgClient.chat.completions.create({
       model: BACKGROUND_MODEL,
@@ -270,7 +335,7 @@ async function runBackgroundCycle(bot, config) {
     }
 
     // Merge new fields into existing state (preserves ring buffer continuity)
-    // New insights append to existing; don't replace the full array
+    // Ring buffer fields (insights, spatial, partnerObs) append; hook fields replace each cycle
     const mergedState = {
       ...(existingState || {}),
       plan: parsed.plan || existingState?.plan || {},
@@ -287,8 +352,14 @@ async function runBackgroundCycle(bot, config) {
         ...(existingState?.partnerObs || []),
         ...(Array.isArray(parsed.partnerObs) ? parsed.partnerObs : []),
       ],
+      // Actionable hooks — replaced each cycle (not accumulated)
+      urgentWarning: parsed.urgentWarning || null,
+      avoidActions: Array.isArray(parsed.avoidActions) ? parsed.avoidActions : [],
+      suggestedAction: parsed.suggestedAction || null,
+      resourceNeeds: Array.isArray(parsed.resourceNeeds) ? parsed.resourceNeeds : [],
+      socialNotes: Array.isArray(parsed.socialNotes) ? parsed.socialNotes : [],
       updated_at: Date.now(),
-      schema_version: 1,
+      schema_version: 2,
     }
 
     writeBrainState(mergedState)
@@ -340,22 +411,43 @@ function formatBrainState(state) {
   const age = Math.round((Date.now() - (state.updated_at || 0)) / 1000)
   const lines = [`## Background Brain (${age}s ago)`]
 
+  // Urgent warning goes first — most important signal
+  if (state.urgentWarning) {
+    lines.push(`⚠ WARNING: ${state.urgentWarning}`)
+  }
+
   if (state.plan?.goal) {
     lines.push(`Goal: ${state.plan.goal}`)
     const stepIdx = state.plan.current_step ?? 0
     const step = state.plan.steps?.[stepIdx]
     if (step) {
-      lines.push(`Step: ${step.action} (${step.status || 'todo'})`)
+      lines.push(`Next step: ${step.action} (${step.status || 'todo'})`)
     }
   }
 
+  if (state.suggestedAction) {
+    lines.push(`Suggestion: ${state.suggestedAction}`)
+  }
+
+  if (state.resourceNeeds?.length) {
+    lines.push(`Need: ${state.resourceNeeds.slice(0, 5).join(', ')}`)
+  }
+
+  if (state.avoidActions?.length) {
+    lines.push(`Avoid (keeps failing): ${state.avoidActions.slice(0, 3).join(', ')}`)
+  }
+
   if (state.constraints?.length) {
-    lines.push(`Constraints: ${state.constraints.slice(0, 2).join('. ')}`)
+    lines.push(`Rules: ${state.constraints.slice(0, 2).join('. ')}`)
   }
 
   const insights = (state.insights || []).slice(-3)  // newest 3
   if (insights.length) {
     lines.push(`Insights: ${insights.join(' ')}`)
+  }
+
+  if (state.socialNotes?.length) {
+    lines.push(`Social: ${state.socialNotes.slice(0, 2).join('. ')}`)
   }
 
   const hazards = (state.spatial || []).filter(s => s.hazard).slice(0, 2)
@@ -369,5 +461,5 @@ function formatBrainState(state) {
   }
 
   const text = lines.join('\n')
-  return text.length > 1200 ? text.slice(0, 1200) : text
+  return text.length > 1500 ? text.slice(0, 1500) : text  // bumped cap slightly for new fields
 }
