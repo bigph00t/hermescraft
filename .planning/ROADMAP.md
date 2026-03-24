@@ -257,5 +257,5 @@ Plans:
 | 22. Polish & Tool Fixes | 2/2 | Complete    | 2026-03-23 |
 | 23. Model Switch + Unified Inference | 2/2 | Complete    | 2026-03-24 |
 | 24. Four Agents + Prompt Polish | 3/3 | Complete    | 2026-03-24 |
-| 25. Voice Chat | 2/2 | Complete   | 2026-03-24 |
+| 25. Voice Chat | 2/2 | Complete    | 2026-03-24 |
 | 26. RunPod Deployment | 0/TBD | Not started | - |
