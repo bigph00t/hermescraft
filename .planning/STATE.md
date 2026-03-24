@@ -4,7 +4,7 @@ milestone: v2.3
 milestone_name: Persistent Memory & Ambitious Building
 status: Milestone complete — ready for v2.4
 stopped_at: All phases complete. Deployed 8 agents on Qwen3-8B. Prompt overhaul + SOUL-driven personalities.
-last_updated: "2026-03-24T05:50:00.000Z"
+last_updated: "2026-03-24T20:59:00.000Z"
 progress:
   total_phases: 13
   completed_phases: 13
@@ -70,6 +70,7 @@ All 13 phases shipped.
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 260324-jfe | Comprehensive building overhaul: blueprints, design prompt, terrain clearing, roads, auto-torch | 2026-03-24 | 0f822f5 | [260324-jfe](./quick/260324-jfe-comprehensive-agent-building-overhaul-be/) |
 
 ## Next steps (v2.4 candidates)
 - Custom Fabric mod for TTS over TCP (plugin channels, no UDP needed)
