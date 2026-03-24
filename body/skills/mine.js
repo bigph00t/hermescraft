@@ -62,8 +62,15 @@ export async function mine(bot, oreName, count = 1, options = {}) {
       if (!target || target.name === 'air') continue
 
       // Auto-select best tool that can actually harvest this ore tier
-      // requireHarvest: true tells the plugin to prefer tools that meet the harvest requirement
-      try { await bot.tool.equipForBlock(target, { requireHarvest: true }) } catch {}
+      try {
+        await bot.tool.equipForBlock(target, { requireHarvest: true })
+      } catch (e) {
+        // equipForBlock failed — try manual pickaxe equip as fallback
+        const pickaxe = bot.inventory.items().find(i => i.name.includes('pickaxe'))
+        if (pickaxe) {
+          try { await bot.equip(pickaxe, 'hand') } catch {}
+        }
+      }
 
       // Verify held tool can actually harvest this block tier.
       // For ores (iron, diamond, deepslate variants), this enforces the correct pickaxe tier.

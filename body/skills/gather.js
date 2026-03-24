@@ -62,7 +62,15 @@ export async function gather(bot, blockName, count = 1, options = {}) {
 
       // Equip best tool for this block type before navigating — silent catch
       // because failing to equip (no suitable tool) should not abort gather
-      try { await bot.tool.equipForBlock(target, { requireHarvest: true }) } catch {}
+      try {
+        await bot.tool.equipForBlock(target, { requireHarvest: true })
+      } catch (e) {
+        // equipForBlock failed — try manual pickaxe equip as fallback
+        const pickaxe = bot.inventory.items().find(i => i.name.includes('pickaxe'))
+        if (pickaxe) {
+          try { await bot.equip(pickaxe, 'hand') } catch {}
+        }
+      }
 
       // Verify held tool can harvest this block — skip candidate if not (unlike mine.js
       // which hard-stops, gather continues to next candidate since many gather targets
@@ -107,5 +115,7 @@ export async function gather(bot, blockName, count = 1, options = {}) {
     if (!gotOne) break
   }
 
-  return { success: collected >= count, collected, requested: count, blockName: normalized }
+  const success = collected >= count
+  const reason = success ? undefined : (collected === 0 ? 'no_harvestable_blocks' : 'not_enough_found')
+  return { success, collected, requested: count, blockName: normalized, reason }
 }
