@@ -9,7 +9,7 @@ import { logEvent } from './memoryDB.js'
 
 // ── Environment Variables ──
 
-const BACKGROUND_BRAIN_URL = process.env.VLLM_URL || 'http://localhost:8000/v1'
+const BACKGROUND_BRAIN_URL = process.env.BACKGROUND_BRAIN_URL || process.env.VLLM_URL || 'http://localhost:8001/v1'
 const BACKGROUND_MODEL = process.env.BACKGROUND_MODEL_NAME || process.env.MODEL_NAME || 'Qwen3.5-35B-A3B'
 const BACKGROUND_MAX_TOKENS = parseInt(process.env.BACKGROUND_MAX_TOKENS || '1024', 10)
 const BACKGROUND_INTERVAL_MS = parseInt(process.env.BACKGROUND_INTERVAL_MS || '30000', 10)
