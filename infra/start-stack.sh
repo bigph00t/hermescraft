@@ -14,7 +14,6 @@ echo "  HermesCraft — Full Stack Launcher"
 echo "============================================"
 echo "  MC Server:  $MC_HOST:$MC_PORT"
 echo "  Main Brain: localhost:8000 (llama-server)"
-echo "  Background: localhost:8001 (vLLM)"
 echo "============================================"
 echo ""
 
@@ -57,22 +56,18 @@ fi
 echo ""
 echo "── Step 2: Model Servers ──"
 MAIN_OK=$(curl -sf http://localhost:8000/health 2>/dev/null && echo "yes" || echo "no")
-SEC_OK=$(curl -sf http://localhost:8001/health 2>/dev/null && echo "yes" || echo "no")
 
-if [ "$MAIN_OK" = "yes" ] && [ "$SEC_OK" = "yes" ]; then
-    echo "[stack] Both model servers already running"
+if [ "$MAIN_OK" = "yes" ]; then
+    echo "[stack] Model server already running"
 else
     echo "[stack] Starting model servers..."
     nohup "$SCRIPT_DIR/start-models.sh" > /workspace/model-server.log 2>&1 &
     MODEL_PID=$!
     echo "[stack] Model startup PID: $MODEL_PID (log: /workspace/model-server.log)"
-    echo "[stack] Waiting for both models to be healthy..."
+    echo "[stack] Waiting for model to be healthy..."
     # Wait for main brain
     until curl -sf http://localhost:8000/health > /dev/null 2>&1; do sleep 5; done
     echo "[stack] Main brain (port 8000) ready"
-    # Wait for secondary brain
-    until curl -sf http://localhost:8001/health > /dev/null 2>&1; do sleep 5; done
-    echo "[stack] Secondary brain (port 8001) ready"
 fi
 
 # ── Step 3: Agents ──
@@ -87,8 +82,7 @@ echo "============================================"
 echo "  HermesCraft Stack — All Systems Running"
 echo "============================================"
 echo "  MC Server:    docker (port $MC_PORT)"
-echo "  Main Brain:   localhost:8000 (hermes)"
-echo "  Background:   localhost:8001 (secondary)"
+echo "  Main Brain:   localhost:8000 (Qwen3.5-35B-A3B)"
 echo "  Agents:       tmux attach -t hermescraft-duo"
 echo ""
 echo "  Logs:"

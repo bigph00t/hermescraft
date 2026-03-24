@@ -43,7 +43,7 @@ else
 fi
 
 # ── Python packages for model download ──
-pip install -q huggingface_hub vllm 2>/dev/null || pip3 install -q huggingface_hub vllm
+pip install -q huggingface_hub 2>/dev/null || pip3 install -q huggingface_hub
 
 # ── llama-server (llama.cpp with CUDA) ──
 if ! command -v llama-server &>/dev/null; then
@@ -69,30 +69,18 @@ fi
 MODEL_DIR="${MODEL_DIR:-/models}"
 mkdir -p "$MODEL_DIR"
 
-MAIN_MODEL="$MODEL_DIR/qwen35-27b-heretic-q6_k.gguf"
-if [ ! -f "$MAIN_MODEL" ]; then
-    echo "[setup] Downloading main brain model (~22 GB)..."
-    huggingface-cli download \
-        llmfan46/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled-heretic-v1-GGUF \
-        --include "*q6_k*" \
-        --local-dir "$MODEL_DIR/"
-    # Rename to expected path if needed
-    GGUF_FILE=$(ls "$MODEL_DIR"/*q6_k*.gguf 2>/dev/null | head -1)
-    if [ -n "$GGUF_FILE" ] && [ "$GGUF_FILE" != "$MAIN_MODEL" ]; then
-        mv "$GGUF_FILE" "$MAIN_MODEL"
-    fi
-    echo "[setup] Main brain model downloaded: $(ls -lh "$MAIN_MODEL" | awk '{print $5}')"
-else
-    echo "[setup] Main brain model already exists: $(ls -lh "$MAIN_MODEL" | awk '{print $5}')"
-fi
+MAIN_MODEL="$MODEL_DIR/Qwen3.5-35B-A3B-UD-Q4_K_XL.gguf"
+MMPROJ="$MODEL_DIR/mmproj-F16.gguf"
 
-SECONDARY_DIR="$MODEL_DIR/Qwen3.5-9B"
-if [ ! -d "$SECONDARY_DIR" ] || [ -z "$(ls -A "$SECONDARY_DIR" 2>/dev/null)" ]; then
-    echo "[setup] Downloading secondary brain model (~9 GB)..."
-    huggingface-cli download Qwen/Qwen3.5-9B --local-dir "$SECONDARY_DIR/"
-    echo "[setup] Secondary brain model downloaded"
+if [ ! -f "$MAIN_MODEL" ] || [ ! -f "$MMPROJ" ]; then
+    echo "[setup] Downloading Qwen3.5-35B-A3B Q4_K_XL + mmproj (~22 GB total)..."
+    huggingface-cli download unsloth/Qwen3.5-35B-A3B-GGUF \
+        --include "*UD-Q4_K_XL*" "*mmproj-F16*" \
+        --local-dir "$MODEL_DIR/"
+    ls -lh "$MODEL_DIR/"*UD-Q4_K_XL*.gguf 2>/dev/null || echo "[setup] WARNING: Q4_K_XL file not found after download"
+    ls -lh "$MODEL_DIR/mmproj-F16.gguf" 2>/dev/null || echo "[setup] WARNING: mmproj file not found after download"
 else
-    echo "[setup] Secondary brain model already exists"
+    echo "[setup] Qwen3.5-35B-A3B already downloaded: $(ls -lh "$MAIN_MODEL" | awk '{print $5}')"
 fi
 
 echo ""
