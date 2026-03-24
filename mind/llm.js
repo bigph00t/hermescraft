@@ -6,7 +6,7 @@ import OpenAI from 'openai'
 const VLLM_URL = process.env.VLLM_URL || 'http://localhost:8000/v1'
 const MODEL_NAME = process.env.MODEL_NAME || 'Qwen3.5-35B-A3B'
 const BASE_TEMPERATURE = parseFloat(process.env.TEMPERATURE || '0.6')
-const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '128', 10)
+const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '2048', 10)
 const MAX_RETRIES = 3
 const RETRY_BASE_MS = 1000
 const MAX_HISTORY_MESSAGES = 80  // 40 turns — MIND-03 requirement
