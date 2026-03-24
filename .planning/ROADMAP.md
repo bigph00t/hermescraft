@@ -221,7 +221,10 @@ Plans:
   4. Audio injected into Simple Voice Chat as proximity audio — fades with distance
   5. infra/start-stack.sh launches TTS bridge alongside agents
   6. TTS latency under 500ms per utterance
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 25-01-PLAN.md — Paper TTS plugin (HTTP audio injection via EntityAudioChannel) + docker-compose voice chat config
+- [ ] 25-02-PLAN.md — Python TTS bridge (Piper synthesis + log tail + 48kHz resampling) + infra script updates
 
 ### Phase 26: RunPod Deployment
 **Goal**: Full 8-agent stack running on RunPod A6000 48GB with TTS proximity voice chat
@@ -253,6 +256,6 @@ Plans:
 | 21. Multi-Agent Coordination | 2/2 | Complete    | 2026-03-23 |
 | 22. Polish & Tool Fixes | 2/2 | Complete    | 2026-03-23 |
 | 23. Model Switch + Unified Inference | 2/2 | Complete    | 2026-03-24 |
-| 24. Four Agents + Prompt Polish | 3/3 | Complete   | 2026-03-24 |
-| 25. Voice Chat | 0/TBD | Not started | - |
+| 24. Four Agents + Prompt Polish | 3/3 | Complete    | 2026-03-24 |
+| 25. Voice Chat | 0/2 | Not started | - |
 | 26. RunPod Deployment | 0/TBD | Not started | - |
