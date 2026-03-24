@@ -204,10 +204,10 @@ Plans:
   5. Proximity chat: agents only receive/respond to chat messages from players within 32 blocks
   6. Vision prompting enhanced: agents use !see proactively based on personality
   7. All 8 SOUL files loaded correctly based on AGENT_NAME env var
-**Plans:** 3 plans
+**Plans:** 2/3 plans executed
 Plans:
-- [ ] 24-01-PLAN.md — 4 new SOUL files (ember, flint, sage, wren) + vision hints for all 8 + config.js ALL_AGENTS expansion
-- [ ] 24-02-PLAN.md — Prompt surgery (remove TALK/YOU TWO, add YOUR GROUP) + per-partner chat counter + proximity filter
+- [x] 24-01-PLAN.md — 4 new SOUL files (ember, flint, sage, wren) + vision hints for all 8 + config.js ALL_AGENTS expansion
+- [x] 24-02-PLAN.md — Prompt surgery (remove TALK/YOU TWO, add YOUR GROUP) + per-partner chat counter + proximity filter
 - [ ] 24-03-PLAN.md — Data-driven launch-agents.sh for N agents + start-stack.sh update
 
 ### Phase 25: Voice Chat
@@ -253,6 +253,6 @@ Plans:
 | 21. Multi-Agent Coordination | 2/2 | Complete    | 2026-03-23 |
 | 22. Polish & Tool Fixes | 2/2 | Complete    | 2026-03-23 |
 | 23. Model Switch + Unified Inference | 2/2 | Complete    | 2026-03-24 |
-| 24. Four Agents + Prompt Polish | 0/3 | Not started | - |
+| 24. Four Agents + Prompt Polish | 2/3 | In Progress|  |
 | 25. Voice Chat | 0/TBD | Not started | - |
 | 26. RunPod Deployment | 0/TBD | Not started | - |
