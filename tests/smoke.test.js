@@ -406,7 +406,7 @@ assert('mind/index.js imports recordBuild', _indexSrc.includes('recordBuild'))
 const _llmSrc = _readFileSync(_join(_here, '../mind/llm.js'), 'utf-8')
 assert('llm.js reads MAX_TOKENS from env', _llmSrc.includes("process.env.MAX_TOKENS"))
 assert('llm.js passes max_tokens to API call', _llmSrc.includes('max_tokens:') || _llmSrc.includes('max_tokens :'))
-assert('llm.js default MODEL_NAME is hermes', _llmSrc.includes("|| 'hermes'"))
+assert('llm.js default MODEL_NAME is Qwen3.5-35B-A3B', _llmSrc.includes("|| 'Qwen3.5-35B-A3B'"))
 
 // Phase 20 prompt sections (GPL-05 through GPL-10) — source-level check
 const _promptSrcP20 = _readFileSync(_join(_here, '../mind/prompt.js'), 'utf-8')
@@ -543,7 +543,7 @@ assert('backgroundBrain.js has BACKGROUND_MAX_TOKENS default 1024', _bgSrc.inclu
 assert('backgroundBrain.js has _bgRunning guard', _bgSrc.includes('_bgRunning'))
 assert('backgroundBrain.js has finally block clearing _bgRunning', _bgSrc.includes('finally'))
 assert('backgroundBrain.js has ring buffer cap 20 for insights', _bgSrc.includes('20'))
-assert('backgroundBrain.js has OpenAI client for port 8001', _bgSrc.includes('new OpenAI'))
+assert('backgroundBrain.js has OpenAI client for VLLM_URL endpoint', _bgSrc.includes('new OpenAI'))
 assert('backgroundBrain.js imports getHistory from llm.js', _bgSrc.includes("from './llm.js'"))
 assert('backgroundBrain.js does NOT import from index.js', !_bgSrc.includes("from './index.js'"))
 assert('backgroundBrain.js does NOT use default export', !_bgSrc.includes('export default'))
