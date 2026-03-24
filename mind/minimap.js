@@ -3,6 +3,7 @@
 import { createCanvas } from 'canvas'
 import { writeFileSync, mkdirSync } from 'fs'
 import { join } from 'path'
+import { Vec3 } from 'vec3'
 
 // ── Block color map — expanded for richer renders ──
 
@@ -74,7 +75,7 @@ export function renderMinimap(bot, dataDir, radius = 24) {
         let color = null
 
         for (let dy = startY; dy >= Math.max(pos.y - 16, -64); dy--) {
-          const block = bot.blockAt({ x: pos.x + dx, y: dy, z: pos.z + dz })
+          const block = bot.blockAt(new Vec3(pos.x + dx, dy, pos.z + dz))
           color = getBlockColor(block?.name)
           if (color) break
         }
@@ -174,7 +175,7 @@ export function renderElevation(bot, dataDir) {
         for (let depth = 1; depth <= viewDepth; depth++) {
           const bx = Math.round(pos.x + forwardX * depth + rightX * lateralOffset)
           const bz = Math.round(pos.z + forwardZ * depth + rightZ * lateralOffset)
-          const block = bot.blockAt({ x: bx, y: blockY, z: bz })
+          const block = bot.blockAt(new Vec3(bx, blockY, bz))
           const color = getBlockColor(block?.name)
           if (color) {
             // Darken by depth for pseudo-3D effect
@@ -283,7 +284,7 @@ export function renderCompositeViewSync(bot, dataDir) {
         for (let depth = 1; depth <= viewDepth; depth++) {
           const bx = Math.round(pos.x + forwardX * depth + rightX * lateralOffset)
           const bz = Math.round(pos.z + forwardZ * depth + rightZ * lateralOffset)
-          const block = bot.blockAt({ x: bx, y: blockY, z: bz })
+          const block = bot.blockAt(new Vec3(bx, blockY, bz))
           const color = getBlockColor(block?.name)
           if (color) {
             const darken = Math.max(0.5, 1 - depth / viewDepth * 0.5)
@@ -314,7 +315,7 @@ export function renderCompositeViewSync(bot, dataDir) {
       for (let dz = -mRadius; dz < mRadius; dz++) {
         const startY = Math.min(pos.y + 32, 320)
         for (let dy = startY; dy >= Math.max(pos.y - 16, -64); dy--) {
-          const block = bot.blockAt({ x: pos.x + dx, y: dy, z: pos.z + dz })
+          const block = bot.blockAt(new Vec3(pos.x + dx, dy, pos.z + dz))
           const color = getBlockColor(block?.name)
           if (color) {
             ctx.fillStyle = color
@@ -381,7 +382,7 @@ export function getMinimapSummary(bot, radius = 32) {
       for (let dz = -radius; dz < radius; dz++) {
         const startY = Math.min(pos.y + 64, 320)
         for (let dy = startY; dy >= -64; dy--) {
-          const block = bot.blockAt({ x: pos.x + dx, y: dy, z: pos.z + dz })
+          const block = bot.blockAt(new Vec3(pos.x + dx, dy, pos.z + dz))
           if (!block || AIR_BLOCKS.has(block.name)) continue
           counts[block.name] = (counts[block.name] || 0) + 1
           break
