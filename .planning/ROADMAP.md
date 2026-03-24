@@ -41,7 +41,7 @@ See: `.planning/milestones/v2.2-ROADMAP.md` for full details.
 - [x] **Phase 22: Polish & Tool Fixes** - Tool auto-equipping, bug fixes, prompt tuning, overnight stability (completed 2026-03-23)
 - [x] **Phase 23: Model Switch + Unified Inference** - Replace 3-model setup with single Qwen3.5-35B-A3B MoE (native vision) (completed 2026-03-24)
 - [x] **Phase 24: Four Agents + Prompt Polish** - 4 unique personalities, less prescriptive prompts, proximity chat (completed 2026-03-24)
-- [ ] **Phase 25: Voice Chat** - TTS bridge + Simple Voice Chat plugin for proximity voice
+- [x] **Phase 25: Voice Chat** - TTS bridge + Simple Voice Chat plugin for proximity voice (completed 2026-03-24)
 - [ ] **Phase 26: RunPod Deployment** - Provision A6000 48GB, deploy full 4-agent stack with TTS
 
 ## Phase Details
@@ -221,9 +221,9 @@ Plans:
   4. Audio injected into Simple Voice Chat as proximity audio — fades with distance
   5. infra/start-stack.sh launches TTS bridge alongside agents
   6. TTS latency under 500ms per utterance
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
-- [ ] 25-01-PLAN.md — Paper TTS plugin (HTTP audio injection via EntityAudioChannel) + docker-compose voice chat config
+- [x] 25-01-PLAN.md — Paper TTS plugin (HTTP audio injection via EntityAudioChannel) + docker-compose voice chat config
 - [x] 25-02-PLAN.md — Python TTS bridge (Piper synthesis + log tail + 48kHz resampling) + infra script updates
 
 ### Phase 26: RunPod Deployment
@@ -257,5 +257,5 @@ Plans:
 | 22. Polish & Tool Fixes | 2/2 | Complete    | 2026-03-23 |
 | 23. Model Switch + Unified Inference | 2/2 | Complete    | 2026-03-24 |
 | 24. Four Agents + Prompt Polish | 3/3 | Complete    | 2026-03-24 |
-| 25. Voice Chat | 1/2 | In Progress|  |
+| 25. Voice Chat | 2/2 | Complete   | 2026-03-24 |
 | 26. RunPod Deployment | 0/TBD | Not started | - |
