@@ -10,6 +10,8 @@ agent/skills/minecraft-*/
 mod/.gradle/
 mod/build/
 mod/.idea/
+tts-plugin/.gradle/
+tts-plugin/build/
 *.class
 *.jar
 
