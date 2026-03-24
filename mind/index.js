@@ -65,8 +65,8 @@ function isMessageForMe(bot, senderName, msgStr) {
   if (!ALL_AGENT_NAMES.has(senderName.toLowerCase())) return true
   const lower = msgStr.toLowerCase()
   const myName = bot.username.toLowerCase()
-  // Check for @name, @all, or just the bot's name mentioned anywhere
-  return lower.includes(`@${myName}`) || lower.includes(`@all`) || lower.includes(myName)
+  // Strict @name or @all only — bare name mentions don't count
+  return lower.includes(`@${myName}`) || lower.includes('@all')
 }
 
 // ── Async Chat Response (bypasses skill queue) ──
@@ -152,9 +152,9 @@ async function respondToChat(bot, sender, message) {
       const msg = result.args?.message || ''
       if (msg) {
         bot.chat(msg)
-        // Don't set _lastCommandWasChat here — respondToChat is a direct player reply,
-        // not a think() cycle. Setting the flag here blocks the next think() from chatting
-        // even when the agent has something new to say.
+        // Set the flag so the next think() must do a game action before chatting again.
+        // This breaks A↔B ping-pong loops where two agents keep chatting at each other.
+        _lastCommandWasChat = true
         console.log('[mind] chat reply sent:', msg.slice(0, 80))
       }
     }
