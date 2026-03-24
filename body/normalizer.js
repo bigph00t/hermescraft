@@ -12,6 +12,9 @@ const ITEM_REGISTRY = mcData.itemsByName
 // These aliases apply to BOTH item and block normalization.
 const ALIASES = {
   'sticks': 'stick',
+  'oak_stick': 'stick',
+  'oak_sticks': 'stick',
+  'wooden_stick': 'stick',
   'oak_planks_4': 'oak_planks',
   'wooden_planks': 'oak_planks',
   'planks': 'oak_planks',

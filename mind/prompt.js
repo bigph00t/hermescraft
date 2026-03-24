@@ -453,9 +453,23 @@ export function buildUserMessage(bot, trigger, options = {}) {
     parts.push(`[idle for ${idleMs}ms]`)
   }
 
-  // Partner chat context — inject partner's last message if available (no forcing)
+  // Partner chat context — inject partner's last message if available
   if (options.partnerChat) {
     parts.push(`[${options.partnerChat.sender} said: "${options.partnerChat.message}"]`)
+  }
+
+  // Strong chat nudge — if partner is online but no chat history exists, make it obvious
+  const partnerName = Object.keys(bot.players || {}).find(n => n !== bot.username)
+  if (partnerName && trigger !== 'chat') {
+    const partnerLastChat = getPartnerLastChat(partnerName)
+    if (!partnerLastChat) {
+      parts.push(`[${partnerName} is online and you haven't said a word to each other yet. Say hello! Coordinate your plan! Use !chat]`)
+    } else {
+      const agoMs = Date.now() - new Date(partnerLastChat.timestamp).getTime()
+      if (agoMs > 120000) {  // 2+ minutes since last chat
+        parts.push(`[It's been ${Math.round(agoMs / 60000)} minutes since you talked to ${partnerName}. Check in — what are they doing? Do they need anything?]`)
+      }
+    }
   }
 
   // Current game state
