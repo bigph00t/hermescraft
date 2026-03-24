@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Persistent Memory & Ambitious Building
-status: Phase complete — ready for verification
-stopped_at: Completed 24-03-PLAN.md — N-agent launch-agents.sh rewrite + start-stack.sh update
-last_updated: "2026-03-24T01:09:25.856Z"
+status: Ready to execute
+stopped_at: Completed 25-02-PLAN.md — TTS bridge + Piper install + start-stack wiring
+last_updated: "2026-03-24T01:49:24.045Z"
 progress:
   total_phases: 13
   completed_phases: 10
-  total_plans: 21
-  completed_plans: 20
+  total_plans: 23
+  completed_plans: 21
 ---
 
 # Project State
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-23)
 
 **Core value:** Agents that learn, grow, remember, and build ambitiously — playing Minecraft like real humans
-**Current focus:** Phase 24 — Eight Agents + Prompt Polish
+**Current focus:** Phase 25 — Voice Chat
 
 ## Current Position
 
-Phase: 24 (Eight Agents + Prompt Polish) — EXECUTING
-Plan: 3 of 3
+Phase: 25 (Voice Chat) — EXECUTING
+Plan: 2 of 2
 
 ## Performance Metrics
 
@@ -97,6 +97,7 @@ Plan: 3 of 3
 | Phase 24 P02 | 267 | 2 tasks | 2 files |
 | Phase 24-four-agents-prompt-polish P01 | 4 | 2 tasks | 9 files |
 | Phase 24 P03 | 2 | 2 tasks | 2 files |
+| Phase 25-voice-chat P02 | 138 | 2 tasks | 4 files |
 
 ### Decisions (Phase 21)
 
@@ -152,6 +153,6 @@ Plan: 3 of 3
 
 ## Session Continuity
 
-Last session: 2026-03-24T01:09:25.852Z
-Stopped at: Completed 24-03-PLAN.md — N-agent launch-agents.sh rewrite + start-stack.sh update
+Last session: 2026-03-24T01:49:24.043Z
+Stopped at: Completed 25-02-PLAN.md — TTS bridge + Piper install + start-stack wiring
 Resume: `/gsd:execute-phase 14` or `/gsd:autonomous`
