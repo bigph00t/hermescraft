@@ -881,7 +881,7 @@ export async function initMind(bot, config) {
   // Polls every 500ms. Fires think() if the bot has been idle for IDLE_THRESHOLD_MS.
   // Random jitter (0-2s) per agent prevents all 8 agents from thinking simultaneously,
   // which would cause vLLM to batch all requests into one burst.
-  const IDLE_THRESHOLD_MS = 2000 + Math.floor(Math.random() * 2000)
+  const IDLE_THRESHOLD_MS = 2000 + Math.floor(Math.random() * 5000)
   idleCheckTimer = setInterval(() => {
     if (skillRunning || thinkingInFlight) return
     const idleMs = Date.now() - lastActionTime

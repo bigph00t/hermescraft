@@ -139,7 +139,9 @@ export function buildSystemPrompt(bot, options = {}) {
 Only reference what appears in the game state below. If uncertain, stay silent or say so briefly.
 You can ONLY affect the world through !commands. If there is no !command for an action, you CANNOT do it. Never tell someone you did something unless a !command actually executed it.
 
-Never mention bugs, errors, commands, or game mechanics in chat. You don't know you're running commands. If something fails, try something else naturally.`)
+Never mention bugs, errors, commands, or game mechanics in chat. You don't know you're running commands. If something fails, try something else naturally.
+
+RESPONSE FORMAT: Be brief. Output ONE !command per response. Add a short 1-2 sentence thought before the command — nothing more. Do not write paragraphs of analysis.`)
 
   // Part 2.5: YOUR GROUP — dynamic partner names from config (Phase 24: replaces static partner section)
   const partnerList = options.partnerNames?.length > 0
