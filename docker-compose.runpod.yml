@@ -6,6 +6,7 @@ services:
     container_name: hermescraft-server
     ports:
       - "25565:25565"
+      - "24454:24454/udp"
     environment:
       EULA: "TRUE"
       TYPE: "PAPER"
@@ -19,14 +20,16 @@ services:
       ALLOW_NETHER: "true"
       GENERATE_STRUCTURES: "true"
       LEVEL: "world"
-      MOTD: "HermesCraft RunPod — Luna & Max"
+      MOTD: "HermesCraft RunPod — 8 Agents + Voice"
       MEMORY: "2G"
       JVM_XX_OPTS: "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200"
       LEVEL_TYPE: "DEFAULT"
       ENABLE_RCON: "true"
       RCON_PASSWORD: "hermescraft"
+      MODRINTH_PROJECTS: "simple-voice-chat"
     volumes:
       - ./server-data:/data
+      - ./tts-plugin/build/libs/tts-plugin-1.0.0.jar:/data/plugins/tts-plugin.jar
     restart: unless-stopped
     stdin_open: true
     tty: true

@@ -6,6 +6,7 @@ services:
     container_name: hermescraft-server
     ports:
       - "25565:25565"
+      - "24454:24454/udp"
     environment:
       EULA: "TRUE"
       TYPE: "PAPER"
@@ -20,14 +21,16 @@ services:
       GENERATE_STRUCTURES: "true"
       # Fresh world every time container is recreated with --force-recreate
       LEVEL: "world"
-      MOTD: "HermesCraft — Luna & Max"
+      MOTD: "HermesCraft — Voice Chat Enabled"
       # Performance
-      MEMORY: "4G"
+      MEMORY: "2G"
       JVM_XX_OPTS: "-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200"
       # Spawn in plains for easy building
       LEVEL_TYPE: "DEFAULT"
+      MODRINTH_PROJECTS: "simple-voice-chat"
     volumes:
       - ./server-data:/data
+      - ./tts-plugin/build/libs/tts-plugin-1.0.0.jar:/data/plugins/tts-plugin.jar
     restart: unless-stopped
     stdin_open: true
     tty: true
