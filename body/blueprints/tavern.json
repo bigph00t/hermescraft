@@ -1,0 +1,146 @@
+{
+  "name": "tavern",
+  "description": "An 8x10 two-story tavern with peaked stair roof, overhanging second floor, windows, and interior furnishing areas",
+  "size": { "x": 8, "y": 8, "z": 10 },
+  "palette": {
+    "S": { "preferred": ["stone_bricks", "cobblestone", "stone"], "tag": "foundation" },
+    "W": { "preferred": ["oak_planks", "spruce_planks", "birch_planks"], "tag": "wall" },
+    "L": { "preferred": ["oak_log", "spruce_log", "birch_log"], "tag": "pillar" },
+    "G": { "preferred": ["glass_pane", "glass"], "tag": "window" },
+    "R": { "preferred": ["spruce_stairs", "oak_stairs", "dark_oak_stairs"], "tag": "roof_slope" },
+    "P": { "preferred": ["spruce_slab", "oak_slab", "dark_oak_slab"], "tag": "roof_peak" },
+    "F": { "preferred": ["oak_planks", "spruce_planks"], "tag": "floor" },
+    "T": { "preferred": ["torch"], "tag": "lighting" },
+    "D": { "preferred": ["oak_door", "spruce_door"], "tag": "door" }
+  },
+  "layers": [
+    {
+      "y": 0,
+      "comment": "Stone foundation floor — full 8x10",
+      "grid": [
+        "SSSSSSSS",
+        "SSSSSSSS",
+        "SSSSSSSS",
+        "SSSSSSSS",
+        "SSSSSSSS",
+        "SSSSSSSS",
+        "SSSSSSSS",
+        "SSSSSSSS",
+        "SSSSSSSS",
+        "SSSSSSSS"
+      ]
+    },
+    {
+      "y": 1,
+      "comment": "Ground floor walls — door at front center, log pillars at corners, interior open",
+      "grid": [
+        "LWW.DWWL",
+        "W......W",
+        "G......G",
+        "W......W",
+        "G......G",
+        "W......W",
+        "G......G",
+        "W......W",
+        "G......G",
+        "LWWWWWWL"
+      ]
+    },
+    {
+      "y": 2,
+      "comment": "Ground floor upper — windows on sides, open above door, torches on back wall",
+      "grid": [
+        "LWW..WWL",
+        "G......G",
+        "W......W",
+        "G......G",
+        "W......W",
+        "G......G",
+        "W......W",
+        "G......G",
+        "W..TT..W",
+        "LWWWWWWL"
+      ]
+    },
+    {
+      "y": 3,
+      "comment": "Second floor — overhanging 1 block on sides (10x12 footprint), plank floor",
+      "grid": [
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF",
+        "FFFFFFFF"
+      ]
+    },
+    {
+      "y": 4,
+      "comment": "Second floor walls — log pillars, windows, open interior",
+      "grid": [
+        "LWWWWWWL",
+        "G......G",
+        "W......W",
+        "G......G",
+        "W......W",
+        "G......G",
+        "W......W",
+        "G......G",
+        "W......W",
+        "LWWWWWWL"
+      ]
+    },
+    {
+      "y": 5,
+      "comment": "Second floor upper walls — windows, torches",
+      "grid": [
+        "LWWWWWWL",
+        "W......W",
+        "G......G",
+        "W......W",
+        "G......G",
+        "W......W",
+        "G......G",
+        "W..TT..W",
+        "W......W",
+        "LWWWWWWL"
+      ]
+    },
+    {
+      "y": 6,
+      "comment": "Roof slope — stairs on outer edges slope inward, solid ridge",
+      "grid": [
+        "RRRRRRRR",
+        "RFFFFFFR",
+        "RFFFFFFR",
+        "RFFFFFFR",
+        "RFFFFFFR",
+        "RFFFFFFR",
+        "RFFFFFFR",
+        "RFFFFFFR",
+        "RFFFFFFR",
+        "RRRRRRRR"
+      ]
+    },
+    {
+      "y": 7,
+      "comment": "Roof peak — narrower ridge of slabs along center",
+      "grid": [
+        "..PPPP..",
+        "..PPPP..",
+        "..PPPP..",
+        "..PPPP..",
+        "..PPPP..",
+        "..PPPP..",
+        "..PPPP..",
+        "..PPPP..",
+        "..PPPP..",
+        "..PPPP.."
+      ]
+    }
+  ]
+}

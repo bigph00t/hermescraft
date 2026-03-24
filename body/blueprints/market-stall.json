@@ -1,0 +1,54 @@
+{
+  "name": "market_stall",
+  "description": "A 5x4 open-front market stall with fence post supports, slab awning, and counter surface",
+  "size": { "x": 5, "y": 4, "z": 4 },
+  "palette": {
+    "W": { "preferred": ["oak_planks", "spruce_planks", "birch_planks"], "tag": "wall" },
+    "F": { "preferred": ["oak_fence", "spruce_fence", "birch_fence"], "tag": "post" },
+    "S": { "preferred": ["oak_slab", "spruce_slab", "birch_slab"], "tag": "counter" },
+    "R": { "preferred": ["spruce_slab", "oak_slab", "dark_oak_slab"], "tag": "awning" },
+    "P": { "preferred": ["oak_planks", "cobblestone", "stone"], "tag": "floor" }
+  },
+  "layers": [
+    {
+      "y": 0,
+      "comment": "Floor — solid planks/stone base",
+      "grid": [
+        "PPPPP",
+        "PPPPP",
+        "PPPPP",
+        "PPPPP"
+      ]
+    },
+    {
+      "y": 1,
+      "comment": "Ground level — back wall, fence posts at front corners, counter slab across front",
+      "grid": [
+        "SSSSS",
+        "F...F",
+        ".....",
+        "WWWWW"
+      ]
+    },
+    {
+      "y": 2,
+      "comment": "Mid level — back wall continues, fence posts support awning",
+      "grid": [
+        "F...F",
+        ".....",
+        ".....",
+        "WWWWW"
+      ]
+    },
+    {
+      "y": 3,
+      "comment": "Awning — slabs extend from back wall over the stall",
+      "grid": [
+        "RRRRR",
+        "RRRRR",
+        "RRRRR",
+        "RRRRR"
+      ]
+    }
+  ]
+}

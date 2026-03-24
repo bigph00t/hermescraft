@@ -1,0 +1,62 @@
+{
+  "name": "garden_pavilion",
+  "description": "A 6x6 open-walled pavilion with fence railings, slab roof, and corner posts — for parks and gathering",
+  "size": { "x": 6, "y": 4, "z": 6 },
+  "palette": {
+    "L": { "preferred": ["oak_log", "spruce_log", "birch_log"], "tag": "pillar" },
+    "F": { "preferred": ["oak_fence", "spruce_fence", "birch_fence"], "tag": "railing" },
+    "P": { "preferred": ["oak_planks", "spruce_planks"], "tag": "floor" },
+    "R": { "preferred": ["oak_slab", "spruce_slab", "birch_slab"], "tag": "roof" },
+    "T": { "preferred": ["torch"], "tag": "lighting" }
+  },
+  "layers": [
+    {
+      "y": 0,
+      "comment": "Floor — planks with open entrance gaps",
+      "grid": [
+        ".PPPP.",
+        "PPPPPP",
+        "PPPPPP",
+        "PPPPPP",
+        "PPPPPP",
+        ".PPPP."
+      ]
+    },
+    {
+      "y": 1,
+      "comment": "Ground level — log posts at corners, fence railings between, open entrances at center of each side",
+      "grid": [
+        ".LF.FL",
+        "L....L",
+        "F....F",
+        ".....F",
+        "L....L",
+        ".LF.FL"
+      ]
+    },
+    {
+      "y": 2,
+      "comment": "Upper posts — logs continue up, open between",
+      "grid": [
+        ".L..TL",
+        "L....L",
+        "......",
+        "......",
+        "L....L",
+        ".LT..L"
+      ]
+    },
+    {
+      "y": 3,
+      "comment": "Roof — full slab cover",
+      "grid": [
+        ".RRRR.",
+        "RRRRRR",
+        "RRRRRR",
+        "RRRRRR",
+        "RRRRRR",
+        ".RRRR."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "name": "stone_wall_section",
+  "description": "A 10-block long defensive wall segment, 4 high, with crenellations (alternating merlons) and torch brackets",
+  "size": { "x": 10, "y": 4, "z": 2 },
+  "palette": {
+    "S": { "preferred": ["stone_bricks", "cobblestone", "stone"], "tag": "wall" },
+    "M": { "preferred": ["stone_brick_wall", "cobblestone_wall"], "tag": "merlon" },
+    "T": { "preferred": ["torch"], "tag": "lighting" }
+  },
+  "layers": [
+    {
+      "y": 0,
+      "comment": "Foundation — solid double-thick base",
+      "grid": [
+        "SSSSSSSSSS",
+        "SSSSSSSSSS"
+      ]
+    },
+    {
+      "y": 1,
+      "comment": "Lower wall — solid, torches on inner face",
+      "grid": [
+        "SSSSSSSSSS",
+        "S..T..T..S"
+      ]
+    },
+    {
+      "y": 2,
+      "comment": "Upper wall — solid both rows",
+      "grid": [
+        "SSSSSSSSSS",
+        "SSSSSSSSSS"
+      ]
+    },
+    {
+      "y": 3,
+      "comment": "Crenellations — alternating merlons on outer face, walkway on inner",
+      "grid": [
+        "M.M.MM.M.M",
+        ".........."
+      ]
+    }
+  ]
+}

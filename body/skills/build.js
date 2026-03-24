@@ -393,6 +393,36 @@ export async function build(bot, blueprintName, originX, originY, originZ, bluep
     }
   }
 
+  // ── Auto-Torch Interior ──
+  try {
+    const torchMeta = mcData.itemsByName['torch']
+    const torchItem = torchMeta ? bot.inventory.findInventoryItem(torchMeta.id, null) : null
+    if (torchItem && blueprint.size) {
+      let torchesPlaced = 0
+      for (let dx = 1; dx < blueprint.size.x - 1; dx += 4) {
+        for (let dz = 1; dz < blueprint.size.z - 1; dz += 4) {
+          const tx = originX + dx, ty = originY + 1, tz = originZ + dz
+          const floor = bot.blockAt(new Vec3(tx, ty - 1, tz))
+          const spot = bot.blockAt(new Vec3(tx, ty, tz))
+          const above = bot.blockAt(new Vec3(tx, ty + 1, tz))
+          if (floor && floor.name !== 'air' && spot && spot.name === 'air' && above && above.name === 'air') {
+            try {
+              const t = bot.inventory.findInventoryItem(torchMeta.id, null)
+              if (!t) break
+              await bot.equip(t, 'hand')
+              await bot.lookAt(floor.position, true)
+              await placeBlock(bot, floor, new Vec3(0, 1, 0))
+              torchesPlaced++
+            } catch { /* non-fatal */ }
+          }
+          if (torchesPlaced >= 8) break
+        }
+        if (torchesPlaced >= 8) break
+      }
+      if (torchesPlaced > 0) console.log(`[build] placed ${torchesPlaced} torches inside`)
+    }
+  } catch { /* torch placement is non-fatal */ }
+
   // ── Completion ──
   _activeBuild = null
   _buildQueue = []

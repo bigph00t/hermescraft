@@ -15,44 +15,49 @@ import { getHome } from './locations.js'
 //
 // Returns a string prompt that instructs the model to output ONLY valid blueprint JSON.
 export function buildDesignPrompt(description, referenceBlueprints) {
-  // Reference examples section — each blueprint inline in the prompt
-  const refExamples = (referenceBlueprints || []).map(ref => {
+  // Select up to 2 reference examples (fewer = less copying, more creativity)
+  const refs = (referenceBlueprints || []).slice(0, 2)
+  const refExamples = refs.map(ref => {
     return `=== ${ref.name} ===\n${ref.json}`
   }).join('\n\n')
 
-  return `You are a Minecraft blueprint designer. Given a structure description, output ONLY valid JSON matching this exact schema:
+  return `You are a creative Minecraft architect. Design an ORIGINAL structure — not a copy of any example.
 
+OUTPUT FORMAT — valid JSON only:
 {
   "name": "snake_case_name",
   "description": "human-readable description",
   "size": { "x": width, "y": height, "z": depth },
   "palette": {
-    "CHAR": { "preferred": ["minecraft_block_name", "alt1", "alt2"], "tag": "semantic_label" }
+    "CHAR": { "preferred": ["block_name", "alt1", "alt2"], "tag": "label" }
   },
   "layers": [
-    { "y": 0, "comment": "layer description", "grid": ["ROW...", ...] },
-    { "y": 1, "comment": "layer description", "grid": ["ROW...", ...] }
+    { "y": 0, "comment": "layer purpose", "grid": ["ROW...", ...] }
   ]
 }
 
-Rules:
-- Layers MUST be in ascending y order (y:0 = ground floor, then y:1, y:2, ...)
-- '.' in grid means air/empty space
-- Every non-'.' character in grid MUST be a key in palette
-- Every grid row must have exactly size.x characters
-- Every layer must have exactly size.z rows
-- palette preferred[] must contain valid Minecraft 1.21.1 block names
-- Structures can be up to 12x12 footprint and 10 blocks tall — be ambitious but practical
-- Floor before walls before roof — build bottom-up
-- Provide 2-3 material alternatives in each preferred[] list
+JSON RULES:
+- Layers ascending y order (y:0=ground). '.' means air. Every non-'.' char must be in palette.
+- Every row must have exactly size.x characters. Every layer must have exactly size.z rows.
+- palette preferred[] must be valid Minecraft 1.21.1 block names. Provide 2-3 alternatives.
+- Max footprint: 12x12. Max height: 10. Build bottom-up: foundation → walls → roof.
 
-Here are reference examples:
+ARCHITECTURE GUIDELINES — make it look REAL, not like a box:
+- ROOFS: Use stairs (oak_stairs, stone_brick_stairs, spruce_stairs) for peaked/sloped roofs. Flat slab roofs are boring — only use for tiny utility sheds. A good roof overhangs the walls by 1 block.
+- MATERIALS: Always mix 2-3 block types. Stone base + wood upper is classic. Use logs at corners as pillars. Glass_pane for windows, not solid glass.
+- SHAPE: Not everything is a rectangle. Try L-shapes, add porches, recessed doorways, overhanging second floors, or bump-outs.
+- INTERIOR: Place torches (T) every 4-5 blocks inside for mob-proofing. Add detail — a building should feel lived-in.
+- PROPORTIONS: Wall height = floor width/2 + 1. Doors at y=1 only. Windows at y=2 (eye level).
+- VARIETY: A blacksmith looks different from a library. A market has open fronts. A tower is tall and narrow. Let the function drive the form.
 
+DO NOT copy the reference examples. They show the JSON format, not your design. YOUR structure should have a unique shape, creative material palette, and interesting architectural details that match its purpose.
+
+Format references:
 ${refExamples}
 
-Now design: ${description}
+Design this: ${description}
 
-Output ONLY the JSON. No explanation, no markdown fencing, no text before or after.`
+Output ONLY valid JSON. No explanation, no markdown, no text before or after.`
 }
 
 // ── Build Context ──
@@ -173,12 +178,23 @@ If your notepad is empty, START by writing a city development plan. What buildin
 
 You are building a CITY — not random scattered structures. Think like an architect:
 - Every building has a PURPOSE: houses, workshops, farms, storage, market, inn, library, tower, garden, wall, gate
-- Buildings connect via ROADS and PATHS — place them deliberately
+- Buildings connect via ROADS and PATHS — build cobblestone roads between structures with !road
 - VARIETY: different sizes, materials, styles, heights. A blacksmith looks different from a bakery.
 - LAYOUT: Start from a town center/square, expand outward in organized districts
 - AESTHETICS: Mix materials (oak + cobblestone + glass), add roofs (slabs/stairs, not flat), use windows, vary heights
 - SCALE: Think bigger than a box. An inn is 8x10 with two floors. A market has stalls. A wall has towers at corners.
 - NAME your builds: "The Forge", "Luna's Garden", "Town Hall" — save locations with !sethome
+
+BEFORE BUILDING — site selection matters:
+- Check your build history and known locations. What exists already? What does the city need next?
+- Pick a spot 10-20 blocks from the nearest existing building. Too close = overlap. Too far = disconnected.
+- Use !scan first. Pick FLAT ground. Avoid water, lava, cliffs, and dense trees.
+- If the site has trees or obstacles, use !clear to flatten the area before designing.
+- Face the building entrance toward the town center or main road.
+- Leave 3-5 blocks between buildings for roads and walkways.
+- After building, connect it to existing structures with !road.
+
+DESIGN YOUR OWN BUILDS. You are a creative architect — don't build generic boxes. Think about what makes each structure unique: a tavern has a bar counter and fireplace. A library has tall windows. A blacksmith has a chimney. Let the building's purpose inspire its shape and materials.
 
 Only mention what's in your game state. If a !command fails, try something else — don't talk about errors.
 
@@ -313,6 +329,8 @@ Farming: Water within 4 blocks or soil dries. Place water → hoe soil → plant
 !look target:horizon direction:north — survey terrain
 !look target:chest — check nearest chest
 !see focus:"text" — screenshot + describe what you see
+!clear width:N depth:N — flatten area for building (removes trees, flowers)
+!road x:N z:N material:cobblestone — build 3-wide road to coordinates
 !deposit item:name count:N — store in chest
 !withdraw item:name count:N — take from chest
 !sethome — mark home base

@@ -66,6 +66,11 @@ All 13 phases shipped.
 - SSH: must use `expect` (RunPod rejects non-PTY)
 - Key: `~/.ssh/id_ed25519`
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+
 ## Next steps (v2.4 candidates)
 - Custom Fabric mod for TTS over TCP (plugin channels, no UDP needed)
 - Observe agent behavior with lean prompts — tune if needed

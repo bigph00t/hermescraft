@@ -1,0 +1,199 @@
+{
+  "name": "town_hall",
+  "description": "A 10x12 grand town hall with stone base, wood upper, peaked stair roof, double-height interior, and front balcony",
+  "size": { "x": 10, "y": 10, "z": 12 },
+  "palette": {
+    "S": { "preferred": ["stone_bricks", "cobblestone", "stone"], "tag": "stone_wall" },
+    "W": { "preferred": ["oak_planks", "spruce_planks"], "tag": "wood_wall" },
+    "L": { "preferred": ["oak_log", "spruce_log"], "tag": "pillar" },
+    "G": { "preferred": ["glass_pane", "glass"], "tag": "window" },
+    "F": { "preferred": ["oak_planks", "spruce_planks"], "tag": "floor" },
+    "R": { "preferred": ["stone_brick_stairs", "cobblestone_stairs"], "tag": "roof_slope" },
+    "P": { "preferred": ["stone_brick_slab", "cobblestone_slab"], "tag": "roof_peak" },
+    "B": { "preferred": ["oak_fence", "spruce_fence"], "tag": "balcony_rail" },
+    "T": { "preferred": ["torch"], "tag": "lighting" },
+    "D": { "preferred": ["oak_door", "spruce_door"], "tag": "door" }
+  },
+  "layers": [
+    {
+      "y": 0,
+      "comment": "Stone foundation — full footprint",
+      "grid": [
+        "SSSSSSSSSS",
+        "SSSSSSSSSS",
+        "SSSSSSSSSS",
+        "SSSSSSSSSS",
+        "SSSSSSSSSS",
+        "SSSSSSSSSS",
+        "SSSSSSSSSS",
+        "SSSSSSSSSS",
+        "SSSSSSSSSS",
+        "SSSSSSSSSS",
+        "SSSSSSSSSS",
+        "SSSSSSSSSS"
+      ]
+    },
+    {
+      "y": 1,
+      "comment": "Ground floor — stone walls, double door at front center, log pillars",
+      "grid": [
+        "LSSS.DSSSL",
+        "S........S",
+        "G........G",
+        "S........S",
+        "G........G",
+        "S........S",
+        "G........G",
+        "S........S",
+        "G........G",
+        "S........S",
+        "G........G",
+        "LSSSSSSSSL"
+      ]
+    },
+    {
+      "y": 2,
+      "comment": "Ground floor upper — windows, torches",
+      "grid": [
+        "LSSS..SSSL",
+        "G........G",
+        "S........S",
+        "G........G",
+        "S........S",
+        "G........G",
+        "S........S",
+        "G........G",
+        "S..T..T..S",
+        "G........G",
+        "S........S",
+        "LSSSSSSSSL"
+      ]
+    },
+    {
+      "y": 3,
+      "comment": "Stone-to-wood transition — slab band, front balcony floor",
+      "grid": [
+        "SSSSSSSSSS",
+        "SSSSSSSSSS",
+        "SSSSSSSSSS",
+        "SSSSSSSSSS",
+        "SSSSSSSSSS",
+        "SSSSSSSSSS",
+        "SSSSSSSSSS",
+        "SSSSSSSSSS",
+        "SSSSSSSSSS",
+        "SSSSSSSSSS",
+        "SSSSSSSSSS",
+        "SSSSSSSSSS"
+      ]
+    },
+    {
+      "y": 4,
+      "comment": "Second floor — wood walls with log pillars, front balcony railing",
+      "grid": [
+        "BW......WB",
+        "W........W",
+        "G........G",
+        "W........W",
+        "G........G",
+        "W........W",
+        "G........G",
+        "W........W",
+        "G........G",
+        "W........W",
+        "G........G",
+        "LWWWWWWWWL"
+      ]
+    },
+    {
+      "y": 5,
+      "comment": "Second floor upper — windows, torches at back",
+      "grid": [
+        "LWWWWWWWWL",
+        "G........G",
+        "W........W",
+        "G........G",
+        "W........W",
+        "G........G",
+        "W........W",
+        "G........G",
+        "W..T..T..W",
+        "G........G",
+        "W........W",
+        "LWWWWWWWWL"
+      ]
+    },
+    {
+      "y": 6,
+      "comment": "Top wall ring — solid before roof",
+      "grid": [
+        "LWWWWWWWWL",
+        "W........W",
+        "W........W",
+        "W........W",
+        "W........W",
+        "W........W",
+        "W........W",
+        "W........W",
+        "W........W",
+        "W........W",
+        "W........W",
+        "LWWWWWWWWL"
+      ]
+    },
+    {
+      "y": 7,
+      "comment": "Roof lower — stairs slope inward from all edges",
+      "grid": [
+        "RRRRRRRRRR",
+        "RFFFFFFFFR",
+        "RFFFFFFFFR",
+        "RFFFFFFFFR",
+        "RFFFFFFFFR",
+        "RFFFFFFFFR",
+        "RFFFFFFFFR",
+        "RFFFFFFFFR",
+        "RFFFFFFFFR",
+        "RFFFFFFFFR",
+        "RFFFFFFFFR",
+        "RRRRRRRRRR"
+      ]
+    },
+    {
+      "y": 8,
+      "comment": "Roof mid — narrower stair ring",
+      "grid": [
+        "..........",
+        ".RRRRRRRR.",
+        ".RFFFFFFR.",
+        ".RFFFFFFR.",
+        ".RFFFFFFR.",
+        ".RFFFFFFR.",
+        ".RFFFFFFR.",
+        ".RFFFFFFR.",
+        ".RFFFFFFR.",
+        ".RFFFFFFR.",
+        ".RRRRRRRR.",
+        ".........."
+      ]
+    },
+    {
+      "y": 9,
+      "comment": "Roof peak — slab ridge along center",
+      "grid": [
+        "..........",
+        "..........",
+        "..PPPPPP..",
+        "..PPPPPP..",
+        "..PPPPPP..",
+        "..PPPPPP..",
+        "..PPPPPP..",
+        "..PPPPPP..",
+        "..PPPPPP..",
+        "..PPPPPP..",
+        "..........",
+        ".........."
+      ]
+    }
+  ]
+}

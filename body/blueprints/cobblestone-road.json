@@ -1,0 +1,27 @@
+{
+  "name": "cobblestone_road",
+  "description": "A 3-wide by 10-long road segment with gravel shoulders — demonstrates path building pattern",
+  "size": { "x": 3, "y": 1, "z": 10 },
+  "palette": {
+    "C": { "preferred": ["cobblestone", "stone", "andesite"], "tag": "road_surface" },
+    "G": { "preferred": ["gravel", "coarse_dirt"], "tag": "shoulder" }
+  },
+  "layers": [
+    {
+      "y": 0,
+      "comment": "Road surface — gravel shoulders, cobblestone center",
+      "grid": [
+        "GCG",
+        "GCG",
+        "GCG",
+        "GCG",
+        "GCG",
+        "GCG",
+        "GCG",
+        "GCG",
+        "GCG",
+        "GCG"
+      ]
+    }
+  ]
+}

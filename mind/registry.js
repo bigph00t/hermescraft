@@ -19,6 +19,8 @@ import { explore } from '../body/skills/explore.js'
 import { mountBoat, dismountBoat } from '../body/skills/boat.js'
 import { lookChest, lookInventory, lookHorizon, lookPlayers } from '../body/skills/look.js'
 import { give } from '../body/skills/give.js'
+import { clear } from '../body/skills/clear.js'
+import { buildRoad } from '../body/skills/road.js'
 
 // REGISTRY maps !command names to async handler functions.
 // Args come in as strings from parseCommand — registry must parseInt() numeric args.
@@ -127,6 +129,8 @@ const REGISTRY = new Map([
     return lookInventory(bot)
   }],
   ['give',     (bot, args) => give(bot, args.player || args.to, args.item, parseInt(args.count) || 1)],
+  ['clear',    (bot, args) => clear(bot, parseInt(args.width) || 10, parseInt(args.depth) || 10)],
+  ['road',     (bot, args) => buildRoad(bot, parseInt(args.x), parseInt(args.z), args.material || 'cobblestone')],
   ['material', (_bot, args) => {
     const oldBlock = args.old || args.from
     const newBlock = args.new || args.to
@@ -140,6 +144,8 @@ const REGISTRY = new Map([
 // Command aliases — map common LLM hallucinations to real commands
 const ALIASES = {
   dig: 'mine',
+  flatten: 'clear',
+  path: 'road',
   break: 'mine',
   chop: 'gather',
   collect: 'gather',
