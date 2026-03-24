@@ -4,7 +4,7 @@ import { navigateTo } from '../navigate.js'
 import { isInterrupted } from '../interrupt.js'
 
 // EXPLORE_DISTANCE default distance in blocks to travel per explore call
-const EXPLORE_DISTANCE = 64
+const EXPLORE_DISTANCE = 32
 
 // NOTABLE_BLOCKS indicates villages, dungeons, or other structures worth remembering
 const NOTABLE_BLOCKS = new Set([
@@ -28,7 +28,7 @@ const CARDINALS = ['north', 'south', 'east', 'west']
  * @param {number} [distance=64] - blocks to travel
  * @returns {Promise<{success: boolean, discoveries?: Array, newPos?: object, direction?: string, reason?: string}>}
  */
-export async function explore(bot, direction = null, distance = 64) {
+export async function explore(bot, direction = null, distance = 32) {
   try {
     const pos = bot.entity.position
     const startPos = pos.clone()
@@ -50,7 +50,7 @@ export async function explore(bot, direction = null, distance = 64) {
 
     console.log(`[explore] heading ${dirUsed} to ${Math.round(targetX)},${Math.round(pos.y)},${Math.round(targetZ)}`)
 
-    const navResult = await navigateTo(bot, targetX, pos.y, targetZ, 8, 45000)
+    const navResult = await navigateTo(bot, targetX, pos.y, targetZ, 8, 10000)
 
     if (isInterrupted(bot)) {
       return { success: false, reason: 'interrupted', direction: dirUsed }

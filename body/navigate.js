@@ -16,7 +16,7 @@ const { goals } = mpf
  * @param {number} [timeoutMs=30000] — wall-clock timeout in milliseconds
  * @returns {Promise<{success: boolean, reason?: string}>}
  */
-export async function navigateTo(bot, x, y, z, range = 1, timeoutMs = 30000) {
+export async function navigateTo(bot, x, y, z, range = 1, timeoutMs = 10000) {
   // Dedup: if already within range, skip pathfinding entirely
   const pos = bot.entity?.position
   if (pos) {

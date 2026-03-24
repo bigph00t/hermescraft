@@ -18,9 +18,11 @@ const mcData = minecraftData('1.21.1')
  * @param {import('mineflayer').Bot} bot
  * @param {string} seedName - item name of seeds to plant (e.g. 'wheat_seeds'), or '' to only till
  * @param {number} [count=1] - number of blocks to till
+ * @param {object} [options={}]
+ * @param {number} [options.maxCycles=Infinity] - max till+plant iterations before returning (stream-of-consciousness cap)
  * @returns {Promise<{success: boolean, tilled: number, planted: number, reason?: string}>}
  */
-export async function farm(bot, seedName, count = 1) {
+export async function farm(bot, seedName, count = 1, options = {}) {
   const normalizedSeed = seedName ? normalizeItemName(seedName) : ''
 
   // Require a hoe in inventory before starting — nothing to do without one
@@ -55,10 +57,12 @@ export async function farm(bot, seedName, count = 1) {
     return { success: false, tilled: 0, planted: 0, reason: 'no_tillable_blocks_nearby' }
   }
 
+  const maxCycles = options.maxCycles || Infinity
   let tilled = 0
   let planted = 0
+  let cycles = 0
 
-  for (let i = 0; i < candidates.length && tilled < count; i++) {
+  for (let i = 0; i < candidates.length && tilled < count && cycles < maxCycles; i++) {
     if (isInterrupted(bot)) break
 
     const pos = candidates[i]
@@ -97,6 +101,7 @@ export async function farm(bot, seedName, count = 1) {
     if (isInterrupted(bot)) break
 
     tilled++
+    cycles++
     console.log(`[farm] tilled ${tilled}/${count} at ${pos.x},${pos.y},${pos.z}`)
 
     // Attempt to plant seeds if requested

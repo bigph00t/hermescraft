@@ -162,11 +162,13 @@ Your goal: build an amazing city together. Talk to each other about what to buil
 
 The image each turn shows your surroundings (top = what's ahead, bottom = top-down map with red dot = you).
 
-### Building Tools
+### How Commands Work
 
-!design description:"..." — describe a structure and it gets built from your materials. Terrain is auto-surveyed.
-!build — resume an active build. !build id:X — help with a specific project. !builds — list all projects.
-!road — connect structures with roads. !clear — prep a build site.
+Each command does ONE step of work, then you think again and decide what's next. You're in control of every decision.
+
+Gathering 5 logs looks like: !gather → got 1 → !gather → got 2 → (see partner chatting) → !chat → (respond) → !gather → got 3...
+
+You can change your mind between any two steps. React to chat, danger, opportunities. You're never locked into a long task.
 
 If a !command fails, try something else.
 
@@ -175,12 +177,16 @@ If a !command fails, try something else.
 Think briefly, then ONE !command.
 
 Example:
-We need storage. I'll put it near the workshop.
-!design description:"7x5 stone storage house with oak door, windows, spruce slab roof"
+Got 3 oak logs so far. Need 2 more for planks.
+!gather item:oak_log
 
 Example:
-I should tell Luna what I'm doing.
-!chat message:"hey I found iron at 45,32,90 — want me to mine it or should we focus on building first?"`)
+Luna's asking about the build plan. Let me respond.
+!chat message:"hey I've got 15 cobblestone, thinking we put the forge near the river — what do you think?"
+
+Example:
+Time to design our first real building.
+!design description:"8x6 stone and oak blacksmith workshop with chimney, anvil inside, large doorway, stone brick walls, spruce roof"`)
 
 
 
@@ -267,45 +273,37 @@ Stay within 150 blocks of home. Farming: water within 4 blocks, hoe soil, plant 
     parts.push(options.buildLedger)
   }
 
-  // Part 6: !command reference
-  parts.push(`## Commands
+  // Part 6: !command reference — grouped by speed (atomic vs pipeline)
+  parts.push(`## Commands (each does ONE step, then you decide what's next)
 
-!gather item:name count:N — collect blocks (trees, dirt, sand)
-!mine item:name count:N — mine ores (iron_ore, coal, diamond_ore)
-!craft item:name count:N — craft from inventory
-!smelt item:name fuel:name count:N — smelt in furnace
-!navigate x:N y:N z:N — walk somewhere
-!chat message:"text" — say something to your partner
-!design description:"detailed text" — design and build a structure (surveys terrain, creates shared project, builds incrementally)
-!plan description:"text" — plan a large structure in sections (100+ blocks, walls, multi-room buildings)
-!build — continue building an active project (resumes from where you left off)
-!build id:X — contribute to a specific build project (yours or partner's)
-!builds — list all active build projects with progress
-!survey width:N depth:N — scan terrain at current position
-!material old:block new:block — swap material in active build
-!scan — scan blocks around you
-!give player:name item:name count:N — hand items to someone
-!drop item:name count:N — drop items on ground
-!farm seed:name count:N — till and plant
-!harvest crop:name count:N — harvest and replant
-!breed animal:type — breed nearby animals
-!hunt target:mobtype — seek and kill hostile mobs
+Quick actions (2-10s):
+!gather item:name — find and collect 1 nearby block
+!mine item:name — find and mine 1 nearby ore
+!craft item:name count:N — craft recipe (auto-chains dependencies)
+!navigate x:N y:N z:N — walk to coordinates
+!chat message:"text" — talk to your partner
+!look target:inventory — check what you have
+!look target:horizon direction:north — survey terrain ahead
+!scan — scan nearby blocks
+!explore direction:north — move ~30 blocks in a direction and scan
 !combat — fight nearest hostile mob
-!explore direction:north distance:N — explore, find villages/temples
-!look target:inventory — check inventory
-!look target:horizon direction:north — survey terrain
-!look target:chest — check nearest chest
-!see focus:"text" — screenshot + describe what you see
-!clear width:N depth:N — flatten area for building (removes trees, flowers)
-!road x:N z:N material:cobblestone — build 3-wide road to coordinates
-!deposit item:name count:N — store in chest
-!withdraw item:name count:N — take from chest
-!sethome — mark home base
-!mount — get in boat
-!dismount — leave vehicle
-!idle — wait and observe
+!farm seed:name — till and plant 1 plot
+!harvest crop:name — harvest 1 mature crop
+!give player:name item:name count:N — hand items to partner
+!drop item:name count:N — drop items
+!eat — eat food
+!equip item:name — equip tool/weapon
+!sethome — save current location as home
 
-Think about your city plan, then one !command with key:value args.`)
+Building (runs until done):
+!design description:"detailed text" — design + auto-build a structure
+!build — resume active build project
+!build id:X — help with a specific project
+!builds — list all projects
+!road x:N z:N — build road to coordinates
+!clear width:N depth:N — flatten area for building
+
+One !command per turn.`)
 
   return parts.join('\n')
 }
@@ -428,6 +426,19 @@ export function buildUserMessage(bot, trigger, options = {}) {
       if (result.discoveries) extras.push(`discoveries: ${result.discoveries.length}`)
       if (result.target) extras.push(`target: ${result.target}`)
       if (result.searched) extras.push(`searched: ${result.searched}b radius`)
+      // Progress nudge — let LLM know if there's more to do
+      if (result.collected !== undefined && result.requested && result.collected < result.requested) {
+        extras.push(`got ${result.collected}/${result.requested} — keep going or change plan?`)
+      }
+      if (result.mined !== undefined && result.requested && result.mined < result.requested) {
+        extras.push(`mined ${result.mined}/${result.requested} — keep going or change plan?`)
+      }
+      if (!result.success && result.reason === 'no_harvestable_blocks') {
+        extras.push(`none found nearby — try !explore or a different resource`)
+      }
+      if (!result.success && (result.reason === 'nav_timeout' || result.reason?.includes('Took to long'))) {
+        extras.push(`couldn't reach target — try different coords or !explore`)
+      }
       const detail = extras.length > 0 ? ` | ${extras.join(' | ')}` : ''
       parts.push(`[skill complete: ${skillName} — ${status}${detail}]`)
     } else {

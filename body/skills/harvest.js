@@ -35,9 +35,11 @@ function normalizeCropName(name) {
  * @param {import('mineflayer').Bot} bot
  * @param {string} [cropName='wheat'] - crop name (e.g. 'wheat', 'carrots', 'wheat_seeds')
  * @param {number} [count=8] - max number of crops to harvest
+ * @param {object} [options={}]
+ * @param {number} [options.maxCycles=Infinity] - max harvest iterations before returning (stream-of-consciousness cap)
  * @returns {Promise<{success: boolean, harvested: number, replanted: number, reason?: string}>}
  */
-export async function harvest(bot, cropName = 'wheat', count = 8) {
+export async function harvest(bot, cropName = 'wheat', count = 8, options = {}) {
   try {
     const cropBlockName = normalizeCropName(cropName)
     const config = CROP_CONFIG[cropBlockName]
@@ -57,10 +59,13 @@ export async function harvest(bot, cropName = 'wheat', count = 8) {
       return { success: false, harvested: 0, replanted: 0, reason: 'no_mature_crops_nearby' }
     }
 
+    const maxCycles = options.maxCycles || Infinity
     let harvested = 0
     let replanted = 0
+    let cycles = 0
 
     for (const cropPos of cropPositions) {
+      if (cycles >= maxCycles) break
       if (isInterrupted(bot)) break
 
       // Navigate to within 3 blocks of the crop
@@ -77,6 +82,7 @@ export async function harvest(bot, cropName = 'wheat', count = 8) {
       try {
         await bot.dig(block)
         harvested++
+        cycles++
         console.log(`[harvest] harvested ${cropBlockName} at ${cropPos.x},${cropPos.y},${cropPos.z} (${harvested}/${count})`)
       } catch (err) {
         console.log(`[harvest] dig failed at ${cropPos.x},${cropPos.y},${cropPos.z}: ${err.message}`)

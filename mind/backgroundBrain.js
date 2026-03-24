@@ -1,4 +1,4 @@
-// backgroundBrain.js — Background brain: periodic LLM analysis, atomic brain-state writes, TTL-cached reads
+// backgroundBrain.js — Background brain: memory keeper that watches conversation and extracts important facts
 
 import OpenAI from 'openai'
 import { readFileSync, writeFileSync, renameSync, existsSync, mkdirSync } from 'fs'
@@ -13,8 +13,8 @@ import { getPartnerActivityForPrompt } from './coordination.js'
 
 const BACKGROUND_BRAIN_URL = process.env.BACKGROUND_BRAIN_URL || process.env.VLLM_URL || 'http://localhost:8000/v1'
 const BACKGROUND_MODEL = process.env.BACKGROUND_MODEL_NAME || process.env.MODEL_NAME || 'Qwen3.5-35B-A3B'
-const BACKGROUND_MAX_TOKENS = parseInt(process.env.BACKGROUND_MAX_TOKENS || '1024', 10)
-const BACKGROUND_INTERVAL_MS = parseInt(process.env.BACKGROUND_INTERVAL_MS || '30000', 10)
+const BACKGROUND_MAX_TOKENS = parseInt(process.env.BACKGROUND_MAX_TOKENS || '512', 10)
+const BACKGROUND_INTERVAL_MS = parseInt(process.env.BACKGROUND_INTERVAL_MS || '15000', 10)
 const STARTUP_DELAY_MS = 10000  // wait 10s before first cycle — gives main brain time for first tick
 const REFLECTION_INTERVAL_MS = 30 * 60 * 1000  // 30 minutes between reflection journals
 
@@ -37,6 +37,17 @@ let _cacheTime = 0           // TTL cache timestamp
 const TTL_MS = 5000          // 5 second TTL — main brain reads at most once per 5s
 let _agentName = ''          // for prompt personalization
 let _bot = null              // bot reference for game state access
+
+// Fact type → memoryDB event_type mapping
+const FACT_TYPE_MAP = {
+  location:   'discovery',
+  commitment: 'social',
+  event:      'observation',
+  social:     'social',
+  danger:     'combat',
+  craft:      'craft',
+  build:      'build',
+}
 
 // ── Exported Functions ──
 
@@ -63,11 +74,11 @@ export function initBackgroundBrain(bot, config) {
     runBackgroundCycle(bot, config)
   }, BACKGROUND_INTERVAL_MS)
 
-  console.log(`[background-brain] initialized — first cycle in ${STARTUP_DELAY_MS / 1000}s`)
+  console.log(`[background-brain] initialized as memory keeper — first cycle in ${STARTUP_DELAY_MS / 1000}s, interval ${BACKGROUND_INTERVAL_MS / 1000}s`)
 }
 
 // getBrainHooks() — returns actionable hooks from brain state for programmatic use.
-// Main agent calls this to get avoidActions, urgentWarning, suggestedAction.
+// Memory keeper only provides urgentWarning (danger patterns detected in conversation).
 // NEVER throws — returns empty object on error.
 export function getBrainHooks() {
   try {
@@ -82,9 +93,7 @@ export function getBrainHooks() {
     }
     if (!state) return {}
     return {
-      avoidActions: state.avoidActions || [],
       urgentWarning: state.urgentWarning || null,
-      suggestedAction: state.suggestedAction || null,
     }
   } catch {
     return {}
@@ -126,15 +135,9 @@ function pushRingBuffer(arr, item, maxSize) {
 // writeBrainState(state) — applies ring buffer caps then atomically writes to disk.
 // Uses tmp + rename for POSIX-atomic write — main brain never reads a partial file.
 function writeBrainState(state) {
-  // Apply ring buffer caps before writing
-  if (state.insights) {
-    while (state.insights.length > 20) state.insights.shift()
-  }
-  if (state.spatial) {
-    while (state.spatial.length > 50) state.spatial.shift()
-  }
-  if (state.partnerObs) {
-    while (state.partnerObs.length > 100) state.partnerObs.shift()
+  // Apply ring buffer cap for extracted facts
+  if (state.extractedFacts) {
+    while (state.extractedFacts.length > 50) state.extractedFacts.shift()
   }
 
   const content = JSON.stringify(state, null, 2)
@@ -143,7 +146,7 @@ function writeBrainState(state) {
 }
 
 // parseLLMJson(raw) — strips <think> blocks and markdown fences, then parses JSON.
-// Returns parsed object or null on failure — never throws.
+// Handles both arrays and objects. Returns parsed value or null on failure — never throws.
 function parseLLMJson(raw) {
   // Strip <think>...</think> reasoning blocks
   let text = raw.replace(/<think>[\s\S]*?<\/think>/g, '').trim()
@@ -155,93 +158,55 @@ function parseLLMJson(raw) {
   try {
     return JSON.parse(text)
   } catch {
-    // Second try: extract outermost {...} object
-    const match = text.match(/\{[\s\S]*\}/)
-    if (match) {
+    // Second try: extract outermost [...] array
+    const arrMatch = text.match(/\[[\s\S]*\]/)
+    if (arrMatch) {
       try {
-        return JSON.parse(match[0])
+        return JSON.parse(arrMatch[0])
+      } catch {}
+    }
+    // Third try: extract outermost {...} object
+    const objMatch = text.match(/\{[\s\S]*\}/)
+    if (objMatch) {
+      try {
+        return JSON.parse(objMatch[0])
       } catch {}
     }
     return null  // parse failed — caller keeps existing state
   }
 }
 
-// buildBackgroundPrompt(recentHistory, gameState, existingState, extraContext) — prompt for the background brain.
-// Analyzes history + failures + partners, outputs structured JSON with actionable hooks.
-function buildBackgroundPrompt(recentHistory, gameState, existingState, extraContext = {}) {
+// buildMemoryPrompt(recentHistory, existingFacts) — prompt for the memory keeper.
+// Watches conversation and extracts important facts for long-term recall.
+function buildMemoryPrompt(recentHistory, existingFacts) {
   const historyText = recentHistory.length > 0
     ? recentHistory.map(m => `${m.role}: ${typeof m.content === 'string' ? m.content.slice(0, 200) : '[content]'}`).join('\n')
     : '(no recent history yet)'
 
-  const existingPlan = existingState?.plan
-    ? JSON.stringify(existingState.plan, null, 2)
-    : '(no existing plan)'
+  const factsText = existingFacts.length > 0
+    ? existingFacts.slice(-15).map(f => `[${f.type}] ${f.text}`).join('\n')
+    : '(no facts yet)'
 
-  // Build extra context sections
-  const sections = []
-  if (extraContext.recentEvents) {
-    sections.push(`Recent memory events (deaths, discoveries, crafts):\n${extraContext.recentEvents}`)
-  }
-  if (extraContext.partnerActivity) {
-    sections.push(`Partner agents:\n${extraContext.partnerActivity}`)
-  }
-  if (extraContext.inventory) {
-    sections.push(`Inventory:\n${extraContext.inventory}`)
-  }
-  const extraText = sections.length > 0 ? '\n\n' + sections.join('\n\n') : ''
+  return `You are the memory system for ${_agentName}. Review the recent conversation and extract important facts worth remembering.
 
-  return `You are the strategic planner for ${_agentName}, a Minecraft agent building a city with a partner.
-You do NOT take actions. You analyze the situation and produce structured guidance.
-
-YOUR PRIMARY MISSION: Guide ${_agentName} to build a thriving city with diverse, well-designed buildings.
-
-Tasks:
-1. Maintain a CITY DEVELOPMENT PLAN — what buildings exist, what's needed next, where they should go
-2. Track city progress: list completed structures, ongoing projects, and planned next builds
-3. Assess building quality from the image — are structures well-built? Do they have roofs, windows, variety?
-4. Plan the next building: what type (house, workshop, farm, storage, market, inn, tower, wall), what materials, where in the city
-5. Set urgentWarning for immediate threats (low health, starvation, nearby hostiles)
-6. List avoidActions — commands that keep failing
-7. Suggest resourceNeeds based on the next planned build
-8. Note what the partner is doing and suggest coordination (who builds what, material sharing)
-9. If the agent is idle or stuck, suggest the next city-building action
-
-City planning principles:
-- Buildings should be NEAR each other, connected by paths/roads
-- Variety: different purposes, materials, sizes, heights
-- Layout: town center/square → surrounding buildings → outer walls
-- Each building should serve a purpose (not just decorative boxes)
-- Name each structure and district
-
-Recent history (last 20 exchanges):
+Recent conversation:
 ${historyText}
 
-Current game state:
-${gameState}${extraText}
+Already known facts:
+${factsText}
 
-Existing plan (update if needed):
-${existingPlan}
+Extract NEW facts only — do not repeat facts already known. Types: location, commitment, event, social, danger, craft, build.
 
-Output ONLY valid JSON:
-{
-  "plan": {
-    "goal": "current city-building objective",
-    "steps": [{"action": "step", "status": "todo|in_progress|done"}],
-    "current_step": 0,
-    "cityBuildings": ["list of completed structures"],
-    "nextBuild": "description of next planned structure"
-  },
-  "insights": ["lesson about building, coordination, or resources"],
-  "spatial": [{"label": "structure or landmark name", "note": "description", "hazard": false}],
-  "constraints": ["rule to follow"],
-  "urgentWarning": null,
-  "avoidActions": [],
-  "suggestedAction": null,
-  "resourceNeeds": [],
-  "socialNotes": [],
-  "updated_at": ${Date.now()},
-  "schema_version": 2
-}`
+Output valid JSON array:
+[
+  { "type": "location", "text": "iron ore found at 45,32,90", "importance": 7 },
+  { "type": "commitment", "text": "luna is building the market, john mining stone", "importance": 5 },
+  { "type": "event", "text": "built first house - The Forge", "importance": 8 },
+  { "type": "social", "text": "john asked for help with the wall", "importance": 4 }
+]
+
+importance: 1-10 (10=critical like death, 1=trivial).
+Output [] if nothing new to extract. ONLY valid JSON array, nothing else.`
 }
 
 // generateReflectionJournal(recentHistory) — Phase 18 (MEM-04).
@@ -278,6 +243,7 @@ async function generateReflectionJournal(recentHistory) {
 }
 
 // runBackgroundCycle(bot, config) — the main async background cycle.
+// Memory keeper: extracts facts from conversation, logs them to memoryDB, maintains brain-state.json.
 // Sets _bgRunning in try/finally to prevent overlapping calls.
 async function runBackgroundCycle(bot, config) {
   _bgRunning = true
@@ -285,39 +251,6 @@ async function runBackgroundCycle(bot, config) {
     // Get the most recent conversation history (live reference — respects clearConversation())
     const history = getHistory()
     const recentHistory = history.slice(-20)  // last 20 messages
-
-    // Build compact game state from bot
-    const pos = bot?.entity?.position
-    const gameState = [
-      pos ? `Position: ${Math.round(pos.x)},${Math.round(pos.y)},${Math.round(pos.z)}` : 'Position: unknown',
-      `Health: ${bot?.health ?? '?'}/20`,
-      `Food: ${bot?.food ?? '?'}/20`,
-      `Time: ${bot?.time?.timeOfDay ?? '?'}`,
-      `Inventory: ${bot?.inventory?.items()?.length ?? 0} item types`,
-    ].join(', ')
-
-    // Gather extra context: recent memory events, partner activity, inventory details
-    const extraContext = {}
-    try {
-      const events = queryRecent(_agentName, 15)
-      if (events.length > 0) {
-        extraContext.recentEvents = events
-          .map(e => `[${e.event_type}] ${e.description}`)
-          .join('\n')
-      }
-    } catch {}
-    try {
-      const partnerCtx = getPartnerActivityForPrompt()
-      if (partnerCtx) extraContext.partnerActivity = partnerCtx
-    } catch {}
-    try {
-      const items = bot?.inventory?.items() || []
-      if (items.length > 0) {
-        extraContext.inventory = items
-          .map(i => `${i.name.replace('minecraft:', '')} x${i.count}`)
-          .join(', ')
-      }
-    } catch {}
 
     // Load existing brain state to preserve ring buffer continuity
     let existingState = null
@@ -327,69 +260,65 @@ async function runBackgroundCycle(bot, config) {
       }
     } catch {}
 
-    // Build prompt and call model — include composite image for visual awareness
-    const prompt = buildBackgroundPrompt(recentHistory, gameState, existingState, extraContext)
+    const existingFacts = existingState?.extractedFacts || []
 
-    // Render composite view for the background brain's strategic analysis.
-    // Qwen3.5 is natively multimodal — pass image inline with the user message.
-    let bgImage = null
-    try {
-      const { renderCompositeViewSync } = await import('./minimap.js')
-      bgImage = renderCompositeViewSync(bot, DATA_DIR)
-    } catch { /* vision render failure is non-fatal */ }
-
-    // Build user message — multimodal if image available
-    const userContent = bgImage
-      ? [
-          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${bgImage}` } },
-          { type: 'text', text: 'Analyze the game state and your visual surroundings. Output the JSON plan now.' },
-        ]
-      : 'Analyze and output the JSON plan now.'
+    // Build memory extraction prompt and call model
+    const prompt = buildMemoryPrompt(recentHistory, existingFacts)
 
     const response = await bgClient.chat.completions.create({
       model: BACKGROUND_MODEL,
       messages: [
         { role: 'system', content: prompt },
-        { role: 'user', content: userContent },
+        { role: 'user', content: 'Extract new facts from the conversation now. Output JSON array only.' },
       ],
       max_tokens: BACKGROUND_MAX_TOKENS,
-      temperature: 0.3,  // lower temperature for structured/deterministic JSON output
+      temperature: 0.2,  // low temperature for factual extraction
     })
 
     const raw = response.choices?.[0]?.message?.content || ''
     const parsed = parseLLMJson(raw)
 
-    if (!parsed) {
-      console.log('[background-brain] cycle: LLM output could not be parsed as JSON — keeping existing state')
-      return
+    // Validate: must be an array
+    const newFacts = Array.isArray(parsed) ? parsed : []
+
+    // Filter valid facts — each must have type and text
+    const validFacts = newFacts.filter(f =>
+      f && typeof f.type === 'string' && typeof f.text === 'string' && f.text.length > 3
+    )
+
+    // Log each extracted fact to memoryDB
+    for (const fact of validFacts) {
+      const eventType = FACT_TYPE_MAP[fact.type] || 'observation'
+      const importance = Math.min(10, Math.max(1, fact.importance || 3))
+      logEvent(bot, eventType, fact.text, {
+        source: 'memory_keeper',
+        factType: fact.type,
+        extractedImportance: importance,
+      })
     }
 
-    // Merge new fields into existing state (preserves ring buffer continuity)
-    // Ring buffer fields (insights, spatial, partnerObs) append; hook fields replace each cycle
+    // Check for danger patterns — set urgentWarning if any high-importance danger facts
+    const dangerFacts = validFacts.filter(f => f.type === 'danger' && (f.importance || 0) >= 7)
+    const urgentWarning = dangerFacts.length > 0
+      ? dangerFacts.map(f => f.text).join('; ')
+      : null
+
+    // Add timestamps to facts for the ring buffer
+    const timestampedFacts = validFacts.map(f => ({
+      ...f,
+      ts: Date.now(),
+    }))
+
+    // Merge into brain state
     const mergedState = {
       ...(existingState || {}),
-      plan: parsed.plan || existingState?.plan || {},
-      insights: [
-        ...(existingState?.insights || []),
-        ...(Array.isArray(parsed.insights) ? parsed.insights : []),
+      extractedFacts: [
+        ...existingFacts,
+        ...timestampedFacts,
       ],
-      spatial: [
-        ...(existingState?.spatial || []),
-        ...(Array.isArray(parsed.spatial) ? parsed.spatial : []),
-      ],
-      constraints: parsed.constraints || existingState?.constraints || [],
-      partnerObs: [
-        ...(existingState?.partnerObs || []),
-        ...(Array.isArray(parsed.partnerObs) ? parsed.partnerObs : []),
-      ],
-      // Actionable hooks — replaced each cycle (not accumulated)
-      urgentWarning: parsed.urgentWarning || null,
-      avoidActions: Array.isArray(parsed.avoidActions) ? parsed.avoidActions : [],
-      suggestedAction: parsed.suggestedAction || null,
-      resourceNeeds: Array.isArray(parsed.resourceNeeds) ? parsed.resourceNeeds : [],
-      socialNotes: Array.isArray(parsed.socialNotes) ? parsed.socialNotes : [],
+      urgentWarning,
       updated_at: Date.now(),
-      schema_version: 2,
+      schema_version: 3,
     }
 
     writeBrainState(mergedState)
@@ -397,6 +326,10 @@ async function runBackgroundCycle(bot, config) {
     // Invalidate TTL cache so next getBrainStateForPrompt() reads the fresh file
     _cachedState = null
     _cacheTime = 0
+
+    if (validFacts.length > 0) {
+      console.log(`[background-brain] extracted ${validFacts.length} facts: ${validFacts.map(f => f.type).join(', ')}`)
+    }
 
     // Reflection journal generation (Phase 18 — MEM-04)
     // Only fire if enough time has passed since last reflection (30 min default)
@@ -409,9 +342,8 @@ async function runBackgroundCycle(bot, config) {
 
     // Dedicated vision analysis — renders composite view and gets focused VLM description.
     // This produces a text summary for the main brain's prompt injection (visionNote in brain-state.json).
-    // Separate from the image sent inline above — this is a targeted "describe what you see" call.
     try {
-      const visionResult = await captureAndAnalyze(bot, DATA_DIR, 'terrain, structures, threats, and building progress')
+      const visionResult = await captureAndAnalyze(bot, DATA_DIR, 'terrain, structures, threats, and surroundings')
       if (visionResult?.description) {
         mergedState.visionNote = { text: visionResult.description, ts: Date.now() }
         writeBrainState(mergedState)
@@ -429,56 +361,26 @@ async function runBackgroundCycle(bot, config) {
   }
 }
 
-// formatBrainState(state) — compact prompt-injection format, capped at 1200 chars (~300 tokens).
+// formatBrainState(state) — compact prompt-injection format, capped at 1500 chars (~300 tokens).
 // Returns null if state is falsy.
 function formatBrainState(state) {
   if (!state) return null
 
   const age = Math.round((Date.now() - (state.updated_at || 0)) / 1000)
-  const lines = [`## Background Brain (${age}s ago)`]
+  const lines = [`## Memory Notes (${age}s ago)`]
 
   // Urgent warning goes first — most important signal
   if (state.urgentWarning) {
-    lines.push(`⚠ WARNING: ${state.urgentWarning}`)
+    lines.push(`WARNING: ${state.urgentWarning}`)
   }
 
-  if (state.plan?.goal) {
-    lines.push(`Goal: ${state.plan.goal}`)
-    const stepIdx = state.plan.current_step ?? 0
-    const step = state.plan.steps?.[stepIdx]
-    if (step) {
-      lines.push(`Next step: ${step.action} (${step.status || 'todo'})`)
+  // Show last 10 extracted facts grouped by type
+  const facts = (state.extractedFacts || []).slice(-10)
+  if (facts.length > 0) {
+    for (const fact of facts) {
+      const factAge = Math.round((Date.now() - (fact.ts || 0)) / 1000)
+      lines.push(`- [${fact.type}] ${fact.text} (${factAge}s ago)`)
     }
-  }
-
-  if (state.suggestedAction) {
-    lines.push(`Suggestion: ${state.suggestedAction}`)
-  }
-
-  if (state.resourceNeeds?.length) {
-    lines.push(`Need: ${state.resourceNeeds.slice(0, 5).join(', ')}`)
-  }
-
-  if (state.avoidActions?.length) {
-    lines.push(`Avoid (keeps failing): ${state.avoidActions.slice(0, 3).join(', ')}`)
-  }
-
-  if (state.constraints?.length) {
-    lines.push(`Rules: ${state.constraints.slice(0, 2).join('. ')}`)
-  }
-
-  const insights = (state.insights || []).slice(-3)  // newest 3
-  if (insights.length) {
-    lines.push(`Insights: ${insights.join(' ')}`)
-  }
-
-  if (state.socialNotes?.length) {
-    lines.push(`Social: ${state.socialNotes.slice(0, 2).join('. ')}`)
-  }
-
-  const hazards = (state.spatial || []).filter(s => s.hazard).slice(0, 2)
-  if (hazards.length) {
-    lines.push(`Hazards: ${hazards.map(h => h.note).join('. ')}`)
   }
 
   if (state.visionNote?.text) {
@@ -487,5 +389,5 @@ function formatBrainState(state) {
   }
 
   const text = lines.join('\n')
-  return text.length > 1500 ? text.slice(0, 1500) : text  // bumped cap slightly for new fields
+  return text.length > 1500 ? text.slice(0, 1500) : text
 }

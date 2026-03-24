@@ -750,17 +750,11 @@ async function think(bot, context) {
       result.args = {}
     }
 
-    // Background brain hooks: check avoidActions before dispatch
+    // Background brain hooks: check for urgent warnings from memory keeper
     try {
       const hooks = getBrainHooks()
-      if (hooks.avoidActions?.length > 0) {
-        const actionKey = `${result.command}:${result.args?.item || result.args?.description || ''}`
-        const actionCmd = result.command
-        if (hooks.avoidActions.some(a => a === actionKey || a === actionCmd)) {
-          console.log(`[mind] brain says avoid ${actionKey} — converting to idle`)
-          result.command = 'idle'
-          result.args = {}
-        }
+      if (hooks.urgentWarning) {
+        console.log(`[mind] memory keeper warning: ${hooks.urgentWarning}`)
       }
     } catch { /* brain hooks are non-fatal */ }
 
@@ -1092,7 +1086,7 @@ export async function initMind(bot, config) {
   // Polls every 500ms. Fires think() if the bot has been idle for IDLE_THRESHOLD_MS.
   // Random jitter (0-2s) per agent prevents all 8 agents from thinking simultaneously,
   // which would cause vLLM to batch all requests into one burst.
-  const IDLE_THRESHOLD_MS = 2000 + Math.floor(Math.random() * 5000)
+  const IDLE_THRESHOLD_MS = 1500 + Math.floor(Math.random() * 2000)  // 1.5-3.5s — think often with atomic skills
   idleCheckTimer = setInterval(() => {
     if (skillRunning || thinkingInFlight) return
     const idleMs = Date.now() - lastActionTime

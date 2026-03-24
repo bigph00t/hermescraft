@@ -22,6 +22,7 @@ const mcData = minecraftData('1.21.1')
  * @param {object} [options={}]
  * @param {number} [options.maxDistance=64] - search radius in blocks
  * @param {number} [options.navTimeout=30000] - per-navigation timeout in ms
+ * @param {number} [options.maxCycles=Infinity] - max dig iterations before returning (stream-of-consciousness cap)
  * @returns {Promise<{success: boolean, collected: number, requested: number, blockName: string, reason?: string}>}
  */
 export async function gather(bot, blockName, count = 1, options = {}) {
@@ -35,9 +36,11 @@ export async function gather(bot, blockName, count = 1, options = {}) {
 
   const maxDistance = options.maxDistance || 64
   const navTimeout = options.navTimeout || 30000
+  const maxCycles = options.maxCycles || Infinity
   let collected = 0
+  let cycles = 0
 
-  while (collected < count) {
+  while (collected < count && cycles < maxCycles) {
     // Check interrupt BEFORE doing any work in each iteration
     if (isInterrupted(bot)) break
 
@@ -103,6 +106,7 @@ export async function gather(bot, blockName, count = 1, options = {}) {
 
       if (dig.success) {
         collected++
+        cycles++
         console.log(`[gather] ${collected}/${count} ${normalized}`)
         gotOne = true
         // Break inner loop — go find the next nearest block fresh from findBlocks

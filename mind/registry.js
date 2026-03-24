@@ -26,15 +26,13 @@ import { buildRoad } from '../body/skills/road.js'
 // Args come in as strings from parseCommand — registry must parseInt() numeric args.
 // The body/ skills handle their own item name normalization internally.
 const REGISTRY = new Map([
-  ['gather',   (bot, args) => gather(bot, args.item, parseInt(args.count) || 1)],
-  ['mine',     (bot, args) => mine(bot, args.item, parseInt(args.count) || 1)],
+  ['gather',   (bot, args) => gather(bot, args.item, parseInt(args.count) || 1, { maxCycles: 1 })],
+  ['mine',     (bot, args) => mine(bot, args.item, parseInt(args.count) || 1, { maxCycles: 1 })],
   ['craft',    (bot, args) => craft(bot, args.item, parseInt(args.count) || 1)],
   ['smelt',    (bot, args) => smelt(bot, args.item, args.fuel || 'coal', parseInt(args.count) || 1)],
   ['navigate', (bot, args) => navigateTo(bot, parseInt(args.x), parseInt(args.y), parseInt(args.z))],
   ['chat',     (bot, args) => {
-    let msg = args.message || ''
-    // Enforce @prefix — if no @ at all, prepend @all so other agents' filters work
-    if (msg && !msg.includes('@')) msg = `@all ${msg}`
+    const msg = args.message || ''
     bot.chat(msg)
     return { success: true }
   }],
@@ -122,11 +120,11 @@ const REGISTRY = new Map([
     const z2 = parseInt(args.z2) || Math.round(pos.z) + 8
     return Promise.resolve(scanArea(bot, x1, y1, z1, x2, y2, z2))
   }],
-  ['farm',     (bot, args) => farm(bot, args.seed || args.item || 'wheat_seeds', parseInt(args.count) || 4)],
+  ['farm',     (bot, args) => farm(bot, args.seed || args.item || 'wheat_seeds', parseInt(args.count) || 4, { maxCycles: 1 })],
   ['breed',    (bot, args) => breed(bot, args.animal || args.type || 'cow')],
-  ['harvest',  (bot, args) => harvest(bot, args.crop || args.item || 'wheat', parseInt(args.count) || 8)],
+  ['harvest',  (bot, args) => harvest(bot, args.crop || args.item || 'wheat', parseInt(args.count) || 8, { maxCycles: 1 })],
   ['hunt',     (bot, args) => hunt(bot, args.target || args.mob || null)],
-  ['explore',  (bot, args) => explore(bot, args.direction || args.dir || null, parseInt(args.distance) || 64)],
+  ['explore',  (bot, args) => explore(bot, args.direction || args.dir || null, parseInt(args.distance) || 32)],
   ['mount',    (bot, _args) => mountBoat(bot)],
   ['dismount', (bot, _args) => dismountBoat(bot)],
   ['look',     (bot, args) => {

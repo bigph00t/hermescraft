@@ -27,6 +27,7 @@ const mcData = minecraftData('1.21.1')
  * @param {object} [options={}]
  * @param {number} [options.maxDistance=64] - search radius in blocks
  * @param {number} [options.navTimeout=30000] - per-navigation timeout in ms
+ * @param {number} [options.maxCycles=Infinity] - max dig iterations before returning (stream-of-consciousness cap)
  * @returns {Promise<{success: boolean, mined: number, requested: number, oreName: string, reason?: string}>}
  */
 export async function mine(bot, oreName, count = 1, options = {}) {
@@ -40,9 +41,11 @@ export async function mine(bot, oreName, count = 1, options = {}) {
 
   const maxDistance = options.maxDistance || 64
   const navTimeout = options.navTimeout || 30000
+  const maxCycles = options.maxCycles || Infinity
   let mined = 0
+  let cycles = 0
 
-  while (mined < count) {
+  while (mined < count && cycles < maxCycles) {
     // Check interrupt BEFORE doing any work
     if (isInterrupted(bot)) break
 
@@ -115,6 +118,7 @@ export async function mine(bot, oreName, count = 1, options = {}) {
 
       if (dig.success) {
         mined++
+        cycles++
         console.log(`[mine] ${mined}/${count} ${normalized}`)
         gotOne = true
         break
