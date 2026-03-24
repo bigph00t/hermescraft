@@ -58,7 +58,7 @@ echo "  start-agents   — Launch 8 agents"
 echo ""
 
 # Helper aliases
-alias start-model="nohup llama-server -m \$MAIN_MODEL --mmproj \$MMPROJ --port 8000 -ngl 99 --served-model-name Qwen3.5-35B-A3B -n 128 --ctx-size 8192 -t 4 > /workspace/llama.log 2>&1 & echo 'llama-server started (PID \$!)'"
+alias start-model="nohup llama-server -m \$MAIN_MODEL --mmproj \$MMPROJ --port 8000 -ngl 99 --alias Qwen3.5-35B-A3B -n 128 --ctx-size 8192 -t 4 > /workspace/llama.log 2>&1 & echo 'llama-server started (PID \$!)'"
 alias start-mc="cd \$MC_DIR && nohup \$JAVA_HOME/bin/java -Xmx4G -jar paper.jar --nogui > /workspace/mc.log 2>&1 & echo 'MC server started (PID \$!)'"
 alias start-tts="cd \$HC_DIR && nohup /workspace/venv/bin/python3 infra/tts-bridge.py > /workspace/tts.log 2>&1 & echo 'TTS bridge started (PID \$!)'"
 alias start-agents="cd \$HC_DIR && bash launch-agents.sh"
