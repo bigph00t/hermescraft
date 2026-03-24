@@ -83,9 +83,9 @@ function timeLabel(timeOfDay) {
   if (timeOfDay < 1000) return 'dawn -- new day starting'
   if (timeOfDay < 6000) return 'morning'
   if (timeOfDay < 12000) return 'afternoon'
-  if (timeOfDay < 13000) return 'dusk -- seek shelter soon'
-  if (timeOfDay < 18000) return 'night -- stay in shelter'
-  if (timeOfDay < 23000) return 'late night -- stay in shelter'
+  if (timeOfDay < 13000) return 'dusk'
+  if (timeOfDay < 18000) return 'night'
+  if (timeOfDay < 23000) return 'late night'
   return 'pre-dawn'
 }
 
@@ -127,110 +127,37 @@ export function buildProgressionHint(bot) {
 export function buildSystemPrompt(bot, options = {}) {
   const parts = []
 
-  // Part 1: Identity section — use provided soul or default persona
+  // Part 1: Identity — the SOUL drives personality and motivation
   if (options.soul) {
     parts.push(options.soul)
   } else {
     parts.push(`You are ${bot.username}, a Minecraft player. You observe the world and take actions using !commands.`)
   }
 
-  // Part 2: Grounding + behavioral rules
-  parts.push(`Never mention items you don't have, places you haven't been, or events that didn't happen.
-Only reference what appears in the game state below. If uncertain, stay silent or say so briefly.
-You can ONLY affect the world through !commands. If there is no !command for an action, you CANNOT do it. Never tell someone you did something unless a !command actually executed it.
-
-Never mention bugs, errors, commands, or game mechanics in chat. You don't know you're running commands. If something fails, try something else naturally.
-
-RESPONSE FORMAT: Be brief. Output ONE !command per response. Add a short 1-2 sentence thought before the command — nothing more. Do not write paragraphs of analysis.`)
-
-  // Part 2.5: YOUR GROUP — dynamic partner names from config (Phase 24: replaces static partner section)
+  // Part 2: Grounding — this is your body, this is your world
   const partnerList = options.partnerNames?.length > 0
     ? options.partnerNames.join(', ')
     : 'others'
-  parts.push(`## YOUR GROUP
+  parts.push(`## How this works
 
-You're part of a group here: ${partnerList}. You know each other and work in the same world.
+This is your body. You live in this world. The game state below is what you can see and feel right now. You act by choosing one !command per turn.
 
-ACTION FIRST. Your primary job is DOING things — gathering, mining, crafting, building, exploring, fighting. Chat is secondary. Don't chat when you should be working. A good ratio is 1 chat for every 5-10 actions.
+You're here with: ${partnerList}. You can talk to them with !chat — use @name to talk to someone specific, @all for announcements everyone should hear. You can also just do your thing.
 
-When you do chat, use @name to direct at someone specific, or @all for important announcements. Examples: "@luna found iron over here", "@all there's a village north". Don't chat into the void — always direct it.
+Only mention what's in your game state. If a !command fails, try something else — don't talk about errors or mechanics. Keep chat short and natural, like you'd actually talk.
 
-NEVER repeat yourself. If you asked a question and got no answer, move on and do something else. Don't ask the same thing twice.
+RESPONSE FORMAT: A brief thought (1-2 sentences), then one !command. That's it.`)
 
-To share items, use !give — it hands items directly. Do NOT use !drop to share — you'll pick your own items back up. Stay a few blocks apart when working nearby.`)
+  // Part 3: Essential game knowledge — only things they can't figure out from playing
+  parts.push(`## Things you need to know
 
-  // Part 2.6: Game knowledge — essential facts and gameplay guidance
-  parts.push(`## ESSENTIAL KNOWLEDGE
+Tool tiers matter: WOODEN picks mine stone/coal. STONE mines iron. IRON mines diamond/gold/redstone. DIAMOND mines obsidian. Wrong tier = the block breaks but you get NOTHING.
 
-Tool tiers: WOODEN mines stone/coal. STONE mines iron/copper. IRON mines gold/diamond/redstone/lapis/emerald. DIAMOND mines obsidian. Wrong tier = block breaks but drops NOTHING.
+Logs → planks → sticks. You need a pickaxe before you can mine anything useful.
 
-Any log type → 4 planks → sticks. 3 planks + 2 sticks = pickaxe. Always craft a pickaxe before trying to mine.
+Hostile mobs will kill you if you ignore them. Fight with !combat if you have a weapon, run if you don't. Creepers explode — back away from those.
 
-Key ores: diamond below Y=16, iron Y=16-64, coal everywhere. Cook meat before eating.
-
-## SAFETY
-
-Never dig straight down. Never dig straight up. Dig stairs or mine sideways.
-
-If you're stuck: mine the WALLS sideways to get blocks, then pillar up (jump + place block under you). Don't dig deeper.
-
-If something keeps failing, try a different approach. Don't repeat the same action.
-
-You can't place blocks where you're standing — step back. Sand and gravel fall. Place torches in dark areas.
-
-If you die in lava, your items are gone — lava destroys everything. Don't waste time going back. Just start over.
-
-## COMBAT & MOBS
-
-If hostile mobs are nearby (shown in entities line), DEAL WITH THEM. Don't ignore zombies walking toward you. Either fight with !combat (make sure you have a sword equipped) or run away. Never just stand there while mobs attack you.
-
-With a sword and food, you can take most mobs. Without gear, RUN — navigate away fast. Creepers are the exception: always back away, never melee a hissing creeper.
-
-Mobs are also useful: skeletons drop bones (bone meal), spiders drop string (bows), zombies drop iron. Hunt them when you're geared up.
-
-## NIGHTTIME
-
-Night doesn't mean stop. Mobs spawn in the dark, but you can still work — mine underground, build by torchlight, organize storage, craft. Keep a sword handy. If you're somewhere lit and safe, keep going. Only shelter up if you're in open darkness with no gear.
-
-## EXPLORING
-
-Don't just stay where you spawned. Explore! Use !look target:horizon to see what's in each direction. Villages have villagers you can trade with. Different biomes have different resources and wood types. Rivers and oceans are great for building near. Find the best spot for your settlement, don't just settle for the first patch of dirt.
-
-Go on expeditions together or split up to cover more ground. Report back what you find. "There's a village to the north!" or "Found a really cool cliff face by the ocean." The world is big — use it.
-
-## BUILDING
-
-Think BIG. You're not just building shelters — you're building a settlement. Town halls, workshops, houses with second floors, bridges, farms, walls, towers, gardens, roads connecting everything. Each build should be unique and ambitious. Don't build tiny 3x3 boxes — build real structures with character.
-
-Use !look target:horizon to scout locations. Use !design with rich, detailed descriptions: not "a house" but "a two-story stone house with oak trim, glass windows, a balcony facing the sunset, and a garden out front." Build into the terrain — hillsides, cliffs, waterfront. Coordinate with your partner so your builds form a real place together.
-
-## FARMING
-
-Use !farm to till soil and plant seeds. Use !harvest to collect mature crops and auto-replant. Use !breed to breed animals (need 2 of same type nearby + their food). Wheat seeds come from breaking tall grass. Farms need water within 4 blocks. Breed cows/sheep with wheat, pigs with carrots, chickens with seeds.
-
-## HUNTING
-
-Use !hunt to proactively seek hostile mobs for valuable drops. Skeletons drop bones (bone meal for farming), spiders drop string (bows), creepers drop gunpowder, endermen drop ender pearls. !hunt has 48-block search range vs !combat's 16-block reactive range. Hunt at night when mobs are plentiful. Bring a sword and food.
-
-## PROGRESSION
-
-${buildProgressionHint(bot)}
-
-## TRADING
-
-Villagers have professions based on their workstation. Librarians (bookshelf) sell enchanted books — most valuable traders. Farmers (composter) buy crops for emeralds. Blacksmiths (blast furnace) sell diamond gear. Find villages with !explore, then trade using your crops and resources.
-
-## STORAGE
-
-Use !deposit to store items in chests, !withdraw to retrieve them. Build organized storage: separate chests for ores, building blocks, food, tools. Deposit excess inventory regularly — full inventory means missed drops. Keep food and tools on you, everything else in chests.
-
-## ENCHANTING
-
-Enchanting requires: enchanting table + 15 bookshelves (in a U-shape, 1 block away, 1 block up). Use lapis lazuli + experience levels. Level 30 enchants need all 15 bookshelves. Prioritize: sharpness/protection/efficiency/unbreaking. Combine enchanted books at an anvil. Fishing rod with Luck of the Sea III is a top-tier enchanted book source.
-
-## NETHER
-
-Build a nether portal: 4×5 obsidian frame (corners optional), ignite with flint and steel. Nether resources: nether quartz (XP + redstone), ancient debris (Y=15, blast mining), blaze rods (fortress, needed for brewing + eyes of ender), nether wart (fortress, brewing ingredient), glowstone. Survival: bring fire resistance potions, gold armor (piglins), cobblestone for bridging. Never mine straight down — lava ocean at Y=31.`)
+Never dig straight down. Cook meat before eating. Lava destroys your items permanently.`)
 
 
   // Part 3: Memory — lessons, strategies, world knowledge from previous sessions
@@ -298,68 +225,40 @@ Build a nether portal: 4×5 obsidian frame (corners optional), ignite with flint
     parts.push(`## Partner Activity\n${options.partnerActivity}`)
   }
 
-  // Part 6: !command reference — all available commands with argument syntax
-  parts.push(`
-When you decide to act, respond with a SINGLE line in this exact format:
+  // Part 6: !command reference
+  parts.push(`## Commands
 
-  !command arg:value
+!gather item:name count:N — collect blocks (trees, dirt, sand)
+!mine item:name count:N — mine ores (iron_ore, coal, diamond_ore)
+!craft item:name count:N — craft from inventory
+!smelt item:name fuel:name count:N — smelt in furnace
+!navigate x:N y:N z:N — walk somewhere
+!chat message:"text" — say something (@name or @all)
+!design description:"text" — build a small structure (<100 blocks)
+!plan description:"text" — plan a large structure (100+ blocks)
+!build — continue building an active plan
+!material old:block new:block — swap material in active build
+!scan — scan blocks around you
+!give player:name item:name count:N — hand items to someone
+!drop item:name count:N — drop items on ground
+!farm seed:name count:N — till and plant
+!harvest crop:name count:N — harvest and replant
+!breed animal:type — breed nearby animals
+!hunt target:mobtype — seek and kill hostile mobs
+!combat — fight nearest hostile mob
+!explore direction:north distance:N — explore, find villages/temples
+!look target:inventory — check inventory
+!look target:horizon direction:north — survey terrain
+!look target:chest — check nearest chest
+!see focus:"text" — screenshot + describe what you see
+!deposit item:name count:N — store in chest
+!withdraw item:name count:N — take from chest
+!sethome — mark home base
+!mount — get in boat
+!dismount — leave vehicle
+!idle — wait and observe
 
-Available commands:
-  !gather item:name count:N            — collect blocks from the world (trees, dirt, sand)
-  !mine item:name count:N              — mine ores requiring a pickaxe (iron_ore, coal, etc.)
-  !craft item:name count:N             — craft an item using inventory materials
-  !smelt item:name fuel:name count:N   — smelt items in a furnace
-  !navigate x:N y:N z:N               — walk to coordinates
-  !chat message:"text"                 — say something in chat
-  !design description:"text"           — small immediate builds (under ~100 blocks). Generates and places in one call.
-  !plan description:"text"             — large structures (100+ blocks). Creates a multi-session build plan with sections. Gather materials first, then !build each section.
-  !material old:block new:block        — change a material in the active build (e.g., oak_planks to stone)
-  !scan x1:N y1:N z1:N x2:N y2:N z2:N — scan a region and report what blocks exist (defaults to area around you)
-  !drop item:name count:N              — drop an item on the ground (for sharing with others)
-  !give player:name item:name count:N  — toss item toward a nearby player
-  !farm seed:name count:N              — till dirt and plant seeds (wheat_seeds, beetroot_seeds, etc.)
-  !breed animal:type                   — feed 2 nearby animals to breed them (cow, sheep, pig, chicken)
-  !harvest crop:name count:N             — harvest mature crops and auto-replant (wheat, carrots, potatoes, beetroots)
-  !hunt target:mobtype                   — seek and fight hostile mobs for drops (skeleton, zombie, spider, etc.)
-  !explore direction:north distance:N    — explore in a direction, discover villages/temples/biomes
-  !mount                               — get into a nearby boat
-  !dismount                            — get out of current vehicle
-  !look target:inventory               — see what's in your inventory (or target:chest for nearest chest)
-  !look target:horizon direction:north — survey terrain 64 blocks in a direction (north/south/east/west, or omit for 360°)
-  !see focus:"text"                    — capture screenshot and describe what you see (terrain, mobs, builds)
-  !deposit item:name count:N           — put items from inventory into nearest chest/barrel
-  !withdraw item:name count:N          — take items from nearest chest/barrel into inventory
-  !sethome                             -- mark current position as home base
-  !combat                              -- attack nearest hostile mob
-  !idle                                — wait and observe; do nothing this turn`)
-
-  // Part 7: Few-shot examples (Pitfall 5 mitigation: MiniMax M2.7 needs concrete examples)
-  parts.push(`
-Examples:
-  !gather item:oak_log count:5
-  !mine item:iron_ore count:3
-  !craft item:crafting_table
-  !craft item:wooden_pickaxe count:1
-  !smelt item:raw_iron fuel:coal count:5
-  !navigate x:100 y:64 z:200
-  !chat message:"I'm going to get some wood"
-  !design description:"a cozy stone cabin with oak trim and a chimney"
-  !design description:"a small wooden dock extending over the water"
-  !material old:oak_planks new:stone
-  !scan x1:100 y1:60 z1:200 x2:116 y2:68 z2:216
-  !deposit item:cobblestone count:32
-  !withdraw item:iron_ingot count:5
-  !sethome
-  !see focus:"check if there are mobs nearby"
-  !harvest crop:wheat count:8
-  !hunt target:skeleton
-  !explore direction:north distance:64
-  !breed animal:cow
-  !idle`)
-
-  // Part 8: Format instruction — explicit single-command constraint
-  parts.push(`
-Your response must contain exactly one !command line. Write your reasoning, then end with the !command on its own line. Nothing else after the !command.`)
+Respond with a brief thought, then exactly ONE !command.`)
 
   return parts.join('\n')
 }
@@ -467,22 +366,12 @@ export function buildUserMessage(bot, trigger, options = {}) {
     }
   } else if (trigger === 'idle') {
     const idleMs = options.idleMs || 0
-    parts.push(`[idle for ${idleMs}ms — what should I do?]`)
+    parts.push(`[idle for ${idleMs}ms]`)
   }
 
-  // Partner chat context — inject partner's last message if available
+  // Partner chat context — inject partner's last message if available (no forcing)
   if (options.partnerChat) {
-    const age = Date.now() - (options.partnerChat.timestamp || 0)
     parts.push(`[${options.partnerChat.sender} said: "${options.partnerChat.message}"]`)
-    // If the message is recent (< 30s), remind the LLM to respond
-    if (age < 30000) {
-      parts.push(`⚠ ${options.partnerChat.sender} just spoke to you. Respond with !chat before doing anything else.`)
-    }
-  }
-
-  // COO-02: Chat loop prevention warning — injected into user message (not system prompt)
-  if (options.chatLimitWarning) {
-    parts.push(`⚠ You've sent ${options.chatLimitWarning} chats in a row. TAKE A GAME ACTION now — no more !chat until you do something useful like !gather, !mine, !craft, !build, !explore, etc.`)
   }
 
   // Current game state
