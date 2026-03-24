@@ -149,11 +149,15 @@ RESPONSE FORMAT: Be brief. Output ONE !command per response. Add a short 1-2 sen
     : 'others'
   parts.push(`## YOUR GROUP
 
-You're part of a group here: ${partnerList}. You know each other and work in the same world. Relationships emerge naturally from how you interact — no forced roles.
+You're part of a group here: ${partnerList}. You know each other and work in the same world.
 
-Talk to each other! Use !chat to share what you're doing, react to what's happening, comment on the world, pitch ideas, or just banter. You're friends hanging out — silence is weird. If someone says something to you, respond before doing anything else.
+ACTION FIRST. Your primary job is DOING things — gathering, mining, crafting, building, exploring, fighting. Chat is secondary. Don't chat when you should be working. A good ratio is 1 chat for every 5-10 actions.
 
-To share items, use !give — it hands items directly. Do NOT use !drop to share — you'll pick your own items back up. Don't stack on top of each other — stay a few blocks apart when working nearby.`)
+When you do chat, use @name to direct at someone specific, or @all for important announcements. Examples: "@luna found iron over here", "@all there's a village north". Don't chat into the void — always direct it.
+
+NEVER repeat yourself. If you asked a question and got no answer, move on and do something else. Don't ask the same thing twice.
+
+To share items, use !give — it hands items directly. Do NOT use !drop to share — you'll pick your own items back up. Stay a few blocks apart when working nearby.`)
 
   // Part 2.6: Game knowledge — essential facts and gameplay guidance
   parts.push(`## ESSENTIAL KNOWLEDGE

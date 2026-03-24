@@ -312,9 +312,9 @@ const COMMAND_SCHEMAS = [
   {
     name: 'chat',
     usage: '!chat message:"text"',
-    purpose: 'Say something in Minecraft chat, visible to all players',
-    args: 'message — text to say, quoted string',
-    examples: ['!chat message:"I\'m going to get some wood"', '!chat message:"Hello!"'],
+    purpose: 'Say something in Minecraft chat. Use @name to direct at someone, @all for broadcasts',
+    args: 'message — text to say, quoted string. Include @name or @all prefix',
+    examples: ['!chat message:"@luna I\'m going to get some wood"', '!chat message:"@all found a village!"'],
     failures: 'Message too long. Special characters may need escaping.',
   },
   {

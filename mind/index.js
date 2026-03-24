@@ -53,6 +53,19 @@ function isSenderNearby(bot, senderName) {
   return senderEntity.position.distanceTo(selfPos) <= CHAT_PROXIMITY_BLOCKS
 }
 
+// Agent-to-agent directed chat filter — prevents 6-way echo chamber.
+// Agent messages must mention this bot's name or use @all to be processed.
+// Real player (non-agent) messages always pass through.
+const ALL_AGENT_NAMES = new Set(['luna', 'max', 'ivy', 'rust', 'ember', 'flint', 'sage', 'wren'])
+function isMessageForMe(bot, senderName, msgStr) {
+  // Real players always get through
+  if (!ALL_AGENT_NAMES.has(senderName.toLowerCase())) return true
+  const lower = msgStr.toLowerCase()
+  const myName = bot.username.toLowerCase()
+  // Check for @name, @all, or just the bot's name mentioned anywhere
+  return lower.includes(`@${myName}`) || lower.includes(`@all`) || lower.includes(myName)
+}
+
 // ── Async Chat Response (bypasses skill queue) ──
 
 // respondToChat fires immediately when someone talks, even during active skills.
@@ -871,6 +884,12 @@ export async function initMind(bot, config) {
     // Phase 24: Proximity filter — only respond to nearby agents
     if (!isSenderNearby(bot, username)) {
       console.log('[mind] chat from', username, 'ignored (>32 blocks away)')
+      return
+    }
+
+    // Directed chat filter — agent messages must mention us or use @all
+    if (!isMessageForMe(bot, username, msgStr)) {
+      console.log('[mind] chat from', username, 'ignored (not directed at us)')
       return
     }
 
