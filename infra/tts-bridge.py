@@ -24,6 +24,7 @@ _default_voices_config = os.path.join(os.path.dirname(os.path.abspath(__file__))
 VOICES_CONFIG = os.environ.get("TTS_VOICES_CONFIG") or _default_voices_config
 
 MC_CONTAINER = os.environ.get("MC_CONTAINER", "hermescraft-server")
+MC_LOG_FILE = os.environ.get("MC_LOG_FILE", "")  # If set, tail this file instead of docker logs
 
 # Paper server chat log format: [HH:MM:SS INFO]: <playername> message text here
 CHAT_RE = re.compile(r'\[.*?INFO\].*?<(\w+)> (.+)')
@@ -118,17 +119,25 @@ def _worker(voices):
 # ── Log tail ──
 
 def _tail_logs(voices):
-    """Tail Docker container logs and enqueue chat messages from known agents."""
+    """Tail MC server logs and enqueue chat messages from known agents."""
     while True:
         try:
-            print(f"[tts] Connecting to Docker logs: {MC_CONTAINER}", flush=True)
-            # Tail container output: docker logs -f {MC_CONTAINER}
-            proc = subprocess.Popen(
-                ["docker", "logs", "-f", MC_CONTAINER],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-            )
+            if MC_LOG_FILE:
+                print(f"[tts] Tailing log file: {MC_LOG_FILE}", flush=True)
+                proc = subprocess.Popen(
+                    ["tail", "-n", "0", "-F", MC_LOG_FILE],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                    text=True,
+                )
+            else:
+                print(f"[tts] Connecting to Docker logs: {MC_CONTAINER}", flush=True)
+                proc = subprocess.Popen(
+                    ["docker", "logs", "-f", MC_CONTAINER],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                )
 
             for line in proc.stdout:
                 m = CHAT_RE.search(line)
@@ -153,8 +162,9 @@ def _tail_logs(voices):
 
             # Subprocess exited — MC server may not be ready yet
             rc = proc.wait()
+            src = MC_LOG_FILE or MC_CONTAINER
             print(
-                f"[tts] Docker logs process exited (rc={rc}). Retrying in 5s...",
+                f"[tts] Log source process exited (rc={rc}, src={src}). Retrying in 5s...",
                 flush=True,
             )
 
