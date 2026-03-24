@@ -4,24 +4,25 @@ import OpenAI from 'openai'
 import { readFileSync, writeFileSync, renameSync, existsSync, mkdirSync } from 'fs'
 import { join } from 'path'
 import { getHistory } from './llm.js'
-import { captureScreenshot, queryVLM } from './vision.js'
+import { captureAndAnalyze } from './vision.js'
 import { logEvent, queryRecent } from './memoryDB.js'
 import { getPartnerActivityForPrompt } from './coordination.js'
 
 // ── Environment Variables ──
+// Uses main model endpoint — Qwen3.5 is natively multimodal, one model serves everything.
 
-const BACKGROUND_BRAIN_URL = process.env.BACKGROUND_BRAIN_URL || process.env.VLLM_URL || 'http://localhost:8001/v1'
+const BACKGROUND_BRAIN_URL = process.env.BACKGROUND_BRAIN_URL || process.env.VLLM_URL || 'http://localhost:8000/v1'
 const BACKGROUND_MODEL = process.env.BACKGROUND_MODEL_NAME || process.env.MODEL_NAME || 'Qwen3.5-35B-A3B'
 const BACKGROUND_MAX_TOKENS = parseInt(process.env.BACKGROUND_MAX_TOKENS || '1024', 10)
 const BACKGROUND_INTERVAL_MS = parseInt(process.env.BACKGROUND_INTERVAL_MS || '30000', 10)
 const STARTUP_DELAY_MS = 10000  // wait 10s before first cycle — gives main brain time for first tick
 const REFLECTION_INTERVAL_MS = 30 * 60 * 1000  // 30 minutes between reflection journals
 
-// ── Background Brain OpenAI Client (same endpoint as main brain — Qwen3.5-35B-A3B MoE) ──
+// ── Background Brain OpenAI Client (same endpoint as main brain — Qwen3.5 natively multimodal MoE) ──
 
 const bgClient = new OpenAI({
   baseURL: BACKGROUND_BRAIN_URL,
-  apiKey: 'not-needed',
+  apiKey: process.env.VLLM_API_KEY || 'not-needed',
   timeout: 60000,
 })
 
@@ -313,14 +314,30 @@ async function runBackgroundCycle(bot, config) {
       }
     } catch {}
 
-    // Build prompt and call secondary model
+    // Build prompt and call model — include composite image for visual awareness
     const prompt = buildBackgroundPrompt(recentHistory, gameState, existingState, extraContext)
+
+    // Render composite view for the background brain's strategic analysis.
+    // Qwen3.5 is natively multimodal — pass image inline with the user message.
+    let bgImage = null
+    try {
+      const { renderCompositeViewSync } = await import('./minimap.js')
+      bgImage = renderCompositeViewSync(bot, DATA_DIR)
+    } catch { /* vision render failure is non-fatal */ }
+
+    // Build user message — multimodal if image available
+    const userContent = bgImage
+      ? [
+          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${bgImage}` } },
+          { type: 'text', text: 'Analyze the game state and your visual surroundings. Output the JSON plan now.' },
+        ]
+      : 'Analyze and output the JSON plan now.'
 
     const response = await bgClient.chat.completions.create({
       model: BACKGROUND_MODEL,
       messages: [
         { role: 'system', content: prompt },
-        { role: 'user', content: 'Analyze and output the JSON plan now.' },
+        { role: 'user', content: userContent },
       ],
       max_tokens: BACKGROUND_MAX_TOKENS,
       temperature: 0.3,  // lower temperature for structured/deterministic JSON output
@@ -377,22 +394,18 @@ async function runBackgroundCycle(bot, config) {
       writeBrainState(mergedState)  // persist the timestamp
     }
 
-    // Periodic vision — capture screenshot and store description in brain-state.json
-    // Only fires if Xvfb display is available and main brain isn't thinking
-    if (process.env.DISPLAY) {
-      try {
-        const base64 = await captureScreenshot(DATA_DIR, process.env.XVFB_DISPLAY || '1')
-        if (base64) {
-          const desc = await queryVLM(base64, 'terrain and nearby threats')
-          if (desc) {
-            mergedState.visionNote = { text: desc, ts: Date.now() }
-            writeBrainState(mergedState)  // re-write with vision data
-            _cachedState = null
-            _cacheTime = 0
-          }
-        }
-      } catch { /* vision failure is non-fatal */ }
-    }
+    // Dedicated vision analysis — renders composite view and gets focused VLM description.
+    // This produces a text summary for the main brain's prompt injection (visionNote in brain-state.json).
+    // Separate from the image sent inline above — this is a targeted "describe what you see" call.
+    try {
+      const visionResult = await captureAndAnalyze(bot, DATA_DIR, 'terrain, structures, threats, and building progress')
+      if (visionResult?.description) {
+        mergedState.visionNote = { text: visionResult.description, ts: Date.now() }
+        writeBrainState(mergedState)
+        _cachedState = null
+        _cacheTime = 0
+      }
+    } catch { /* vision failure is non-fatal */ }
 
     console.log('[background-brain] cycle complete')
   } catch (err) {

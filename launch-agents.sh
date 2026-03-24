@@ -42,17 +42,21 @@ if [ -f "$SCRIPT_DIR/.env" ]; then
 fi
 
 # ── Env var defaults ──
+# Qwen3.5-35B-A3B is natively multimodal — one model handles text + vision + background brain.
+# No separate VLM process needed. All endpoints point at the same vLLM instance.
 VLLM_URL="${VLLM_URL:-http://localhost:8000/v1}"
 VLLM_API_KEY="${VLLM_API_KEY:-not-needed}"
-MODEL_NAME="${MODEL_NAME:-Qwen3-8B}"
+MODEL_NAME="${MODEL_NAME:-Qwen3.5-35B-A3B}"
 BACKGROUND_BRAIN_URL="${BACKGROUND_BRAIN_URL:-$VLLM_URL}"
-BACKGROUND_MODEL_NAME="${BACKGROUND_MODEL_NAME:-Qwen3-8B}"
+BACKGROUND_MODEL_NAME="${BACKGROUND_MODEL_NAME:-$MODEL_NAME}"
 TICK_MS="${TICK_MS:-3000}"
 TEMPERATURE="${TEMPERATURE:-0.6}"
 MAX_TOKENS="${MAX_TOKENS:-384}"
+VISION_URL="${VISION_URL:-$VLLM_URL}"
+VISION_MODEL="${VISION_MODEL:-$MODEL_NAME}"
 
 if [ "$VLLM_URL" = "http://localhost:8000/v1" ]; then
-    echo "[launch-agents] Using localhost LLM — ensure model servers are running"
+    echo "[launch-agents] Using localhost LLM — ensure vLLM is running with $MODEL_NAME"
 fi
 
 # ── Install deps if needed ──
@@ -112,6 +116,8 @@ while true; do
     TICK_MS='TICK_MS_PLACEHOLDER' \
     TEMPERATURE='TEMPERATURE_PLACEHOLDER' \
     MAX_TOKENS='MAX_TOKENS_PLACEHOLDER' \
+    VISION_URL='VISION_URL_PLACEHOLDER' \
+    VISION_MODEL='VISION_MODEL_PLACEHOLDER' \
         node SCRIPT_DIR_PLACEHOLDER/start.js
     CODE=$?
     [ $CODE -eq 0 ] && break                    # clean shutdown — stop
@@ -134,6 +140,8 @@ HEREDOC
     AGENT_CMD="${AGENT_CMD//TICK_MS_PLACEHOLDER/$TICK_MS}"
     AGENT_CMD="${AGENT_CMD//TEMPERATURE_PLACEHOLDER/$TEMPERATURE}"
     AGENT_CMD="${AGENT_CMD//MAX_TOKENS_PLACEHOLDER/$MAX_TOKENS}"
+    AGENT_CMD="${AGENT_CMD//VISION_URL_PLACEHOLDER/$VISION_URL}"
+    AGENT_CMD="${AGENT_CMD//VISION_MODEL_PLACEHOLDER/$VISION_MODEL}"
     AGENT_CMD="${AGENT_CMD//SCRIPT_DIR_PLACEHOLDER/$SCRIPT_DIR}"
 
     tmux send-keys -t "$SESSION:$AGENT_NAME" "$AGENT_CMD" Enter

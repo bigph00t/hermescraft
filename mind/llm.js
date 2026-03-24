@@ -1,5 +1,5 @@
 // llm.js — LLM client with conversation memory, graduated trimming, and !command parser
-// Targets Qwen3.5-35B-A3B MoE via llama-server; compatible with any OpenAI-compat endpoint
+// Targets Qwen3.5-35B-A3B MoE (natively multimodal) via vLLM; compatible with any OpenAI-compat endpoint
 
 import OpenAI from 'openai'
 
@@ -168,6 +168,10 @@ function parseCommand(text) {
 // ── Main Query Function ──
 
 // Query the LLM with systemPrompt + conversationHistory + userMessage.
+// Optional image: base64-encoded JPEG string — when provided, the user message becomes
+// a multimodal content array [{type:'image_url',...}, {type:'text',...}].
+// Qwen3.5 is natively multimodal — every call can optionally include an image.
+//
 // Returns: { reasoning, command, args, raw }
 //   - reasoning: text before/after <think> tags (stripped)
 //   - command: the !command name (null if no command found)
@@ -176,15 +180,26 @@ function parseCommand(text) {
 //
 // On context overflow: trims 25% of history and retries (up to MAX_RETRIES).
 // On all retries exhausted: trims 50% then throws.
-export async function queryLLM(systemPrompt, userMessage) {
+export async function queryLLM(systemPrompt, userMessage, image = null) {
   let lastError
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
+      // Build user content — multimodal if image provided, plain text otherwise
+      let userContent
+      if (image) {
+        userContent = [
+          { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${image}` } },
+          { type: 'text', text: userMessage },
+        ]
+      } else {
+        userContent = userMessage
+      }
+
       const messages = [
         { role: 'system', content: systemPrompt },
         ...conversationHistory,
-        { role: 'user', content: userMessage },
+        { role: 'user', content: userContent },
       ]
 
       const response = await client.chat.completions.create({
@@ -215,7 +230,8 @@ export async function queryLLM(systemPrompt, userMessage) {
       const command = parsed ? parsed.command : null
       const args = parsed ? parsed.args : {}
 
-      // Push user + assistant to conversation history, then trim to cap
+      // Push user + assistant to conversation history, then trim to cap.
+      // Always store text-only in history — images are per-tick and would bloat context.
       conversationHistory.push(
         { role: 'user', content: userMessage },
         { role: 'assistant', content: rawContent },

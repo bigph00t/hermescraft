@@ -17,8 +17,8 @@ import { validateBlueprint } from '../body/blueprints/validate.js'
 import { recordBuild, getBuildHistoryForPrompt } from './build-history.js'
 import { retrieveKnowledge } from './knowledgeStore.js'
 import { getBrainStateForPrompt, getBrainHooks } from './backgroundBrain.js'
-import { captureScreenshot, queryVLM, buildVisionForPrompt } from './vision.js'
-import { getMinimapSummary } from './minimap.js'
+import { captureAndAnalyze, buildVisionForPrompt } from './vision.js'
+import { getMinimapSummary, renderCompositeViewSync } from './minimap.js'
 import { scanArea } from '../body/skills/scan.js'
 import { logEvent, queryRecent, queryNearby } from './memoryDB.js'
 import { planBuild, auditMaterials, getBuildPlanForPrompt, getActivePlan, buildExpectedBlockMap, saveBuildPlan, claimBuildSection } from './buildPlanner.js'
@@ -49,6 +49,8 @@ const _recentSentMessages = []   // ring buffer of last N outgoing chat message 
 const CHAT_DEDUP_WINDOW = 8      // how many recent messages to check for duplication
 let _lastVisionResult = null  // consume-once VLM description — cleared after injection into prompt
 let _postBuildScan = null     // consume-once post-build scan result
+let _thinkTickCount = 0       // counts think() calls — used for tiered vision (every Nth tick gets an image)
+const VISION_TICK_INTERVAL = 3  // include composite render every 3rd tick as baseline visual awareness
 const _chatCountByPartner = new Map()  // COO-02 (Phase 24): per-partner chat loop prevention
 let _lastChatSender = null              // tracks who triggered the current chat response
 let _lastCommandWasChat = false         // prevents back-to-back chat without a game action in between
@@ -381,6 +383,8 @@ async function think(bot, context) {
 
     // ── RAG context injection (RAG-08, RAG-09) ──
     // Death > Failure > Context-aware — priority order for RAG query
+    // Save death flag BEFORE consuming _lastDeath — vision check needs it later
+    const hadDeath = !!_lastDeath
     let ragQuery = null
     if (_lastDeath) {
       // After death: inject recovery knowledge. Lava deaths = items burned.
@@ -463,9 +467,34 @@ async function think(bot, context) {
       : 0
     const userMessage = buildUserMessage(bot, context.trigger, { ...context, partnerChat, chatLimitWarning: senderCount >= 3 ? senderCount : null })
 
-    console.log('[mind] thinking...', context.trigger)
+    // ── Tiered Vision: render composite image for spatial actions + every Nth tick ──
+    // Qwen3.5 is natively multimodal — every think() call can include an image.
+    // Image is included when:
+    //   1. Agent is building (active build plan or just completed build/design/plan)
+    //   2. Agent is navigating, exploring, fighting, or farming (spatial actions)
+    //   3. Every VISION_TICK_INTERVAL ticks as baseline visual awareness
+    //   4. After death (need to assess new surroundings)
+    //   5. Chat trigger is skipped (vision is wasteful for pure chat responses)
+    _thinkTickCount++
+    let tickImage = null
+    const isSpatialTrigger = context.trigger === 'skill_complete' && [
+      'navigate', 'explore', 'combat', 'hunt', 'build', 'design', 'plan',
+      'farm', 'harvest', 'mine', 'gather', 'scan', 'see',
+    ].includes(context.skillName)
+    const hasActiveBuild = !!getActiveBuild() || !!getActivePlan()
+    const isBaselineTick = (_thinkTickCount % VISION_TICK_INTERVAL) === 0
+    const isAfterDeath = hadDeath  // saved before _lastDeath was consumed for RAG query
+    const isChatTrigger = context.trigger === 'chat'
 
-    const result = await queryLLM(systemPrompt, userMessage)
+    if (!isChatTrigger && (isSpatialTrigger || hasActiveBuild || isBaselineTick || isAfterDeath)) {
+      try {
+        tickImage = renderCompositeViewSync(bot, _config?.dataDir || '')
+      } catch { /* vision render failure is non-fatal */ }
+    }
+
+    console.log('[mind] thinking...', context.trigger, tickImage ? '(+image)' : '(text-only)')
+
+    const result = await queryLLM(systemPrompt, userMessage, tickImage)
 
     if (result.reasoning) {
       console.log('[mind] reasoning:', result.reasoning.slice(0, 200))
@@ -575,17 +604,16 @@ async function think(bot, context) {
     // and a consume-once result variable.
     if (result.command === 'see') {
       const focus = result.args?.focus || result.args?.description || ''
-      console.log('[mind] !see triggered — capturing screenshot')
+      console.log('[mind] !see triggered — rendering view')
       skillRunning = true
-      const displayNum = process.env.XVFB_DISPLAY || '1'
-      const base64 = await captureScreenshot(_config?.dataDir || '', displayNum)
-      const description = await queryVLM(base64, focus)
+      const visionResult = await captureAndAnalyze(bot, _config?.dataDir || '', focus)
       skillRunning = false
+      const description = visionResult?.description || null
       if (description) {
         _lastVisionResult = description
         console.log('[mind] !see result:', description.slice(0, 80))
       } else {
-        console.log('[mind] !see: VLM unavailable or capture failed')
+        console.log('[mind] !see: VLM unavailable or render failed')
       }
       lastActionTime = Date.now()
       setTimeout(() => think(bot, { trigger: 'skill_complete', skillName: 'see',
