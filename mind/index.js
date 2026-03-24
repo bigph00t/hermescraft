@@ -59,29 +59,8 @@ let _lastChatSender = null              // tracks who triggered the current chat
 let _lastChatTimestamp = 0               // timestamp of last outgoing chat — used for anti-spam cooldown
 const CHAT_COOLDOWN_MS = 3000           // minimum 3s between outgoing chat messages (prevents ping-pong)
 
-// Phase 24: Proximity chat filter — only respond to agents within 32 blocks
-const CHAT_PROXIMITY_BLOCKS = 32
-function isSenderNearby(bot, senderName) {
-  const selfPos = bot.entity?.position
-  if (!selfPos) return true  // can't determine own position — process anyway (failsafe)
-  const senderEntity = bot.players[senderName]?.entity
-  if (!senderEntity?.position) return true  // sender position unknown — process anyway (startup failsafe)
-  return senderEntity.position.distanceTo(selfPos) <= CHAT_PROXIMITY_BLOCKS
-}
-
-// Agent-to-agent directed chat filter — prevents echo chambers.
-// Returns 'direct' for @name, 'broadcast' for @all, false for irrelevant.
-// Real player messages always return 'direct'.
-const ALL_AGENT_NAMES = new Set(['luna', 'max', 'ivy', 'rust', 'ember', 'flint', 'sage', 'wren'])
-function classifyMessage(bot, senderName, msgStr) {
-  // Real players always get direct treatment
-  if (!ALL_AGENT_NAMES.has(senderName.toLowerCase())) return 'direct'
-  const lower = msgStr.toLowerCase()
-  const myName = bot.username.toLowerCase()
-  if (lower.includes(`@${myName}`)) return 'direct'
-  if (lower.includes('@all')) return 'broadcast'
-  return false
-}
+// Two-agent setup: no proximity filter, no @name tagging required.
+// Every message from the other agent triggers a response.
 
 // ── Async Chat Response (bypasses skill queue) ──
 
@@ -1096,23 +1075,13 @@ export async function initMind(bot, config) {
     // Filter bot's own messages echoed back
     if (username === bot.username) return
 
-    // Classify: 'direct' (@name or real player), 'broadcast' (@all), false (ignore)
-    const chatType = classifyMessage(bot, username, msgStr)
-    if (!chatType) return
-    // Proximity filter — only respond to nearby agents
-    if (!isSenderNearby(bot, username)) return
-
-    console.log('[mind] chat from', username, `(${chatType}):`, msgStr)
+    console.log('[mind] chat from', username, ':', msgStr)
 
     // Track player interaction for social module
     trackPlayer(username, { type: 'chat', detail: msgStr })
 
-    // Only DIRECT messages (@name or real player) trigger respondToChat.
-    // Broadcasts (@all) are passive context — the agent sees them naturally
-    // in the next think() cycle via partnerChat. This prevents @all echo chambers.
-    if (chatType === 'direct') {
-      respondToChat(bot, username, msgStr)
-    }
+    // Two-agent mode: every message from the other person triggers a response
+    respondToChat(bot, username, msgStr)
   })
 
   // ── Trigger 2: Skill complete ──

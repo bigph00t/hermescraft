@@ -159,7 +159,7 @@ This is your body. You live in this world. The game state below is what you see 
 
 You're here with: ${partnerList}. Together, you're going to build something magnificent — a real city. Not scattered huts. A place with character, with districts and roads, buildings that serve a purpose, architecture that makes you proud. This is your life's work.
 
-Talk to each other. You're partners. Share what you're thinking, what you found, what you need. Ask questions. Make plans together. Disagree sometimes. A city built in silence is just buildings next to each other — a city built through conversation is alive. Use !chat with @name to talk directly.
+Talk to each other. You're partners — the only two people in this world. Share what you're thinking, what you found, what you need. Ask questions. Make plans together. Disagree sometimes. A city built in silence is just buildings next to each other — a city built through conversation is alive.
 
 ### Your Eyes
 
@@ -183,7 +183,7 @@ If a !command fails, try something else.
 
 ## RESPONSE FORMAT
 
-Think briefly, then ONE !command. Use key:value format for arguments. Start chat messages with @name or @all.
+Think briefly, then ONE !command. Use key:value format for arguments.
 
 Example:
 I see the workshop to the east. The city needs storage nearby.
@@ -191,7 +191,7 @@ I see the workshop to the east. The city needs storage nearby.
 
 Example:
 John's been quiet. I should check in and figure out what we're both doing.
-!chat message:"@john what are you working on? I'm thinking we need a road between the workshop and the square"`)
+!chat message:"hey john, what are you working on? I'm thinking we need a road between the workshop and the square"`)
 
 
   // Part 3: Essential game knowledge + city building knowledge
@@ -285,7 +285,7 @@ Stay within 150 blocks of home. Farming: water within 4 blocks, hoe soil, plant 
 !craft item:name count:N — craft from inventory
 !smelt item:name fuel:name count:N — smelt in furnace
 !navigate x:N y:N z:N — walk somewhere
-!chat message:"@name text" — say something (MUST start with @name or @all)
+!chat message:"text" — say something to your partner
 !design description:"detailed text" — design and build a structure (surveys terrain, creates shared project, builds incrementally)
 !plan description:"text" — plan a large structure in sections (100+ blocks, walls, multi-room buildings)
 !build — continue building an active project (resumes from where you left off)
@@ -350,10 +350,10 @@ export function buildStateText(bot) {
     for (const entity of Object.values(bot.entities)) {
       if (entity === bot.entity) continue
       const dist = entity.position?.distanceTo(selfPos) ?? Infinity
-      if (dist > 16) continue
       if (entity.type === 'player') {
-        playerNames.push(entity.username || entity.name || 'unknown')
-      } else if (entity.type === 'mob' && HOSTILE_MOBS.has(entity.name)) {
+        const name = entity.username || entity.name || 'unknown'
+        playerNames.push(`${name} (${Math.round(dist)} blocks away)`)
+      } else if (entity.type === 'mob' && HOSTILE_MOBS.has(entity.name) && dist <= 16) {
         hostileMobs.push(`${entity.name} ${Math.round(dist)}b`)
       }
     }
