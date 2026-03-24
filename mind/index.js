@@ -56,17 +56,18 @@ function isSenderNearby(bot, senderName) {
   return senderEntity.position.distanceTo(selfPos) <= CHAT_PROXIMITY_BLOCKS
 }
 
-// Agent-to-agent directed chat filter — prevents 6-way echo chamber.
-// Agent messages must mention this bot's name or use @all to be processed.
-// Real player (non-agent) messages always pass through.
+// Agent-to-agent directed chat filter — prevents echo chambers.
+// Returns 'direct' for @name, 'broadcast' for @all, false for irrelevant.
+// Real player messages always return 'direct'.
 const ALL_AGENT_NAMES = new Set(['luna', 'max', 'ivy', 'rust', 'ember', 'flint', 'sage', 'wren'])
-function isMessageForMe(bot, senderName, msgStr) {
-  // Real players always get through
-  if (!ALL_AGENT_NAMES.has(senderName.toLowerCase())) return true
+function classifyMessage(bot, senderName, msgStr) {
+  // Real players always get direct treatment
+  if (!ALL_AGENT_NAMES.has(senderName.toLowerCase())) return 'direct'
   const lower = msgStr.toLowerCase()
   const myName = bot.username.toLowerCase()
-  // Strict @name or @all only — bare name mentions don't count
-  return lower.includes(`@${myName}`) || lower.includes('@all')
+  if (lower.includes(`@${myName}`)) return 'direct'
+  if (lower.includes('@all')) return 'broadcast'
+  return false
 }
 
 // ── Async Chat Response (bypasses skill queue) ──
@@ -77,9 +78,11 @@ function isMessageForMe(bot, senderName, msgStr) {
 let _chatResponseInFlight = false
 
 async function respondToChat(bot, sender, message) {
-  // Don't stack chat responses — latest message wins
-  if (_chatResponseInFlight) {
-    _pendingChat = { trigger: 'chat', sender, message }
+  // Don't stack chat responses — drop if busy
+  if (_chatResponseInFlight) return
+  // If we just chatted, skip — forces a game action before responding to more chat
+  if (_lastCommandWasChat) {
+    console.log('[mind] skipping respondToChat — must do a game action first')
     return
   }
   _chatResponseInFlight = true
@@ -158,26 +161,14 @@ async function respondToChat(bot, sender, message) {
         console.log('[mind] chat reply sent:', msg.slice(0, 80))
       }
     }
-    // If LLM produced an action command instead of chatting back, re-queue the
-    // chat message so the next think() cycle sees it as partnerChat context.
-    // This gives the agent a second chance to respond naturally during its regular loop.
+    // If LLM produced a non-chat command or no command, just log it.
+    // Don't re-queue — the agent will see nearby chat naturally via partnerChat
+    // in the next think() cycle. Re-queuing feeds echo chamber loops.
     else if (result.command && result.command !== 'idle') {
-      console.log('[mind] chat response wanted command:', result.command, '— injecting into next think cycle')
-      _pendingChat = { trigger: 'chat', sender, message }
+      console.log('[mind] chat response picked action:', result.command, '— not re-queuing')
     }
-    // No command — LLM just reasoned without acting. If there's reasoning that
-    // looks like a response, send it as chat (the LLM often "says" things in
-    // reasoning without using !chat)
-    else if (!result.command && result.reasoning) {
-      // Extract any conversational text from reasoning (first sentence-like chunk)
-      const lines = result.reasoning.split('\n').filter(l => l.trim())
-      const conversational = lines.find(l =>
-        !l.startsWith('I ') && !l.startsWith('My ') && !l.startsWith('Let me') &&
-        !l.includes('inventory') && !l.includes('should') && l.length < 100
-      )
-      // Re-queue so the next think() cycle gets the chat context
-      console.log('[mind] no !chat in response — re-queuing for next think cycle')
-      _pendingChat = { trigger: 'chat', sender, message }
+    else if (!result.command) {
+      console.log('[mind] chat response: no command produced')
     }
   } catch (err) {
     console.error('[mind] chat response error:', err.message)
@@ -929,20 +920,23 @@ export async function initMind(bot, config) {
     // Filter bot's own messages echoed back
     if (username === bot.username) return
 
-    // Directed chat filter — agent messages must @name or @all to pass
-    if (!isMessageForMe(bot, username, msgStr)) return
+    // Classify: 'direct' (@name or real player), 'broadcast' (@all), false (ignore)
+    const chatType = classifyMessage(bot, username, msgStr)
+    if (!chatType) return
     // Proximity filter — only respond to nearby agents
     if (!isSenderNearby(bot, username)) return
 
-    console.log('[mind] chat from', username, ':', msgStr)
+    console.log('[mind] chat from', username, `(${chatType}):`, msgStr)
 
     // Track player interaction for social module
     trackPlayer(username, { type: 'chat', detail: msgStr })
 
-    // Chat responses are ASYNC from the skill queue — they fire immediately
-    // even if a skill is running. This is a separate LLM call just for responding.
-    // If the response contains a !command, we interrupt the running skill and dispatch it.
-    respondToChat(bot, username, msgStr)
+    // Only DIRECT messages (@name or real player) trigger respondToChat.
+    // Broadcasts (@all) are passive context — the agent sees them naturally
+    // in the next think() cycle via partnerChat. This prevents @all echo chambers.
+    if (chatType === 'direct') {
+      respondToChat(bot, username, msgStr)
+    }
   })
 
   // ── Trigger 2: Skill complete ──
