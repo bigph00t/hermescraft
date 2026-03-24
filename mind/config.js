@@ -12,11 +12,11 @@ export function loadAgentConfig() {
   const name = process.env.AGENT_NAME || 'luna'
   const mcUsername = process.env.MC_USERNAME || name
 
-  // All known agent names — used for partner detection and Creator filtering
-  const ALL_AGENTS = ['luna', 'max']
-  // Partners = all other agents (not just one)
-  const partners = ALL_AGENTS.filter(a => a !== name.toLowerCase())
-  const partnerName = partners[0] || null  // primary partner for social module compat
+  // All 8 agent names — used for partner detection and coordination file paths
+  const ALL_AGENTS = ['luna', 'max', 'ivy', 'rust', 'ember', 'flint', 'sage', 'wren']
+  // Full partner list (all agents except self) for group prompt injection
+  const partnerNames = ALL_AGENTS.filter(a => a !== name.toLowerCase())
+  const partnerName = partnerNames[0] || null  // compat shim for social module
 
   // Data dir: data/<name>/ relative to project root — v1 put data under agent/, v2 uses top-level data/
   const dataDir = join(PROJECT_ROOT, 'data', name)
@@ -44,5 +44,5 @@ export function loadAgentConfig() {
     console.warn('[config] SOUL file not found for', name, '-- using generic identity')
   }
 
-  return { name, dataDir, soulContent, partnerName, mcUsername }
+  return { name, dataDir, soulContent, partnerName, partnerNames, mcUsername }
 }
