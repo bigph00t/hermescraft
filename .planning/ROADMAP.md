@@ -204,7 +204,11 @@ Plans:
   5. Proximity chat: agents only receive/respond to chat messages from players within 32 blocks
   6. Vision prompting enhanced: agents use !see proactively based on personality (Rust scouts, Luna evaluates builds)
   7. All 4 SOUL files loaded correctly based on AGENT_NAME env var
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 24-01-PLAN.md — Config expansion (4 agents), prompt Part 2 rewrite (YOUR GROUP, de-prescriptive), SOUL vision hints
+- [ ] 24-02-PLAN.md — Proximity chat filter (32 blocks) + per-partner chat loop counter in mind/index.js
+- [ ] 24-03-PLAN.md — launch-quad.sh (4-agent tmux launcher) + start-stack.sh update
 
 ### Phase 25: Voice Chat
 **Goal**: Text-to-speech for all 4 agents via Simple Voice Chat plugin — each agent has a distinct voice, proximity-based so players hear nearby agents talking
@@ -248,7 +252,7 @@ Plans:
 | 20. Gameplay Loops | 2/2 | Complete    | 2026-03-23 |
 | 21. Multi-Agent Coordination | 2/2 | Complete    | 2026-03-23 |
 | 22. Polish & Tool Fixes | 2/2 | Complete    | 2026-03-23 |
-| 23. Model Switch + Unified Inference | 2/2 | Complete   | 2026-03-24 |
-| 24. Four Agents + Prompt Polish | 0/TBD | Not started | - |
+| 23. Model Switch + Unified Inference | 2/2 | Complete    | 2026-03-24 |
+| 24. Four Agents + Prompt Polish | 0/3 | Not started | - |
 | 25. Voice Chat | 0/TBD | Not started | - |
 | 26. RunPod Deployment | 0/TBD | Not started | - |
