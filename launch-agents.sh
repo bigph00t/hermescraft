@@ -1,175 +1,159 @@
 #!/usr/bin/env bash
-# launch-agents.sh — Spin up N Minecraft agent bots in tmux on Glass
-# Usage: ./launch-agents.sh [num_bots]  (default: 10)
+# launch-agents.sh — Launch N Mineflayer agents in tmux (v2 architecture)
+# Usage: ./launch-agents.sh [num_agents] [server_host] [server_port]
+# Default: 8 agents, localhost, 25565
 #
-# Each bot gets:
-#   - Its own MC client (Xvfb + Fabric + Baritone + HermesBridge)
-#   - Its own Node.js agent process
-#   - A unique HermesBridge HTTP port (3001 + N)
-#   - A unique Xvfb display (:99 + N)
-#
-# All managed in a single tmux session "hermescraft-bots".
+# v2.0 architecture: Mineflayer bots connect directly — no Java client needed.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-NUM_BOTS="${1:-10}"
 
-# Bot names — enough for 10, extend if needed
-BOT_NAMES=(Steve Alex Liam Emma Noah Olivia Ethan Sophia Mason Ava)
+# ── Agent roster ──
+AGENT_NAMES=(luna max ivy rust ember flint sage wren)
 
-# ── Load API key from agent .env on Glass ──
-AGENT_ENV="/opt/hermescraft/agent/.env"
-if [ -f "$AGENT_ENV" ]; then
-    set -a
-    source "$AGENT_ENV"
-    set +a
-    echo "[launch-agents] Loaded env from $AGENT_ENV"
-else
-    echo "WARNING: $AGENT_ENV not found — VLLM_API_KEY may not be set"
+# ── Arguments ──
+NUM_AGENTS="${1:-8}"
+MC_HOST="${2:-localhost}"
+MC_PORT="${3:-25565}"
+
+# Clamp to available names
+MAX_AGENTS="${#AGENT_NAMES[@]}"
+if [ "$NUM_AGENTS" -gt "$MAX_AGENTS" ]; then
+    echo "[launch-agents] Clamping to $MAX_AGENTS agents (extend AGENT_NAMES to add more)"
+    NUM_AGENTS="$MAX_AGENTS"
+fi
+if [ "$NUM_AGENTS" -lt 1 ]; then
+    echo "ERROR: num_agents must be at least 1"
+    exit 1
 fi
 
-# ── LLM config (MiniMax M2.7-highspeed) ──
-VLLM_URL="${VLLM_URL:-https://api.minimaxi.chat/v1}"
-VLLM_API_KEY="${VLLM_API_KEY:-}"
-MODEL_NAME="${MODEL_NAME:-MiniMax-M2.7-highspeed}"
-AGENT_MODE="${AGENT_MODE:-open_ended}"
+# ── Load env (try Glass path first, then local) ──
+if [ -f /opt/hermescraft/agent/.env ]; then
+    set -a
+    source /opt/hermescraft/agent/.env
+    set +a
+    echo "[launch-agents] Loaded env from /opt/hermescraft/agent/.env (Glass)"
+fi
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    set -a
+    source "$SCRIPT_DIR/.env"
+    set +a
+    echo "[launch-agents] Loaded env from $SCRIPT_DIR/.env (local override)"
+fi
+
+# ── Env var defaults ──
+VLLM_URL="${VLLM_URL:-http://localhost:8000/v1}"
+VLLM_API_KEY="${VLLM_API_KEY:-not-needed}"
+MODEL_NAME="${MODEL_NAME:-hermes}"
 TICK_MS="${TICK_MS:-3000}"
 TEMPERATURE="${TEMPERATURE:-0.6}"
-MAX_TOKENS="${MAX_TOKENS:-384}"
+MAX_TOKENS="${MAX_TOKENS:-128}"
 
-if [ -z "$VLLM_API_KEY" ]; then
-    echo "ERROR: VLLM_API_KEY not set. Put it in $AGENT_ENV or export it."
-    exit 1
+if [ "$VLLM_URL" = "http://localhost:8000/v1" ]; then
+    echo "[launch-agents] Using localhost LLM — ensure model servers are running"
 fi
 
-# ── Validate bot count ──
-if [ "$NUM_BOTS" -gt "${#BOT_NAMES[@]}" ]; then
-    echo "ERROR: Max ${#BOT_NAMES[@]} bots supported (add more names to BOT_NAMES array)"
-    exit 1
-fi
-
-if [ "$NUM_BOTS" -lt 1 ]; then
-    echo "ERROR: Need at least 1 bot"
-    exit 1
+# ── Install deps if needed ──
+if [ ! -d "$SCRIPT_DIR/node_modules" ]; then
+    echo "[launch-agents] Installing dependencies..."
+    (cd "$SCRIPT_DIR" && npm install)
 fi
 
 echo "============================================"
-echo "  HermesCraft Multi-Agent Launcher"
+echo "  HermesCraft Agents — ${NUM_AGENTS} of ${MAX_AGENTS}"
 echo "============================================"
-echo "  Bots:      $NUM_BOTS"
+echo "  Agents:    ${AGENT_NAMES[*]:0:$NUM_AGENTS}"
+echo "  Server:    $MC_HOST:$MC_PORT"
 echo "  Model:     $MODEL_NAME"
-echo "  VLLM URL:  $VLLM_URL"
+echo "  LLM URL:   $VLLM_URL"
 echo "  Tick:      ${TICK_MS}ms"
-echo "  Mode:      $AGENT_MODE"
+echo "  Mode:      open_ended"
+echo "  Stagger:   30s between agents"
 echo "============================================"
 echo ""
 
-# ── Install Node dependencies if needed ──
-if [ ! -d "$SCRIPT_DIR/node_modules" ]; then
-    echo "[launch-agents] Installing Node dependencies..."
-    (cd "$SCRIPT_DIR" && npm install --production)
-fi
+SESSION="hermescraft-agents"
 
-# ── Create tmux session ──
-SESSION="hermescraft-bots"
-
-# Kill existing session if present
+# Kill existing session
 tmux kill-session -t "$SESSION" 2>/dev/null || true
 sleep 1
 
-tmux new-session -d -s "$SESSION" -n "server"
+# Create session with first agent's window
+FIRST_AGENT="${AGENT_NAMES[0]}"
+tmux new-session -d -s "$SESSION" -n "$FIRST_AGENT"
 
-# First window: docker server logs
-tmux send-keys -t "$SESSION:server" "echo '=== MC Server Logs ===' && docker logs -f minecraft-server 2>&1 || echo 'No minecraft-server container found'" Enter
+# ── Data-driven agent launch loop ──
+for i in $(seq 0 $((NUM_AGENTS - 1))); do
+    AGENT_NAME="${AGENT_NAMES[$i]}"
 
-# ── Launch each bot ──
-for i in $(seq 0 $((NUM_BOTS - 1))); do
-    NAME="${BOT_NAMES[$i]}"
-    BRIDGE_PORT=$((3001 + i))
-    DISPLAY_NUM=$((99 + i))
-    MOD_URL="http://localhost:$BRIDGE_PORT"
-
-    echo "[launch-agents] Bot $i: $NAME (bridge=$BRIDGE_PORT, display=:$DISPLAY_NUM)"
-
-    # ── Client window ──
-    CLIENT_WIN="bot${i}-client"
-    tmux new-window -t "$SESSION" -n "$CLIENT_WIN"
-    tmux send-keys -t "$SESSION:$CLIENT_WIN" \
-        "echo '=== $NAME Client (port=$BRIDGE_PORT, display=:$DISPLAY_NUM) ===' && $SCRIPT_DIR/launch-client.sh '$NAME' '$BRIDGE_PORT' '$DISPLAY_NUM'" Enter
-
-    # ── Wait for client to load ──
-    # Agent window is created now but the agent command waits for the bridge
-    AGENT_WIN="bot${i}-agent"
-    tmux new-window -t "$SESSION" -n "$AGENT_WIN"
-
-    # Build the agent launch command with retry loop
-    # Waits up to 120s for the bridge to come up, then starts the agent
-    AGENT_CMD="$(cat <<HEREDOC
-echo '=== $NAME Agent (bridge=$MOD_URL) ==='
-echo 'Waiting for MC client + HermesBridge to start...'
-TRIES=0
-while [ \$TRIES -lt 40 ]; do
-    if curl -sf "$MOD_URL/health" >/dev/null 2>&1; then
-        echo "Bridge is up! Starting agent..."
-        break
+    # Open window (first window already created above)
+    if [ "$i" -gt 0 ]; then
+        tmux new-window -t "$SESSION" -n "$AGENT_NAME"
     fi
-    TRIES=\$((TRIES + 1))
-    echo "  Waiting for bridge... (\$TRIES/40)"
-    sleep 3
-done
-if [ \$TRIES -ge 40 ]; then
-    echo "ERROR: Bridge at $MOD_URL never came up after 120s"
-    exit 1
-fi
-# Small delay for world to fully load
-sleep 5
-# Run agent with auto-restart
+
+    # Build launch command via HEREDOC with placeholder substitution
+    AGENT_CMD="$(cat <<'HEREDOC'
+echo '=== AGENT_NAME_PLACEHOLDER — starting ==='
+echo 'Starting in 3s...'
+sleep 3
 while true; do
-    AGENT_NAME='$NAME' \\
-    MC_USERNAME='$NAME' \\
-    MOD_URL='$MOD_URL' \\
-    VLLM_URL='$VLLM_URL' \\
-    VLLM_API_KEY='$VLLM_API_KEY' \\
-    MODEL_NAME='$MODEL_NAME' \\
-    AGENT_MODE='$AGENT_MODE' \\
-    TICK_MS='$TICK_MS' \\
-    TEMPERATURE='$TEMPERATURE' \\
-    MAX_TOKENS='$MAX_TOKENS' \\
-        node $SCRIPT_DIR/agent/index.js
-    CODE=\$?
-    [ \$CODE -eq 0 ] && break
-    echo "[!] $NAME agent crashed (exit \$CODE) — restarting in 5s..."
+    AGENT_NAME='AGENT_NAME_PLACEHOLDER' \
+    MC_USERNAME='AGENT_NAME_PLACEHOLDER' \
+    MC_HOST='MC_HOST_PLACEHOLDER' \
+    MC_PORT='MC_PORT_PLACEHOLDER' \
+    VLLM_URL='VLLM_URL_PLACEHOLDER' \
+    VLLM_API_KEY='VLLM_API_KEY_PLACEHOLDER' \
+    MODEL_NAME='MODEL_NAME_PLACEHOLDER' \
+    AGENT_MODE='open_ended' \
+    TICK_MS='TICK_MS_PLACEHOLDER' \
+    TEMPERATURE='TEMPERATURE_PLACEHOLDER' \
+    MAX_TOKENS='MAX_TOKENS_PLACEHOLDER' \
+        node SCRIPT_DIR_PLACEHOLDER/start.js
+    CODE=$?
+    [ $CODE -eq 0 ] && break                    # clean shutdown — stop
+    [ $CODE -eq 42 ] && { echo "[!] AGENT_NAME_PLACEHOLDER scheduled restart — relaunching..."; continue; }
+    echo "[!] AGENT_NAME_PLACEHOLDER crashed (exit $CODE) — restarting in 5s..."
     sleep 5
 done
 HEREDOC
 )"
 
-    tmux send-keys -t "$SESSION:$AGENT_WIN" "$AGENT_CMD" Enter
+    # Replace placeholders
+    AGENT_CMD="${AGENT_CMD//AGENT_NAME_PLACEHOLDER/$AGENT_NAME}"
+    AGENT_CMD="${AGENT_CMD//MC_HOST_PLACEHOLDER/$MC_HOST}"
+    AGENT_CMD="${AGENT_CMD//MC_PORT_PLACEHOLDER/$MC_PORT}"
+    AGENT_CMD="${AGENT_CMD//VLLM_URL_PLACEHOLDER/$VLLM_URL}"
+    AGENT_CMD="${AGENT_CMD//VLLM_API_KEY_PLACEHOLDER/$VLLM_API_KEY}"
+    AGENT_CMD="${AGENT_CMD//MODEL_NAME_PLACEHOLDER/$MODEL_NAME}"
+    AGENT_CMD="${AGENT_CMD//TICK_MS_PLACEHOLDER/$TICK_MS}"
+    AGENT_CMD="${AGENT_CMD//TEMPERATURE_PLACEHOLDER/$TEMPERATURE}"
+    AGENT_CMD="${AGENT_CMD//MAX_TOKENS_PLACEHOLDER/$MAX_TOKENS}"
+    AGENT_CMD="${AGENT_CMD//SCRIPT_DIR_PLACEHOLDER/$SCRIPT_DIR}"
 
-    # Stagger client launches to avoid overwhelming the server
-    if [ "$i" -lt $((NUM_BOTS - 1)) ]; then
-        echo "  Staggering next launch (30s)..."
+    tmux send-keys -t "$SESSION:$AGENT_NAME" "$AGENT_CMD" Enter
+
+    # 30s stagger between agents (skip after last agent)
+    if [ "$i" -lt $((NUM_AGENTS - 1)) ]; then
+        echo "[launch-agents] $AGENT_NAME launched — waiting 30s before next agent..."
         sleep 30
     fi
 done
 
 echo ""
 echo "============================================"
-echo "  All $NUM_BOTS bots launched!"
+echo "  All ${NUM_AGENTS} agents launched!"
 echo "============================================"
 echo ""
 echo "  tmux attach -t $SESSION"
 echo ""
 echo "  Windows:"
-echo "    server         — MC server docker logs"
-for i in $(seq 0 $((NUM_BOTS - 1))); do
-    echo "    bot${i}-client   — ${BOT_NAMES[$i]} MC client"
-    echo "    bot${i}-agent    — ${BOT_NAMES[$i]} AI agent"
+for i in $(seq 0 $((NUM_AGENTS - 1))); do
+    echo "    ${AGENT_NAMES[$i]}"
 done
 echo ""
 echo "  Controls:"
 echo "    Ctrl+B, n/p    — next/prev window"
 echo "    Ctrl+B, w      — window list"
 echo "    Ctrl+B, d      — detach"
-echo "    tmux kill-session -t $SESSION  — stop everything"
+echo "    tmux kill-session -t $SESSION  — stop all agents"
 echo ""
