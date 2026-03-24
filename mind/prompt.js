@@ -2,6 +2,7 @@
 
 import { buildSpatialAwareness } from './spatial.js'
 import { getHome } from './locations.js'
+import { getPartnerLastChat } from './social.js'
 
 // ── Design Prompt ──
 
@@ -149,49 +150,38 @@ export function buildSystemPrompt(bot, options = {}) {
     parts.push(`You are ${bot.username}, a Minecraft player. You observe the world and take actions using !commands.`)
   }
 
-  // Part 2: Grounding — this is your body, this is your world, you are building a city
+  // Part 2: Game context — you're playing Minecraft, build a city together
   const partnerList = options.partnerNames?.length > 0
     ? options.partnerNames.join(', ')
     : 'your partner'
-  parts.push(`## How this works
+  parts.push(`## The Game
 
-This is your body. You live in this world. The game state below is what you see RIGHT NOW. You act by choosing one !command per turn.
+You're playing Minecraft with ${partnerList}. You see the game state below and pick one !command per turn.
 
-You're here with: ${partnerList}. Together, you're going to build something magnificent — a real city. Not scattered huts. A place with character, with districts and roads, buildings that serve a purpose, architecture that makes you proud. This is your life's work.
+Your goal: build an amazing city together. Talk to each other about what to build, who does what, what materials you need. Discuss game mechanics, strategy, coordinates — whatever helps. You're a team.
 
-Talk to each other. You're partners — the only two people in this world. Share what you're thinking, what you found, what you need. Ask questions. Make plans together. Disagree sometimes. A city built in silence is just buildings next to each other — a city built through conversation is alive.
+The image each turn shows your surroundings (top = what's ahead, bottom = top-down map with red dot = you).
 
-### Your Eyes
+### Building Tools
 
-Every turn includes an image of your surroundings:
-- TOP = front elevation (what's ahead, colored by block type)
-- BOTTOM = top-down map (red dot = you, red line = facing direction, N = north)
-
-Look at the image. What do you see? Use it to make decisions.
-
-### Building
-
-You build by designing structures with !design — describe what you want and it gets built from your materials. Builds are tracked in a shared ledger (!builds to see all projects). If you run out of materials, the build pauses — gather more, then !build to resume. Your partner can contribute to any project with !build id:X.
-
-Build with the terrain, not against it. Use !road to connect structures. Use !clear if you need to prep a site.
-
-### The City
-
-Think about what a real city needs. Not just buildings — a place that makes sense. Roads connecting things. A center. Districts. Each structure has a purpose and a character. A blacksmith looks different from a library. Name your builds. Make it somewhere you'd want to live.
+!design description:"..." — describe a structure and it gets built from your materials. Terrain is auto-surveyed.
+!build — resume an active build. !build id:X — help with a specific project. !builds — list all projects.
+!road — connect structures with roads. !clear — prep a build site.
 
 If a !command fails, try something else.
 
 ## RESPONSE FORMAT
 
-Think briefly, then ONE !command. Use key:value format for arguments.
+Think briefly, then ONE !command.
 
 Example:
-I see the workshop to the east. The city needs storage nearby.
-!design description:"A 7x5 stone storage house with oak door, two windows, stone brick walls, spruce slab roof"
+We need storage. I'll put it near the workshop.
+!design description:"7x5 stone storage house with oak door, windows, spruce slab roof"
 
 Example:
-John's been quiet. I should check in and figure out what we're both doing.
-!chat message:"hey john, what are you working on? I'm thinking we need a road between the workshop and the square"`)
+I should tell Luna what I'm doing.
+!chat message:"hey I found iron at 45,32,90 — want me to mine it or should we focus on building first?"`)
+
 
 
   // Part 3: Essential game knowledge + city building knowledge
@@ -370,7 +360,19 @@ export function buildStateText(bot) {
     `inventory: ${items}`,
   ].filter(Boolean)
   if (playerNames.length > 0) {
-    lines.push(`nearby: ${playerNames.join(', ')}`)
+    lines.push(`partner: ${playerNames.join(', ')}`)
+    // Show last chat status so the LLM notices silence
+    const partnerName = playerNames[0]?.split(' ')[0]  // extract name from "name (X blocks away)"
+    if (partnerName) {
+      const lastChat = getPartnerLastChat(partnerName)
+      if (lastChat) {
+        const agoMs = Date.now() - new Date(lastChat.timestamp).getTime()
+        const agoStr = agoMs < 60000 ? 'just now' : `${Math.round(agoMs / 60000)}min ago`
+        lines.push(`last chat with ${partnerName}: "${lastChat.message?.slice(0, 40)}" (${agoStr})`)
+      } else {
+        lines.push(`last chat with ${partnerName}: never — say hi!`)
+      }
+    }
   }
   if (hostileMobs.length > 0) {
     lines.push(`⚠ HOSTILE MOBS: ${hostileMobs.join(', ')} — fight or flee!`)

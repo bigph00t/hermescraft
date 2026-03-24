@@ -238,7 +238,22 @@ export async function queryLLM(systemPrompt, userMessage, imageOrOpts = null) {
       const thinkMatch = rawContent.match(/<think>([\s\S]*?)<\/think>/)
       const reasoning = thinkMatch ? thinkMatch[1].trim() : strippedText
 
-      const parsed = parseCommand(strippedText)
+      let parsed = parseCommand(strippedText)
+
+      // Fallback: if no !command found but the text looks like chat directed at another player,
+      // convert it to a !chat command. Catches cases like the LLM writing "hey john, let's mine"
+      // instead of "!chat message:\"hey john, let's mine\""
+      if (!parsed && strippedText) {
+        const chatLine = strippedText.split('\n').find(l => l.trim().length > 5)
+        if (chatLine && !chatLine.startsWith('!') && /^[A-Za-z@"']/.test(chatLine.trim())) {
+          // Heuristic: if the text is short conversational text (not a game state dump), treat as chat
+          const trimmed = chatLine.trim()
+          if (trimmed.length < 200 && !/^(pos:|health:|inventory:|time:)/i.test(trimmed)) {
+            parsed = { command: 'chat', args: { message: trimmed } }
+          }
+        }
+      }
+
       const command = parsed ? parsed.command : null
       const args = parsed ? parsed.args : {}
 
