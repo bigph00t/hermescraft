@@ -116,6 +116,18 @@ export async function gather(bot, blockName, count = 1, options = {}) {
   }
 
   const success = collected >= count
-  const reason = success ? undefined : (collected === 0 ? 'no_harvestable_blocks' : 'not_enough_found')
+  let reason
+  if (!success) {
+    if (collected === 0) {
+      // Check if the issue was tool tier (all candidates were skipped due to canHarvestWith)
+      const heldName = bot.heldItem?.name || 'bare hands'
+      const needsPickaxe = normalized.includes('ore') || normalized === 'cobblestone' || normalized === 'stone'
+      reason = needsPickaxe
+        ? `no_harvestable_blocks — ${normalized} requires a pickaxe (you have ${heldName}). Craft a wooden_pickaxe first!`
+        : 'no_harvestable_blocks'
+    } else {
+      reason = 'not_enough_found'
+    }
+  }
   return { success, collected, requested: count, blockName: normalized, reason }
 }

@@ -1,6 +1,7 @@
 // look.js — Inspect chest contents or bot inventory and return a readable summary
 
 import minecraftData from 'minecraft-data'
+import { Vec3 } from 'vec3'
 import { navigateToBlock } from '../navigate.js'
 import { isInterrupted } from '../interrupt.js'
 
@@ -105,6 +106,36 @@ export function lookInventory(bot) {
   return { success: true, items: summary, count }
 }
 
+/**
+ * List nearby players with distance and direction.
+ *
+ * @param {import('mineflayer').Bot} bot
+ * @returns {{ success: boolean, players: string }}
+ */
+export function lookPlayers(bot) {
+  const selfPos = bot.entity.position
+  const entries = []
+  for (const [name, info] of Object.entries(bot.players)) {
+    if (name === bot.username) continue
+    const entity = info.entity
+    if (!entity?.position) {
+      entries.push(`${name}: position unknown`)
+      continue
+    }
+    const dist = entity.position.distanceTo(selfPos).toFixed(0)
+    const dx = entity.position.x - selfPos.x
+    const dz = entity.position.z - selfPos.z
+    // MC: +X=east, +Z=south
+    let dir
+    if (Math.abs(dx) > Math.abs(dz)) dir = dx > 0 ? 'east' : 'west'
+    else dir = dz > 0 ? 'south' : 'north'
+    entries.push(`${name}: ${dist} blocks ${dir} (${Math.round(entity.position.x)},${Math.round(entity.position.y)},${Math.round(entity.position.z)})`)
+  }
+  const summary = entries.length > 0 ? entries.join(', ') : 'no players nearby'
+  console.log(`[look] players: ${summary}`)
+  return { success: true, players: summary }
+}
+
 // ── Block category sets for horizon scanning ──
 
 const TREE_LOGS = new Set([
@@ -127,7 +158,6 @@ const ORES = new Set([
  */
 export function lookHorizon(bot, direction) {
   const pos = bot.entity.position.floored()
-  const { Vec3 } = require('vec3')
 
   // Direction vectors: MC +X=East, +Z=South, -Z=North
   const DIR_MAP = {

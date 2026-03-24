@@ -79,8 +79,19 @@ export async function mine(bot, oreName, count = 1, options = {}) {
       const heldType = bot.heldItem ? bot.heldItem.type : null
       const harvestable = canHarvestWith(target, heldType)
       if (!harvestable) {
-        console.log(`[mine] cannot harvest ${normalized} with current tools`)
-        return { success: false, mined, requested: count, oreName: normalized, reason: 'no_suitable_tool' }
+        // Figure out what tool tier is needed so the LLM can act on it
+        const TOOL_HINT = {
+          coal_ore: 'wooden_pickaxe', deepslate_coal_ore: 'wooden_pickaxe',
+          iron_ore: 'stone_pickaxe', deepslate_iron_ore: 'stone_pickaxe',
+          copper_ore: 'stone_pickaxe', deepslate_copper_ore: 'stone_pickaxe',
+          gold_ore: 'iron_pickaxe', deepslate_gold_ore: 'iron_pickaxe',
+          diamond_ore: 'iron_pickaxe', deepslate_diamond_ore: 'iron_pickaxe',
+          cobblestone: 'wooden_pickaxe', stone: 'wooden_pickaxe',
+        }
+        const hint = TOOL_HINT[normalized] || 'a pickaxe'
+        const heldName = bot.heldItem?.name || 'bare hands'
+        console.log(`[mine] cannot harvest ${normalized} with ${heldName} — need ${hint}`)
+        return { success: false, mined, requested: count, oreName: normalized, reason: `no_suitable_tool — need ${hint} (you have ${heldName}). Craft the required pickaxe first!` }
       }
 
       if (isInterrupted(bot)) break

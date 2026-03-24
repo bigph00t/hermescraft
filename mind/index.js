@@ -40,6 +40,13 @@ let _lastFailure = null  // { command, args } from previous failed dispatch — 
 let _lastDeath = null    // death message string — consumed by next think() for recovery RAG
 let _repeatTracker = { key: null, count: 0 }  // detects same action failing repeatedly
 const MAX_REPEAT_FAILURES = 3  // after this many identical failures, force a different action
+// Success repetition tracker — catches navigate-to-same-coords and other successful-but-pointless loops
+const _successRepeatHistory = []  // ring buffer of last N action keys (including successes)
+const MAX_SUCCESS_REPEATS = 4    // after this many identical successful actions, force explore
+const SUCCESS_HISTORY_SIZE = 8   // how many recent actions to track
+// Chat message dedup — prevents the LLM from generating the same chat text repeatedly
+const _recentSentMessages = []   // ring buffer of last N outgoing chat message texts
+const CHAT_DEDUP_WINDOW = 8      // how many recent messages to check for duplication
 let _lastVisionResult = null  // consume-once VLM description — cleared after injection into prompt
 let _postBuildScan = null     // consume-once post-build scan result
 const _chatCountByPartner = new Map()  // COO-02 (Phase 24): per-partner chat loop prevention
@@ -150,15 +157,29 @@ async function respondToChat(bot, sender, message) {
       console.log('[mind] chat reasoning:', result.reasoning.slice(0, 150))
     }
 
-    // If LLM wants to chat back, send it immediately
+    // If LLM wants to chat back, send it immediately (with dedup)
     if (result.command === 'chat') {
       const msg = result.args?.message || ''
       if (msg) {
-        bot.chat(msg)
-        // Set the flag so the next think() must do a game action before chatting again.
-        // This breaks A↔B ping-pong loops where two agents keep chatting at each other.
-        _lastCommandWasChat = true
-        console.log('[mind] chat reply sent:', msg.slice(0, 80))
+        const normMsg = msg.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim()
+        const isDupe = _recentSentMessages.some(prev => {
+          if (normMsg === prev) return true
+          const words = new Set(normMsg.split(/\s+/))
+          const prevWords = prev.split(/\s+/)
+          const overlap = prevWords.filter(w => words.has(w)).length
+          return prevWords.length > 2 && overlap / prevWords.length > 0.8
+        })
+        if (isDupe) {
+          console.log('[mind] suppressed duplicate chat reply:', msg.slice(0, 60))
+        } else {
+          bot.chat(msg)
+          _recentSentMessages.push(normMsg)
+          if (_recentSentMessages.length > CHAT_DEDUP_WINDOW) _recentSentMessages.shift()
+          // Set the flag so the next think() must do a game action before chatting again.
+          // This breaks A↔B ping-pong loops where two agents keep chatting at each other.
+          _lastCommandWasChat = true
+          console.log('[mind] chat reply sent:', msg.slice(0, 80))
+        }
       }
     }
     // If LLM produced a non-chat command or no command, just log it.
@@ -590,6 +611,28 @@ async function think(bot, context) {
       lastActionTime = Date.now()
       return
     }
+
+    // Chat message dedup: prevent LLM from generating the same text repeatedly
+    if (result.command === 'chat' && result.args?.message) {
+      const normMsg = result.args.message.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim()
+      const isDupe = _recentSentMessages.some(prev => {
+        if (normMsg === prev) return true
+        // Fuzzy: if 80%+ of words overlap, it's a repeat
+        const words = new Set(normMsg.split(/\s+/))
+        const prevWords = prev.split(/\s+/)
+        const overlap = prevWords.filter(w => words.has(w)).length
+        return prevWords.length > 2 && overlap / prevWords.length > 0.8
+      })
+      if (isDupe) {
+        console.log('[mind] suppressed duplicate chat:', result.args.message.slice(0, 60))
+        _lastCommandWasChat = false
+        lastActionTime = Date.now()
+        return
+      }
+      _recentSentMessages.push(normMsg)
+      if (_recentSentMessages.length > CHAT_DEDUP_WINDOW) _recentSentMessages.shift()
+    }
+
     _lastCommandWasChat = (result.command === 'chat')
 
     // Stuck loop detection: if the same command+args failed MAX_REPEAT_FAILURES times,
@@ -598,6 +641,20 @@ async function think(bot, context) {
     if (_repeatTracker.key === repeatKey && _repeatTracker.count >= MAX_REPEAT_FAILURES) {
       console.log(`[mind] stuck loop detected — ${result.command} failed ${_repeatTracker.count}x, forcing explore`)
       _repeatTracker = { key: null, count: 0 }
+      result.command = 'explore'
+      result.args = {}
+    }
+
+    // Success repetition detection: catches navigate-to-same-coords, look-players-loop, etc.
+    // Even if actions "succeed", doing the same thing 4+ times is a loop.
+    _successRepeatHistory.push(repeatKey)
+    if (_successRepeatHistory.length > SUCCESS_HISTORY_SIZE) _successRepeatHistory.shift()
+    const recentSameCount = _successRepeatHistory.filter(k => k === repeatKey).length
+    if (recentSameCount >= MAX_SUCCESS_REPEATS) {
+      console.log(`[mind] success loop detected — ${result.command} repeated ${recentSameCount}x, clearing history and forcing explore`)
+      _successRepeatHistory.length = 0
+      _repeatTracker = { key: null, count: 0 }
+      clearConversation()
       result.command = 'explore'
       result.args = {}
     }
