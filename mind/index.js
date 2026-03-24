@@ -983,8 +983,6 @@ export async function initMind(bot, config) {
       const isDeathMsg = /was (slain|killed|shot|blown|pummeled)|drowned|fell|burned|died|went off|hit the ground|experienced kinetic/.test(msgStr)
       if (isDeathMsg) {
         console.log('[mind] death message:', msgStr)
-        // Inject into conversation so agents are aware, but don't trigger think()
-        addToHistory('user', `[server] ${msgStr}`)
       }
       return
     }

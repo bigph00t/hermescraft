@@ -57,7 +57,8 @@ export function renderMinimap(bot, dataDir, radius = 24) {
   if (!bot?.entity?.position) return null
 
   try {
-    const pos = bot.entity.position.floored()
+    const p = bot.entity.position
+    const pos = { x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) }
     const scale = 4  // 4px per block for better VLM readability
     const size = radius * 2 * scale
     const canvas = createCanvas(size, size)
@@ -131,7 +132,8 @@ export function renderElevation(bot, dataDir) {
   if (!bot?.entity?.position) return null
 
   try {
-    const pos = bot.entity.position.floored()
+    const p = bot.entity.position
+    const pos = { x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) }
     const yaw = bot.entity.yaw || 0
 
     // Direction vectors from yaw (MC convention: yaw=0 is south, increases clockwise)
@@ -231,7 +233,8 @@ export function renderCompositeViewSync(bot, dataDir) {
   if (!bot?.entity?.position) return null
 
   try {
-    const pos = bot.entity.position.floored()
+    const p = bot.entity.position
+    const pos = { x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) }
     const yaw = bot.entity.yaw || 0
 
     const WIDTH = 256
@@ -370,7 +373,8 @@ export function getMinimapSummary(bot, radius = 32) {
   if (!bot?.entity?.position) return null
 
   try {
-    const pos = bot.entity.position.floored()
+    const p = bot.entity.position
+    const pos = { x: Math.floor(p.x), y: Math.floor(p.y), z: Math.floor(p.z) }
     const counts = {}
 
     for (let dx = -radius; dx < radius; dx++) {
