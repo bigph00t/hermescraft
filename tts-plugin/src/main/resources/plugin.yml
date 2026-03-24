@@ -1,0 +1,6 @@
+name: HermesCraftTTS
+version: 1.0.0
+main: hermescraft.tts.TtsPlugin
+api-version: '1.21'
+depend: [voicechat]
+description: TTS audio injection for HermesCraft agents
