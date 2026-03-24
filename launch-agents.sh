@@ -47,7 +47,7 @@ VLLM_API_KEY="${VLLM_API_KEY:-not-needed}"
 MODEL_NAME="${MODEL_NAME:-hermes}"
 TICK_MS="${TICK_MS:-3000}"
 TEMPERATURE="${TEMPERATURE:-0.6}"
-MAX_TOKENS="${MAX_TOKENS:-128}"
+MAX_TOKENS="${MAX_TOKENS:-2048}"
 
 if [ "$VLLM_URL" = "http://localhost:8000/v1" ]; then
     echo "[launch-agents] Using localhost LLM — ensure model servers are running"
