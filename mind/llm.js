@@ -9,7 +9,7 @@ const BASE_TEMPERATURE = parseFloat(process.env.TEMPERATURE || '0.6')
 const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '384', 10)
 const MAX_RETRIES = 3
 const RETRY_BASE_MS = 1000
-const MAX_HISTORY_MESSAGES = 40  // 20 turns — enough to remember recent work without bloating context
+const MAX_HISTORY_MESSAGES = 120  // 60 turns — deep memory for sustained multi-step tasks (matched to 24K context window)
 
 // NO OAuth detection — v2 uses direct vLLM, not Anthropic SDK
 const client = new OpenAI({
@@ -207,9 +207,9 @@ export async function queryLLM(systemPrompt, userMessage, image = null) {
         messages,
         temperature: BASE_TEMPERATURE,
         max_tokens: MAX_TOKENS,
-        // Disable Qwen3.5 thinking mode — skip <think> tags, go straight to action.
-        // Thinking wastes tokens on reasoning the agent doesn't need.
-        extra_body: { chat_template_kwargs: { enable_thinking: false } },
+        // Thinking ON — with 1536 MAX_TOKENS there's plenty of room for <think> reasoning
+        // plus a !command. Thinking quality drives better decisions about city building,
+        // coordination, and planning. The <think> tags are stripped before command parsing.
       })
 
       const msg = response.choices?.[0]?.message

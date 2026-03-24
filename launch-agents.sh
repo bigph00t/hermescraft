@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # launch-agents.sh — Launch N Mineflayer agents in tmux (v2 architecture)
 # Usage: ./launch-agents.sh [num_agents] [server_host] [server_port]
-# Default: 8 agents, localhost, 25565
+# Default: 2 agents (luna + john), localhost, 25565
 #
 # v2.0 architecture: Mineflayer bots connect directly — no Java client needed.
 set -euo pipefail
@@ -9,10 +9,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ── Agent roster ──
-AGENT_NAMES=(luna max ivy rust ember flint sage wren)
+AGENT_NAMES=(luna john)
 
 # ── Arguments ──
-NUM_AGENTS="${1:-8}"
+NUM_AGENTS="${1:-2}"
 MC_HOST="${2:-localhost}"
 MC_PORT="${3:-25565}"
 
@@ -49,9 +49,9 @@ VLLM_API_KEY="${VLLM_API_KEY:-not-needed}"
 MODEL_NAME="${MODEL_NAME:-Qwen3.5-35B-A3B}"
 BACKGROUND_BRAIN_URL="${BACKGROUND_BRAIN_URL:-$VLLM_URL}"
 BACKGROUND_MODEL_NAME="${BACKGROUND_MODEL_NAME:-$MODEL_NAME}"
-TICK_MS="${TICK_MS:-3000}"
+TICK_MS="${TICK_MS:-6000}"
 TEMPERATURE="${TEMPERATURE:-0.6}"
-MAX_TOKENS="${MAX_TOKENS:-384}"
+MAX_TOKENS="${MAX_TOKENS:-1536}"
 VISION_URL="${VISION_URL:-$VLLM_URL}"
 VISION_MODEL="${VISION_MODEL:-$MODEL_NAME}"
 
@@ -74,7 +74,7 @@ echo "  Model:     $MODEL_NAME"
 echo "  LLM URL:   $VLLM_URL"
 echo "  Tick:      ${TICK_MS}ms"
 echo "  Mode:      open_ended"
-echo "  Stagger:   30s between agents"
+echo "  Stagger:   5s between agents"
 echo "============================================"
 echo ""
 

@@ -190,17 +190,28 @@ function buildBackgroundPrompt(recentHistory, gameState, existingState, extraCon
   }
   const extraText = sections.length > 0 ? '\n\n' + sections.join('\n\n') : ''
 
-  return `You are the strategic brain for a Minecraft agent named ${_agentName}.
-You do NOT take actions. You analyze events and produce structured guidance for the action brain.
+  return `You are the strategic planner for ${_agentName}, a Minecraft agent building a city with a partner.
+You do NOT take actions. You analyze the situation and produce structured guidance.
+
+YOUR PRIMARY MISSION: Guide ${_agentName} to build a thriving city with diverse, well-designed buildings.
 
 Tasks:
-1. Maintain a coherent multi-step plan
-2. Extract 1-3 insights from recent events
-3. Note hazards and useful locations
-4. Set urgentWarning if there's an immediate threat or critical need (low health, starvation, nearby danger)
-5. List avoidActions — commands that keep failing and should be skipped (e.g. "craft:stone_pickaxe" if materials are missing)
-6. Suggest a resourceNeeds list — what items to prioritize gathering based on current plan and inventory
-7. If you notice the agent is idle or stuck, provide a suggestedAction
+1. Maintain a CITY DEVELOPMENT PLAN — what buildings exist, what's needed next, where they should go
+2. Track city progress: list completed structures, ongoing projects, and planned next builds
+3. Assess building quality from the image — are structures well-built? Do they have roofs, windows, variety?
+4. Plan the next building: what type (house, workshop, farm, storage, market, inn, tower, wall), what materials, where in the city
+5. Set urgentWarning for immediate threats (low health, starvation, nearby hostiles)
+6. List avoidActions — commands that keep failing
+7. Suggest resourceNeeds based on the next planned build
+8. Note what the partner is doing and suggest coordination (who builds what, material sharing)
+9. If the agent is idle or stuck, suggest the next city-building action
+
+City planning principles:
+- Buildings should be NEAR each other, connected by paths/roads
+- Variety: different purposes, materials, sizes, heights
+- Layout: town center/square → surrounding buildings → outer walls
+- Each building should serve a purpose (not just decorative boxes)
+- Name each structure and district
 
 Recent history (last 20 exchanges):
 ${historyText}
@@ -214,12 +225,14 @@ ${existingPlan}
 Output ONLY valid JSON:
 {
   "plan": {
-    "goal": "primary goal",
+    "goal": "current city-building objective",
     "steps": [{"action": "step", "status": "todo|in_progress|done"}],
-    "current_step": 0
+    "current_step": 0,
+    "cityBuildings": ["list of completed structures"],
+    "nextBuild": "description of next planned structure"
   },
-  "insights": ["lesson learned"],
-  "spatial": [{"label": "name", "note": "what", "hazard": false}],
+  "insights": ["lesson about building, coordination, or resources"],
+  "spatial": [{"label": "structure or landmark name", "note": "description", "hazard": false}],
   "constraints": ["rule to follow"],
   "urgentWarning": null,
   "avoidActions": [],
