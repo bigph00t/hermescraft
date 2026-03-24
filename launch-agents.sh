@@ -49,7 +49,7 @@ BACKGROUND_BRAIN_URL="${BACKGROUND_BRAIN_URL:-http://localhost:8001/v1}"
 BACKGROUND_MODEL_NAME="${BACKGROUND_MODEL_NAME:-Qwen3-8B}"
 TICK_MS="${TICK_MS:-3000}"
 TEMPERATURE="${TEMPERATURE:-0.6}"
-MAX_TOKENS="${MAX_TOKENS:-2048}"
+MAX_TOKENS="${MAX_TOKENS:-384}"
 
 if [ "$VLLM_URL" = "http://localhost:8000/v1" ]; then
     echo "[launch-agents] Using localhost LLM — ensure model servers are running"
