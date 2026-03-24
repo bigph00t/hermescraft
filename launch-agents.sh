@@ -132,10 +132,10 @@ HEREDOC
 
     tmux send-keys -t "$SESSION:$AGENT_NAME" "$AGENT_CMD" Enter
 
-    # 30s stagger between agents (skip after last agent)
+    # 5s stagger between agents (skip after last agent)
     if [ "$i" -lt $((NUM_AGENTS - 1)) ]; then
-        echo "[launch-agents] $AGENT_NAME launched — waiting 30s before next agent..."
-        sleep 30
+        echo "[launch-agents] $AGENT_NAME launched — waiting 5s before next agent..."
+        sleep 5
     fi
 done
 
