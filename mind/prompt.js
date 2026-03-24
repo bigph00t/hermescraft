@@ -340,7 +340,7 @@ export function buildUserMessage(bot, trigger, options = {}) {
   if (trigger === 'chat') {
     const sender = options.sender || 'unknown'
     const message = options.message || ''
-    parts.push(`[chat from ${sender}: ${message}]`)
+    parts.push(`[${sender} is talking to you: "${message}"] — Reply with !chat. Someone spoke to you directly — respond before doing anything else.`)
   } else if (trigger === 'skill_complete') {
     const skillName = options.skillName || 'skill'
     const result = options.skillResult

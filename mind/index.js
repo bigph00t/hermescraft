@@ -158,12 +158,12 @@ async function respondToChat(bot, sender, message) {
         console.log('[mind] chat reply sent:', msg.slice(0, 80))
       }
     }
-    // If LLM produced an action command, DON'T interrupt — just log it.
-    // Action commands from chat responses were causing "goal was changed" errors
-    // by stomping on active navigation. Let the normal think cycle handle actions
-    // after the current skill finishes. Chat response should ONLY chat back.
+    // If LLM produced an action command instead of chatting back, re-queue the
+    // chat message so the next think() cycle sees it as partnerChat context.
+    // This gives the agent a second chance to respond naturally during its regular loop.
     else if (result.command && result.command !== 'idle') {
-      console.log('[mind] chat response wanted command:', result.command, '— deferred to next think cycle')
+      console.log('[mind] chat response wanted command:', result.command, '— injecting into next think cycle')
+      _pendingChat = { trigger: 'chat', sender, message }
     }
     // No command — LLM just reasoned without acting. If there's reasoning that
     // looks like a response, send it as chat (the LLM often "says" things in
@@ -175,8 +175,9 @@ async function respondToChat(bot, sender, message) {
         !l.startsWith('I ') && !l.startsWith('My ') && !l.startsWith('Let me') &&
         !l.includes('inventory') && !l.includes('should') && l.length < 100
       )
-      // Don't auto-extract — too risky. Just log that no response was sent.
-      console.log('[mind] no !chat in response — LLM reasoned but didn\'t reply')
+      // Re-queue so the next think() cycle gets the chat context
+      console.log('[mind] no !chat in response — re-queuing for next think cycle')
+      _pendingChat = { trigger: 'chat', sender, message }
     }
   } catch (err) {
     console.error('[mind] chat response error:', err.message)
