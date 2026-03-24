@@ -29,7 +29,13 @@ const REGISTRY = new Map([
   ['craft',    (bot, args) => craft(bot, args.item, parseInt(args.count) || 1)],
   ['smelt',    (bot, args) => smelt(bot, args.item, args.fuel || 'coal', parseInt(args.count) || 1)],
   ['navigate', (bot, args) => navigateTo(bot, parseInt(args.x), parseInt(args.y), parseInt(args.z))],
-  ['chat',     (bot, args) => { bot.chat(args.message || ''); return { success: true } }],
+  ['chat',     (bot, args) => {
+    let msg = args.message || ''
+    // Enforce @prefix — if no @ at all, prepend @all so other agents' filters work
+    if (msg && !msg.includes('@')) msg = `@all ${msg}`
+    bot.chat(msg)
+    return { success: true }
+  }],
   ['drop',     async (bot, args) => {
     const name = args.item
     const count = parseInt(args.count) || 1
