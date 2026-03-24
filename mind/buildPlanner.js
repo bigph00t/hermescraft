@@ -283,10 +283,11 @@ export async function planBuild(description, queryLLMFn, buildDesignPromptFn, va
 
   try {
     // Step 1: Generate overall spec via LLM
-    const specRaw = await queryLLMFn(buildSpecPrompt(description), 'Generate the build spec JSON now.')
-    if (!specRaw) return { success: false, reason: 'LLM returned empty response for build spec' }
+    const specResult = await queryLLMFn(buildSpecPrompt(description), 'Generate the build spec JSON now.')
+    if (!specResult) return { success: false, reason: 'LLM returned empty response for build spec' }
 
-    // Step 2: Extract JSON from response
+    // Step 2: Extract JSON from response (queryLLM returns { raw, command, args } — use .raw)
+    const specRaw = typeof specResult === 'string' ? specResult : (specResult.raw || JSON.stringify(specResult))
     const spec = extractJSON(specRaw)
     if (!spec) return { success: false, reason: 'Could not parse JSON from build spec LLM response' }
     if (!spec.dimensions?.width || !spec.dimensions?.height || !spec.dimensions?.depth) {
@@ -311,9 +312,10 @@ export async function planBuild(description, queryLLMFn, buildDesignPromptFn, va
       let blueprintFileFull = join(_buildsDir, blueprintFileRel)
 
       try {
-        const bpRaw = await queryLLMFn(buildDesignPromptFn(sectionDesc, []), 'Generate the section blueprint JSON now.')
-        if (bpRaw) {
-          // Extract JSON from response
+        const bpResult = await queryLLMFn(buildDesignPromptFn(sectionDesc, []), 'Generate the section blueprint JSON now.')
+        if (bpResult) {
+          // Extract JSON from response (queryLLM returns { raw, command, args } — use .raw)
+          const bpRaw = typeof bpResult === 'string' ? bpResult : (bpResult.raw || JSON.stringify(bpResult))
           const extracted = extractJSON(bpRaw)
           if (extracted) {
             bpJson = JSON.stringify(extracted)

@@ -1,6 +1,7 @@
 // prompt.js — System prompt builder, game state summary, and blueprint design prompt for v2 Mind layer
 
 import { buildSpatialAwareness } from './spatial.js'
+import { getHome } from './locations.js'
 
 // ── Design Prompt ──
 
@@ -172,7 +173,11 @@ Logs → planks → sticks. You need a pickaxe before you can mine anything usef
 
 Hostile mobs will kill you if you ignore them. Fight with !combat if you have a weapon, run if you don't. Creepers explode — back away from those.
 
-Never dig straight down. Cook meat before eating. Lava destroys your items permanently.`)
+Never dig straight down. Cook meat before eating. Lava destroys your items permanently.
+
+SETTLEMENT RULE: Stay within 100 blocks of home. All building, farming, and gathering should happen near the settlement. If you're far away, navigate back before starting new work. Build structures NEXT TO each other to form a village — don't wander off to build alone.
+
+Farming: Farmland MUST be within 4 blocks of water or crops won't grow and soil dries out. Place a water source first, THEN till soil around it with a hoe, THEN plant seeds. One water block hydrates a 9x9 area.`)
 
 
   // Part 3: Memory — lessons, strategies, world knowledge from previous sessions
@@ -332,6 +337,16 @@ export function buildStateText(bot) {
   }
   if (hostileMobs.length > 0) {
     lines.push(`⚠ HOSTILE MOBS: ${hostileMobs.join(', ')} — fight or flee!`)
+  }
+  // Distance from home — nudge agent back when far
+  const home = getHome()
+  if (home && pos) {
+    const homeDist = Math.round(Math.sqrt((pos.x - home.x) ** 2 + (pos.z - home.z) ** 2))
+    if (homeDist > 100) {
+      lines.push(`⚠ TOO FAR FROM SETTLEMENT (${homeDist} blocks) — navigate back to home (${home.x},${home.y},${home.z}) before doing anything else!`)
+    } else if (homeDist > 60) {
+      lines.push(`home: ${homeDist} blocks away — stay closer to settlement`)
+    }
   }
 
   return lines.join('\n')

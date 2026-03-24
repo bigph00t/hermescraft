@@ -384,10 +384,10 @@ const COMMAND_SCHEMAS = [
   {
     name: 'farm',
     usage: '!farm seed:name count:N',
-    purpose: 'Till dirt and plant seeds (wheat, beetroot, carrot, potato)',
+    purpose: 'Till dirt near water and plant seeds (wheat, beetroot, carrot, potato)',
     args: 'seed — seed type (e.g. wheat_seeds, beetroot_seeds, carrot, potato). count — number of plots to plant (default 1)',
     examples: ['!farm seed:wheat_seeds count:8', '!farm seed:carrot count:4'],
-    failures: 'No hoe in inventory. No dirt/farmland nearby. Seeds not in inventory.',
+    failures: 'No hoe in inventory. No dirt/farmland nearby. Seeds not in inventory. IMPORTANT: Farmland MUST be within 4 blocks of a water source or it dries out and crops die. Always farm near water (river, lake, or placed water bucket).',
   },
   {
     name: 'breed',

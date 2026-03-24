@@ -625,7 +625,9 @@ async function think(bot, context) {
       })
       if (isDupe) {
         console.log('[mind] suppressed duplicate chat:', result.args.message.slice(0, 60))
-        _lastCommandWasChat = false
+        // Force next think() to do a game action, not retry the same chat
+        _lastCommandWasChat = true
+        clearConversation()
         lastActionTime = Date.now()
         return
       }
@@ -1026,6 +1028,14 @@ export async function initMind(bot, config) {
     _lastDeath = deathMsg
     lastActionTime = Date.now()
   })
+
+  // Auto-set shared home at spawn so all agents cluster together
+  if (!getHome() && bot.entity?.position) {
+    const sp = bot.entity.position
+    setHome(Math.round(sp.x), Math.round(sp.y), Math.round(sp.z))
+    bot.homeLocation = { x: Math.round(sp.x), y: Math.round(sp.y), z: Math.round(sp.z) }
+    console.log('[mind] auto-set home to spawn:', Math.round(sp.x), Math.round(sp.y), Math.round(sp.z))
+  }
 
   console.log('[mind] initialized — listening for chat, skill complete, idle')
 }
