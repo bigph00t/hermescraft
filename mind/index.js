@@ -40,7 +40,18 @@ let _lastFailure = null  // { command, args } from previous failed dispatch — 
 let _lastDeath = null    // death message string — consumed by next think() for recovery RAG
 let _lastVisionResult = null  // consume-once VLM description — cleared after injection into prompt
 let _postBuildScan = null     // consume-once post-build scan result
-let _consecutiveChatCount = 0  // COO-02: chat loop prevention — force non-chat after 3 consecutive
+const _chatCountByPartner = new Map()  // COO-02 (Phase 24): per-partner chat loop prevention
+let _lastChatSender = null              // tracks who triggered the current chat response
+
+// Phase 24: Proximity chat filter — only respond to agents within 32 blocks
+const CHAT_PROXIMITY_BLOCKS = 32
+function isSenderNearby(bot, senderName) {
+  const selfPos = bot.entity?.position
+  if (!selfPos) return true  // can't determine own position — process anyway (failsafe)
+  const senderEntity = bot.players[senderName]?.entity
+  if (!senderEntity?.position) return true  // sender position unknown — process anyway (startup failsafe)
+  return senderEntity.position.distanceTo(selfPos) <= CHAT_PROXIMITY_BLOCKS
+}
 
 // ── Async Chat Response (bypasses skill queue) ──
 
@@ -56,6 +67,7 @@ async function respondToChat(bot, sender, message) {
     return
   }
   _chatResponseInFlight = true
+  _lastChatSender = sender  // Track who we're chatting with for per-partner counter
 
   try {
     // ── !wiki command (RAG-07) ──
@@ -79,6 +91,7 @@ async function respondToChat(bot, sender, message) {
           players: getPlayersForPrompt(bot),
           locations: getLocationsForPrompt(bot.entity?.position),
           ragContext,
+          partnerNames: _config?.partnerNames || [],
         })
         const wikiMessage = buildUserMessage(bot, 'chat', {
           sender,
@@ -106,6 +119,7 @@ async function respondToChat(bot, sender, message) {
       memory: getMemoryForPrompt(),
       players: getPlayersForPrompt(bot),
       locations: getLocationsForPrompt(bot.entity?.position),
+      partnerNames: _config?.partnerNames || [],
     })
 
     const stateText = buildUserMessage(bot, 'chat', { sender, message })
@@ -403,6 +417,7 @@ async function think(bot, context) {
       minimapContext: getMinimapSummary(bot, 32),
       postBuildScan: _postBuildScan,
       partnerActivity: getPartnerActivityForPrompt(),
+      partnerNames: _config?.partnerNames || [],
     })
     // Consume-once: clear vision and post-build scan results after injection (like _lastDeath pattern)
     _lastVisionResult = null
@@ -410,7 +425,11 @@ async function think(bot, context) {
 
     // Inject partner's last chat into user message if available
     const partnerChat = _config?.partnerName ? getPartnerLastChat(_config.partnerName) : null
-    const userMessage = buildUserMessage(bot, context.trigger, { ...context, partnerChat, chatLimitWarning: _consecutiveChatCount >= 3 ? _consecutiveChatCount : null })
+    // COO-02 (Phase 24): per-partner chat limit warning — check current sender's count
+    const senderCount = _lastChatSender
+      ? (_chatCountByPartner.get(_lastChatSender) || 0)
+      : 0
+    const userMessage = buildUserMessage(bot, context.trigger, { ...context, partnerChat, chatLimitWarning: senderCount >= 3 ? senderCount : null })
 
     console.log('[mind] thinking...', context.trigger)
 
@@ -566,13 +585,14 @@ async function think(bot, context) {
     console.log('[mind] skill result:', result.command, skillResult.success ? 'OK' : skillResult.reason)
     lastActionTime = Date.now()
 
-    // COO-02: Chat loop prevention — track consecutive chat commands
+    // COO-02 (Phase 24): per-partner chat loop prevention
     if (result.command === 'chat') {
-      _consecutiveChatCount++
+      const key = _lastChatSender || '__broadcast__'
+      _chatCountByPartner.set(key, (_chatCountByPartner.get(key) || 0) + 1)
     } else if (result.command !== 'idle') {
-      // Reset on ANY non-chat non-idle dispatch — a failed skill attempt still
-      // breaks the "consecutive chats" chain. Only chat and idle keep the counter.
-      _consecutiveChatCount = 0
+      // Any game action resets ALL per-partner counters and clears stale sender
+      _chatCountByPartner.clear()
+      _lastChatSender = null
     }
 
     // COO-04: Broadcast activity after every dispatch
@@ -837,6 +857,12 @@ export async function initMind(bot, config) {
     if (username === bot.username) return
 
     console.log('[mind] chat from', username, ':', msgStr)
+
+    // Phase 24: Proximity filter — only respond to nearby agents
+    if (!isSenderNearby(bot, username)) {
+      console.log('[mind] chat from', username, 'ignored (>32 blocks away)')
+      return
+    }
 
     // Track player interaction for social module
     trackPlayer(username, { type: 'chat', detail: msgStr })
