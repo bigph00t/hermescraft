@@ -39,7 +39,7 @@ See: `.planning/milestones/v2.2-ROADMAP.md` for full details.
 - [x] **Phase 20: Gameplay Loops** - Animal farming, crop farming, mob hunting, exploration, trading, enchanting, nether, progression (completed 2026-03-23)
 - [x] **Phase 21: Multi-Agent Coordination** - Shared task registry, chat dedup, spatial task splitting, activity broadcasting (completed 2026-03-23)
 - [x] **Phase 22: Polish & Tool Fixes** - Tool auto-equipping, bug fixes, prompt tuning, overnight stability (completed 2026-03-23)
-- [ ] **Phase 23: Model Switch + Unified Inference** - Replace 3-model setup with single Qwen3.5-35B-A3B MoE (native vision)
+- [x] **Phase 23: Model Switch + Unified Inference** - Replace 3-model setup with single Qwen3.5-35B-A3B MoE (native vision) (completed 2026-03-24)
 - [ ] **Phase 24: Four Agents + Prompt Polish** - 4 unique personalities, less prescriptive prompts, proximity chat
 - [ ] **Phase 25: Voice Chat** - TTS bridge + Simple Voice Chat plugin for proximity voice
 - [ ] **Phase 26: RunPod Deployment** - Provision A6000 48GB, deploy full 4-agent stack with TTS
@@ -187,9 +187,9 @@ Plans:
   5. mind/vision.js uses same VLLM_URL for native vision (no separate port 8002)
   6. .env.runpod simplified to single endpoint
   7. Smoke tests pass with updated defaults
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
-- [ ] 23-01-PLAN.md — Infra scripts: setup-pod.sh single Unsloth download, start-models.sh single llama-server + mmproj, start-stack.sh port 8001 removal
+- [x] 23-01-PLAN.md — Infra scripts: setup-pod.sh single Unsloth download, start-models.sh single llama-server + mmproj, start-stack.sh port 8001 removal
 - [x] 23-02-PLAN.md — Mind modules: unified VLLM_URL in llm.js + backgroundBrain.js + vision.js, .env.runpod MODEL_NAME update, smoke test assertions
 
 ### Phase 24: Four Agents + Prompt Polish
@@ -248,7 +248,7 @@ Plans:
 | 20. Gameplay Loops | 2/2 | Complete    | 2026-03-23 |
 | 21. Multi-Agent Coordination | 2/2 | Complete    | 2026-03-23 |
 | 22. Polish & Tool Fixes | 2/2 | Complete    | 2026-03-23 |
-| 23. Model Switch + Unified Inference | 1/2 | In Progress|  |
+| 23. Model Switch + Unified Inference | 2/2 | Complete   | 2026-03-24 |
 | 24. Four Agents + Prompt Polish | 0/TBD | Not started | - |
 | 25. Voice Chat | 0/TBD | Not started | - |
 | 26. RunPod Deployment | 0/TBD | Not started | - |
