@@ -929,19 +929,12 @@ export async function initMind(bot, config) {
     // Filter bot's own messages echoed back
     if (username === bot.username) return
 
+    // Directed chat filter — agent messages must @name or @all to pass
+    if (!isMessageForMe(bot, username, msgStr)) return
+    // Proximity filter — only respond to nearby agents
+    if (!isSenderNearby(bot, username)) return
+
     console.log('[mind] chat from', username, ':', msgStr)
-
-    // Phase 24: Proximity filter — only respond to nearby agents
-    if (!isSenderNearby(bot, username)) {
-      console.log('[mind] chat from', username, 'ignored (>32 blocks away)')
-      return
-    }
-
-    // Directed chat filter — agent messages must mention us or use @all
-    if (!isMessageForMe(bot, username, msgStr)) {
-      console.log('[mind] chat from', username, 'ignored (not directed at us)')
-      return
-    }
 
     // Track player interaction for social module
     trackPlayer(username, { type: 'chat', detail: msgStr })
