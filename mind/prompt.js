@@ -357,19 +357,23 @@ export function buildStateText(bot) {
     `time: ${timeLbl} (${timeOfDay})`,
     `inventory: ${items}`,
   ].filter(Boolean)
+  // Always show partner status — even if entity not visible (underground, far away)
   if (playerNames.length > 0) {
     lines.push(`partner: ${playerNames.join(', ')}`)
-    // Show last chat status so the LLM notices silence
-    const partnerName = playerNames[0]?.split(' ')[0]  // extract name from "name (X blocks away)"
-    if (partnerName) {
-      const lastChat = getPartnerLastChat(partnerName)
-      if (lastChat) {
-        const agoMs = Date.now() - new Date(lastChat.timestamp).getTime()
-        const agoStr = agoMs < 60000 ? 'just now' : `${Math.round(agoMs / 60000)}min ago`
-        lines.push(`last chat with ${partnerName}: "${lastChat.message?.slice(0, 40)}" (${agoStr})`)
-      } else {
-        lines.push(`last chat with ${partnerName}: never — say hi!`)
-      }
+  }
+  // Find partner from bot.players (server-side, always accurate) and show chat status
+  const partnerName = Object.keys(bot.players || {}).find(n => n !== bot.username)
+  if (partnerName) {
+    if (playerNames.length === 0) {
+      lines.push(`partner: ${partnerName} (online, not visible)`)
+    }
+    const lastChat = getPartnerLastChat(partnerName)
+    if (lastChat) {
+      const agoMs = Date.now() - new Date(lastChat.timestamp).getTime()
+      const agoStr = agoMs < 60000 ? 'just now' : `${Math.round(agoMs / 60000)}min ago`
+      lines.push(`last chat: "${lastChat.message?.slice(0, 50)}" (${agoStr})`)
+    } else {
+      lines.push(`last chat with ${partnerName}: never — you two haven't spoken yet!`)
     }
   }
   if (hostileMobs.length > 0) {

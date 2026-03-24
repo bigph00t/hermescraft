@@ -45,8 +45,8 @@ let _repeatTracker = { key: null, count: 0 }  // detects same action failing rep
 const MAX_REPEAT_FAILURES = 3  // after this many identical failures, force a different action
 // Success repetition tracker — catches navigate-to-same-coords and other successful-but-pointless loops
 const _successRepeatHistory = []  // ring buffer of last N action keys (including successes)
-const MAX_SUCCESS_REPEATS = 4    // after this many identical successful actions, force explore
-const SUCCESS_HISTORY_SIZE = 8   // how many recent actions to track
+const MAX_SUCCESS_REPEATS = 8    // after this many identical successful actions, nudge LLM to reconsider
+const SUCCESS_HISTORY_SIZE = 12  // how many recent actions to track
 // Chat message dedup — prevents the LLM from generating the same chat text repeatedly
 const _recentSentMessages = []   // ring buffer of last N outgoing chat message texts
 const CHAT_DEDUP_WINDOW = 8      // how many recent messages to check for duplication
@@ -742,12 +742,12 @@ async function think(bot, context) {
     if (_successRepeatHistory.length > SUCCESS_HISTORY_SIZE) _successRepeatHistory.shift()
     const recentSameCount = _successRepeatHistory.filter(k => k === repeatKey).length
     if (recentSameCount >= MAX_SUCCESS_REPEATS) {
-      console.log(`[mind] success loop detected — ${result.command} repeated ${recentSameCount}x, clearing history and forcing explore`)
+      console.log(`[mind] action repeated ${recentSameCount}x — clearing history for fresh thinking`)
       _successRepeatHistory.length = 0
       _repeatTracker = { key: null, count: 0 }
       clearConversation()
-      result.command = 'explore'
-      result.args = {}
+      // Don't force explore — let the LLM decide with fresh context
+      // It might legitimately need to repeat (gathering materials)
     }
 
     // Background brain hooks: check for urgent warnings from memory keeper
