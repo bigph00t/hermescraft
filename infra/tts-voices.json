@@ -1,0 +1,10 @@
+{
+  "luna": "/models/piper/en_US-kristin-medium.onnx",
+  "max": "/models/piper/en_US-ryan-high.onnx",
+  "ivy": "/models/piper/en_US-amy-medium.onnx",
+  "rust": "/models/piper/en_US-arctic-medium.onnx",
+  "ember": "/models/piper/en_US-hfc_female-medium.onnx",
+  "flint": "/models/piper/en_US-norman-medium.onnx",
+  "sage": "/models/piper/en_US-lessac-high.onnx",
+  "wren": "/models/piper/en_US-libritts_r-medium.onnx"
+}
