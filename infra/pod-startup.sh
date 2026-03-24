@@ -27,6 +27,10 @@ echo "  llama-server: $(which llama-server)"
 export PATH="/usr/local/cuda-11.8/bin:$PATH"
 export LD_LIBRARY_PATH="/usr/local/cuda-11.8/lib64:${LD_LIBRARY_PATH:-}"
 
+# HuggingFace cache (ONNX embeddings model persists here)
+export HF_HOME=/workspace/.cache/huggingface
+export TRANSFORMERS_CACHE=/workspace/.cache/huggingface
+
 # Model paths
 export MODEL_DIR=/workspace/models
 export MAIN_MODEL="$MODEL_DIR/Qwen3.5-35B-A3B-UD-Q4_K_XL.gguf"
