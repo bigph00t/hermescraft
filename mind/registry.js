@@ -130,6 +130,32 @@ const REGISTRY = new Map([
   }],
 ])
 
+// Command aliases — map common LLM hallucinations to real commands
+const ALIASES = {
+  dig: 'mine',
+  break: 'mine',
+  chop: 'gather',
+  collect: 'gather',
+  pickup: 'gather',
+  attack: 'combat',
+  fight: 'combat',
+  kill: 'combat',
+  walk: 'navigate',
+  move: 'navigate',
+  go: 'navigate',
+  run: 'navigate',
+  say: 'chat',
+  tell: 'chat',
+  talk: 'chat',
+  cook: 'smelt',
+  make: 'craft',
+  place: 'build',
+  store: 'deposit',
+  take: 'withdraw',
+  sleep: 'idle',
+  wait: 'idle',
+}
+
 // Dispatch a !command to the corresponding body/ skill.
 //
 // Protocol:
@@ -144,7 +170,8 @@ const REGISTRY = new Map([
 // NOTE: skillRunning state is managed by mind/index.js (Plan 02), not here.
 // This keeps the registry as a pure lookup + dispatch bridge.
 export async function dispatch(bot, command, args) {
-  const fn = REGISTRY.get(command)
+  const resolved = ALIASES[command] || command
+  const fn = REGISTRY.get(resolved)
   if (!fn) {
     return { success: false, reason: `unknown command: !${command}` }
   }
