@@ -6,10 +6,10 @@ import OpenAI from 'openai'
 const VLLM_URL = process.env.VLLM_URL || 'http://localhost:8000/v1'
 const MODEL_NAME = process.env.MODEL_NAME || 'Qwen3.5-35B-A3B'
 const BASE_TEMPERATURE = parseFloat(process.env.TEMPERATURE || '0.6')
-const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '384', 10)
+const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '1536', 10)
 const MAX_RETRIES = 3
 const RETRY_BASE_MS = 1000
-const MAX_HISTORY_MESSAGES = 20  // 10 turns — matched to 8192 token context window (system prompt ~3500 + user ~800 + output 512 = 4812, leaving ~3380 for history)
+const MAX_HISTORY_MESSAGES = 40  // 20 turns — matched to 16K context window with thinking enabled
 
 // NO OAuth detection — v2 uses direct vLLM, not Anthropic SDK
 const client = new OpenAI({
