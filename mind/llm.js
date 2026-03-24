@@ -106,8 +106,14 @@ function parseCommand(text) {
   const args = {}
 
   // Named args: key:value or key:"quoted value"
-  for (const [, k, , quoted, unquoted] of argStr.matchAll(/(\w+):("([^"]*?)"|(\S+))/g)) {
+  // Also handle "key: value" (space after colon) — common LLM hallucination
+  const namedSpans = []  // track character ranges consumed by named args
+  for (const m of argStr.matchAll(/(\w+):\s*("([^"]*?)"|(\S+))/g)) {
+    const k = m[1]
+    const quoted = m[3]
+    const unquoted = m[4]
     args[k] = quoted !== undefined ? quoted : unquoted
+    namedSpans.push([m.index, m.index + m[0].length])
   }
 
   // Chat special case: everything after !chat is the message
@@ -123,11 +129,27 @@ function parseCommand(text) {
     return { command: name, args }
   }
 
-  // Positional fallback: !gather oak_log 10 → { item: 'oak_log', count: 10 }
-  if (Object.keys(args).length === 0) {
-    const parts = argStr.trim().split(/\s+/).filter(Boolean)
-    if (parts[0]) args.item = parts[0]
-    if (parts[1] && !isNaN(parts[1])) args.count = parseInt(parts[1], 10)
+  // Positional fallback: extract orphaned words not consumed by named args.
+  // Handles mixed forms like "!gather coal_ore count:1" where coal_ore is positional.
+  const orphaned = []
+  const trimmed = argStr.trim()
+  if (trimmed) {
+    let pos = 0
+    for (const word of trimmed.split(/\s+/)) {
+      const idx = argStr.indexOf(word, pos)
+      const inSpan = namedSpans.some(([s, e]) => idx >= s && idx < e)
+      if (!inSpan && word && !word.includes(':')) {
+        orphaned.push(word)
+      }
+      pos = idx + word.length
+    }
+  }
+  if (!args.item && orphaned.length > 0) {
+    args.item = orphaned[0]
+    // If second orphan is numeric, treat as count
+    if (!args.count && orphaned[1] && !isNaN(orphaned[1])) {
+      args.count = parseInt(orphaned[1], 10)
+    }
   }
 
   return { command: name, args }
