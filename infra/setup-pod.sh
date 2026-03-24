@@ -45,6 +45,43 @@ fi
 # ── Python packages for model download ──
 pip install -q huggingface_hub 2>/dev/null || pip3 install -q huggingface_hub
 
+# ── Piper TTS (CPU-only text-to-speech for agent voices) ──
+echo "[setup] Installing Piper TTS and audio dependencies..."
+pip install -q piper-tts scipy 2>/dev/null || pip3 install -q piper-tts scipy
+
+# ── Download Piper voice models (8 voices ~600MB total) ──
+PIPER_DIR="${MODEL_DIR:-/models}/piper"
+mkdir -p "$PIPER_DIR"
+
+# Voice models to download from rhasspy/piper-voices on HuggingFace
+PIPER_VOICES=(
+    "en/en_US/kristin/medium/en_US-kristin-medium"
+    "en/en_US/ryan/high/en_US-ryan-high"
+    "en/en_US/amy/medium/en_US-amy-medium"
+    "en/en_US/arctic/medium/en_US-arctic-medium"
+    "en/en_US/hfc_female/medium/en_US-hfc_female-medium"
+    "en/en_US/norman/medium/en_US-norman-medium"
+    "en/en_US/lessac/high/en_US-lessac-high"
+    "en/en_US/libritts_r/medium/en_US-libritts_r-medium"
+)
+
+for VOICE_PATH in "${PIPER_VOICES[@]}"; do
+    VOICE_NAME="$(basename "$VOICE_PATH")"
+    ONNX_FILE="$PIPER_DIR/${VOICE_NAME}.onnx"
+    if [ ! -f "$ONNX_FILE" ]; then
+        echo "[setup] Downloading Piper voice: $VOICE_NAME"
+        python3 -c "
+from huggingface_hub import hf_hub_download
+hf_hub_download('rhasspy/piper-voices', filename='${VOICE_PATH}.onnx', local_dir='${PIPER_DIR}')
+hf_hub_download('rhasspy/piper-voices', filename='${VOICE_PATH}.onnx.json', local_dir='${PIPER_DIR}')
+" 2>/dev/null || echo "[setup] WARNING: Failed to download $VOICE_NAME"
+    else
+        echo "[setup] Piper voice already downloaded: $VOICE_NAME"
+    fi
+done
+
+echo "[setup] Piper voices: $(ls "$PIPER_DIR"/*.onnx 2>/dev/null | wc -l) models downloaded"
+
 # ── llama-server (llama.cpp with CUDA) ──
 if ! command -v llama-server &>/dev/null; then
     echo "[setup] Installing llama-server..."
@@ -88,6 +125,8 @@ echo "=== Setup Complete ==="
 echo "  Docker:       $(docker --version 2>/dev/null || echo 'not found')"
 echo "  Node.js:      $(node -v 2>/dev/null || echo 'not found')"
 echo "  llama-server: $(llama-server --version 2>/dev/null || echo 'not found')"
+echo "  Piper TTS:    $(pip show piper-tts 2>/dev/null | grep Version || echo 'not found')"
+echo "  Piper voices: $(ls "${MODEL_DIR:-/models}/piper"/*.onnx 2>/dev/null | wc -l) models"
 echo "  Models:       $MODEL_DIR"
 echo ""
 echo "Next: Clone repo, npm install, then run infra/start-stack.sh"

@@ -70,9 +70,23 @@ else
     echo "[stack] Main brain (port 8000) ready"
 fi
 
-# ── Step 3: Agents ──
+# ── Step 3: TTS Bridge ──
 echo ""
-echo "── Step 3: Agents ──"
+echo "── Step 3: TTS Bridge ──"
+if pgrep -f "tts-bridge.py" > /dev/null 2>&1; then
+    echo "[stack] TTS bridge already running"
+else
+    echo "[stack] Starting TTS bridge..."
+    nohup python3 "$PROJECT_DIR/infra/tts-bridge.py" \
+        > /workspace/tts-bridge.log 2>&1 &
+    TTS_PID=$!
+    echo "[stack] TTS bridge PID: $TTS_PID (log: /workspace/tts-bridge.log)"
+    sleep 3  # let bridge load 8 voice models
+fi
+
+# ── Step 4: Agents ──
+echo ""
+echo "── Step 4: Agents ──"
 echo "[stack] Launching agents via launch-agents.sh..."
 cd "$PROJECT_DIR"
 ./launch-agents.sh 8 "$MC_HOST" "$MC_PORT"
@@ -83,10 +97,12 @@ echo "  HermesCraft Stack — All Systems Running"
 echo "============================================"
 echo "  MC Server:    docker (port $MC_PORT)"
 echo "  Main Brain:   localhost:8000 (Qwen3.5-35B-A3B)"
+echo "  TTS Bridge:   $(pgrep -f tts-bridge.py > /dev/null 2>&1 && echo 'running' || echo 'not running')"
 echo "  Agents:       tmux attach -t hermescraft-agents"
 echo ""
 echo "  Logs:"
 echo "    Model servers: tail -f /workspace/model-server.log"
 echo "    MC server:     docker logs -f hermescraft-server"
+echo "    TTS bridge:    tail -f /workspace/tts-bridge.log"
 echo "    Agents:        tmux attach -t hermescraft-agents"
 echo "============================================"
