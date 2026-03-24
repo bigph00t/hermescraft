@@ -192,48 +192,44 @@ Plans:
 - [x] 23-01-PLAN.md — Infra scripts: setup-pod.sh single Unsloth download, start-models.sh single llama-server + mmproj, start-stack.sh port 8001 removal
 - [x] 23-02-PLAN.md — Mind modules: unified VLLM_URL in llm.js + backgroundBrain.js + vision.js, .env.runpod MODEL_NAME update, smoke test assertions
 
-### Phase 24: Four Agents + Prompt Polish
-**Goal**: 4 unique agent personalities with less prescriptive prompting — creative behavior emerges from knowledge + tools, not explicit instructions. Proximity-based chat so agents only hear nearby agents.
+### Phase 24: Eight Agents + Prompt Polish
+**Goal**: 8 unique agent personalities with less prescriptive prompting — creative behavior emerges from knowledge + tools, not explicit instructions. Proximity-based chat so agents only hear nearby agents.
 **Depends on**: Phase 23
 **Requirements**: Infrastructure — enabling phase
 **Success Criteria** (what must be TRUE):
-  1. SOUL files exist for all 4 agents: Luna (artist), Max (engineer), Ivy (naturalist), Rust (adventurer)
-  2. launch-quad.sh launches 4 agents in tmux with staggered starts
+  1. SOUL files exist for all 8 agents: Luna (artist), Max (engineer), Ivy (naturalist), Rust (adventurer), + 4 new distinct personalities
+  2. launch-agents.sh launches N agents (configurable, default 8) in tmux with staggered starts
   3. System prompt Part 2 is less prescriptive — removes forced chat patterns, lets personality drive behavior
-  4. "YOU TWO" section replaced with group-aware language (4 agents, not just 2)
+  4. "YOU TWO" section replaced with group-aware language (N agents, dynamic)
   5. Proximity chat: agents only receive/respond to chat messages from players within 32 blocks
-  6. Vision prompting enhanced: agents use !see proactively based on personality (Rust scouts, Luna evaluates builds)
-  7. All 4 SOUL files loaded correctly based on AGENT_NAME env var
-**Plans:** 3 plans
-Plans:
-- [ ] 24-01-PLAN.md — Config expansion (4 agents), prompt Part 2 rewrite (YOUR GROUP, de-prescriptive), SOUL vision hints
-- [ ] 24-02-PLAN.md — Proximity chat filter (32 blocks) + per-partner chat loop counter in mind/index.js
-- [ ] 24-03-PLAN.md — launch-quad.sh (4-agent tmux launcher) + start-stack.sh update
+  6. Vision prompting enhanced: agents use !see proactively based on personality
+  7. All 8 SOUL files loaded correctly based on AGENT_NAME env var
+**Plans**: TBD
 
 ### Phase 25: Voice Chat
-**Goal**: Text-to-speech for all 4 agents via Simple Voice Chat plugin — each agent has a distinct voice, proximity-based so players hear nearby agents talking
+**Goal**: Text-to-speech for all 8 agents via Simple Voice Chat plugin — each agent has a distinct voice, proximity-based so players hear nearby agents talking
 **Depends on**: Phase 24
 **Requirements**: Infrastructure — enabling phase
 **Success Criteria** (what must be TRUE):
   1. Simple Voice Chat plugin installed on Paper server (docker-compose.runpod.yml)
   2. Python TTS bridge script converts agent chat text to audio (XTTS-v2 or Piper)
-  3. 4 distinct voice profiles configured (one per agent personality)
+  3. 8 distinct voice profiles configured (one per agent personality)
   4. Audio injected into Simple Voice Chat as proximity audio — fades with distance
   5. infra/start-stack.sh launches TTS bridge alongside agents
   6. TTS latency under 500ms per utterance
 **Plans**: TBD
 
 ### Phase 26: RunPod Deployment
-**Goal**: Full 4-agent stack running on RunPod A6000 48GB with TTS proximity voice chat
+**Goal**: Full 8-agent stack running on RunPod A6000 48GB with TTS proximity voice chat
 **Depends on**: Phase 25
 **Requirements**: Infrastructure — enabling phase
 **Success Criteria** (what must be TRUE):
   1. RunPod A6000 48GB pod running with Qwen3.5-35B-A3B MoE via vLLM on port 8000
   2. Paper MC server in Docker with Simple Voice Chat plugin
-  3. All 4 agents (Luna, Max, Ivy, Rust) connected and producing coherent responses
-  4. TTS bridge producing audio for all 4 agents
+  3. All 8 agents connected and producing coherent responses
+  4. TTS bridge producing audio for all 8 agents
   5. Response latency under 3 seconds per agent tick
-  6. 4 agents can run concurrently without GPU contention
+  6. 8 agents can run concurrently without GPU contention
   7. System stable for 12+ hours
 **Plans**: TBD
 
