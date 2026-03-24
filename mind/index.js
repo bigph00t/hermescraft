@@ -42,8 +42,7 @@ let _lastVisionResult = null  // consume-once VLM description — cleared after 
 let _postBuildScan = null     // consume-once post-build scan result
 const _chatCountByPartner = new Map()  // COO-02 (Phase 24): per-partner chat loop prevention
 let _lastChatSender = null              // tracks who triggered the current chat response
-const _recentSentMessages = []          // ring buffer of last 5 outgoing chat messages for dedup
-const DEDUP_WINDOW = 5
+let _lastCommandWasChat = false         // prevents back-to-back chat without a game action in between
 
 // Phase 24: Proximity chat filter — only respond to agents within 32 blocks
 const CHAT_PROXIMITY_BLOCKS = 32
@@ -151,6 +150,7 @@ async function respondToChat(bot, sender, message) {
       const msg = result.args?.message || ''
       if (msg) {
         bot.chat(msg)
+        _lastCommandWasChat = true
         console.log('[mind] chat reply sent:', msg.slice(0, 80))
       }
     }
@@ -586,26 +586,13 @@ async function think(bot, context) {
       }
     }
 
-    // Dedup: suppress repeated chat messages — if we said something very similar recently, idle instead
-    if (result.command === 'chat' && result.args?.message) {
-      const msg = result.args.message.toLowerCase().replace(/[^a-z ]/g, '').trim()
-      const isDupe = _recentSentMessages.some(prev => {
-        if (msg === prev) return true
-        // Fuzzy: if 80%+ of words overlap, it's a repeat
-        const words = new Set(msg.split(/\s+/))
-        const prevWords = prev.split(/\s+/)
-        const overlap = prevWords.filter(w => words.has(w)).length
-        return prevWords.length > 2 && overlap / prevWords.length > 0.8
-      })
-      if (isDupe) {
-        console.log('[mind] suppressed duplicate chat:', result.args.message.slice(0, 60))
-        result.command = 'idle'
-        result.args = {}
-      } else {
-        _recentSentMessages.push(msg)
-        if (_recentSentMessages.length > DEDUP_WINDOW) _recentSentMessages.shift()
-      }
+    // No back-to-back chat: must do a game action between chat messages
+    if (result.command === 'chat' && _lastCommandWasChat) {
+      console.log('[mind] suppressed back-to-back chat — do an action first')
+      lastActionTime = Date.now()
+      return  // let idle timer fire a fresh think() that picks a game action
     }
+    _lastCommandWasChat = (result.command === 'chat')
 
     // COO-04: Broadcast activity start before dispatch
     try {
