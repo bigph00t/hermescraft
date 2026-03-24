@@ -147,8 +147,9 @@ export async function queryLLM(systemPrompt, userMessage) {
         messages,
         temperature: BASE_TEMPERATURE,
         max_tokens: MAX_TOKENS,
-        // No tool_choice — TEXT MODE ONLY per research: !command text is
-        // more reliable than tool_choice:'required'
+        // Disable Qwen3.5 thinking mode — skip <think> tags, go straight to action.
+        // Thinking wastes tokens on reasoning the agent doesn't need.
+        extra_body: { chat_template_kwargs: { enable_thinking: false } },
       })
 
       const msg = response.choices?.[0]?.message
