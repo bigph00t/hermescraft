@@ -118,7 +118,17 @@ function parseCommand(text) {
 
   // Chat special case: everything after !chat is the message
   if (name === 'chat' && Object.keys(args).length === 0 && argStr.trim()) {
-    args.message = argStr.trim()
+    let msg = argStr.trim()
+    // Strip wrapping quotes — LLM often writes !chat "hello" instead of !chat hello
+    if ((msg.startsWith('"') && msg.endsWith('"')) || (msg.startsWith("'") && msg.endsWith("'"))) {
+      msg = msg.slice(1, -1)
+    }
+    // Also strip message: prefix if LLM wrote !chat message: "text" (space after colon)
+    if (msg.startsWith('message:')) msg = msg.slice(8).trim()
+    if ((msg.startsWith('"') && msg.endsWith('"')) || (msg.startsWith("'") && msg.endsWith("'"))) {
+      msg = msg.slice(1, -1)
+    }
+    args.message = msg
     return { command: name, args }
   }
 
