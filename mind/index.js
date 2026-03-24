@@ -42,6 +42,8 @@ let _lastVisionResult = null  // consume-once VLM description — cleared after 
 let _postBuildScan = null     // consume-once post-build scan result
 const _chatCountByPartner = new Map()  // COO-02 (Phase 24): per-partner chat loop prevention
 let _lastChatSender = null              // tracks who triggered the current chat response
+const _recentSentMessages = []          // ring buffer of last 5 outgoing chat messages for dedup
+const DEDUP_WINDOW = 5
 
 // Phase 24: Proximity chat filter — only respond to agents within 32 blocks
 const CHAT_PROXIMITY_BLOCKS = 32
@@ -581,6 +583,27 @@ async function think(bot, context) {
         if (claimed) {
           console.log('[mind] claimed build section:', claimed.id)
         }
+      }
+    }
+
+    // Dedup: suppress repeated chat messages — if we said something very similar recently, idle instead
+    if (result.command === 'chat' && result.args?.message) {
+      const msg = result.args.message.toLowerCase().replace(/[^a-z ]/g, '').trim()
+      const isDupe = _recentSentMessages.some(prev => {
+        if (msg === prev) return true
+        // Fuzzy: if 80%+ of words overlap, it's a repeat
+        const words = new Set(msg.split(/\s+/))
+        const prevWords = prev.split(/\s+/)
+        const overlap = prevWords.filter(w => words.has(w)).length
+        return prevWords.length > 2 && overlap / prevWords.length > 0.8
+      })
+      if (isDupe) {
+        console.log('[mind] suppressed duplicate chat:', result.args.message.slice(0, 60))
+        result.command = 'idle'
+        result.args = {}
+      } else {
+        _recentSentMessages.push(msg)
+        if (_recentSentMessages.length > DEDUP_WINDOW) _recentSentMessages.shift()
       }
     }
 
