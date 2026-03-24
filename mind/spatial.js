@@ -89,7 +89,11 @@ function isSolid(block) {
 // ── Tier 1: Immediate awareness (<1ms) ──
 
 function getImmediate(bot) {
-  const pos = bot.entity.position.floored()
+  const rawPos = bot.entity.position
+  // Guard: floored() is a Vec3 method — if position is a plain object, floor manually
+  const pos = typeof rawPos.floored === 'function'
+    ? rawPos.floored()
+    : { x: Math.floor(rawPos.x), y: Math.floor(rawPos.y), z: Math.floor(rawPos.z), offset: (dx, dy, dz) => ({ x: Math.floor(rawPos.x) + dx, y: Math.floor(rawPos.y) + dy, z: Math.floor(rawPos.z) + dz }) }
 
   const feet = bot.blockAt(pos)
   const ground = bot.blockAt(pos.offset(0, -1, 0))
@@ -212,7 +216,10 @@ function getNearVision(bot) {
 
 function getTerrainContext(bot) {
   const y = bot.entity.position.y
-  const pos = bot.entity.position.floored()
+  const rawPos = bot.entity.position
+  const pos = typeof rawPos.floored === 'function'
+    ? rawPos.floored()
+    : { x: Math.floor(rawPos.x), y: Math.floor(rawPos.y), z: Math.floor(rawPos.z), offset: (dx, dy, dz) => ({ x: Math.floor(rawPos.x) + dx, y: Math.floor(rawPos.y) + dy, z: Math.floor(rawPos.z) + dz }) }
   const dim = bot.game?.dimension || 'overworld'
 
   if (dim === 'the_nether') return 'nether'

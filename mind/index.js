@@ -56,7 +56,8 @@ let _thinkTickCount = 0       // counts think() calls — used for tiered vision
 const VISION_TICK_INTERVAL = 1  // include composite render EVERY tick — agents always see the world
 const _chatCountByPartner = new Map()  // COO-02 (Phase 24): per-partner chat loop prevention
 let _lastChatSender = null              // tracks who triggered the current chat response
-let _lastCommandWasChat = false         // prevents back-to-back chat without a game action in between
+let _lastChatTimestamp = 0               // timestamp of last outgoing chat — used for anti-spam cooldown
+const CHAT_COOLDOWN_MS = 3000           // minimum 3s between outgoing chat messages (prevents ping-pong)
 
 // Phase 24: Proximity chat filter — only respond to agents within 32 blocks
 const CHAT_PROXIMITY_BLOCKS = 32
@@ -92,9 +93,9 @@ let _chatResponseInFlight = false
 async function respondToChat(bot, sender, message) {
   // Don't stack chat responses — drop if busy
   if (_chatResponseInFlight) return
-  // If we just chatted, skip — forces a game action before responding to more chat
-  if (_lastCommandWasChat) {
-    console.log('[mind] skipping respondToChat — must do a game action first')
+  // Anti-spam cooldown — don't respond too fast (prevents ping-pong loops)
+  if (Date.now() - _lastChatTimestamp < CHAT_COOLDOWN_MS) {
+    console.log('[mind] chat cooldown — waiting before responding')
     return
   }
   _chatResponseInFlight = true
@@ -129,7 +130,7 @@ async function respondToChat(bot, sender, message) {
           message: `${sender} asked: ${query} — answer their question naturally using what you know. Be helpful and specific.`,
         })
         console.log('[mind] !wiki query:', query, `(${chunks.length} chunks)`)
-        const wikiResult = await queryLLM(wikiPrompt, wikiMessage)
+        const wikiResult = await queryLLM(wikiPrompt, wikiMessage, { isolated: true })
         if (wikiResult.command === 'chat' && wikiResult.args?.message) {
           bot.chat(wikiResult.args.message)
         } else if (wikiResult.reasoning) {
@@ -180,18 +181,29 @@ async function respondToChat(bot, sender, message) {
           bot.chat(msg)
           _recentSentMessages.push(normMsg)
           if (_recentSentMessages.length > CHAT_DEDUP_WINDOW) _recentSentMessages.shift()
-          // Set the flag so the next think() must do a game action before chatting again.
-          // This breaks A↔B ping-pong loops where two agents keep chatting at each other.
-          _lastCommandWasChat = true
+          _lastChatTimestamp = Date.now()  // cooldown timer instead of hard block
           console.log('[mind] chat reply sent:', msg.slice(0, 80))
         }
       }
     }
-    // If LLM produced a non-chat command or no command, just log it.
-    // Don't re-queue — the agent will see nearby chat naturally via partnerChat
-    // in the next think() cycle. Re-queuing feeds echo chamber loops.
+    // If LLM produced a non-chat game action, dispatch it — the agent should act on chat context
+    // But only if no skill is already running (prevent concurrent mineflayer operations)
     else if (result.command && result.command !== 'idle') {
-      console.log('[mind] chat response picked action:', result.command, '— not re-queuing')
+      if (skillRunning || thinkingInFlight) {
+        console.log('[mind] chat triggered action:', result.command, '— deferred (skill/think active)')
+      } else {
+        console.log('[mind] chat triggered action:', result.command, '— dispatching')
+        try {
+          skillRunning = true
+          const actionResult = await dispatch(bot, result.command, result.args)
+          skillRunning = false
+          console.log('[mind] chat-triggered action result:', result.command, actionResult.success ? 'OK' : actionResult.reason)
+          lastActionTime = Date.now()
+        } catch (err) {
+          skillRunning = false
+          console.error('[mind] chat-triggered action error:', err.message)
+        }
+      }
     }
     else if (!result.command) {
       console.log('[mind] chat response: no command produced')
@@ -514,7 +526,6 @@ async function think(bot, context) {
     // Explicit idle command — the LLM decided to wait.
     if (result.command === 'idle') {
       console.log('[mind] idle command received')
-      _lastCommandWasChat = false  // idle counts as "did something else" — unblock chat
       lastActionTime = Date.now()
       return
     }
@@ -646,8 +657,10 @@ async function think(bot, context) {
       console.log('[mind] planning build:', description)
       skillRunning = true
       const pos = bot.entity.position
+      // Wrap queryLLM to use isolated mode + larger token budget for blueprint generation
+      const isolatedQueryLLM = (sysPrompt, userMsg) => queryLLM(sysPrompt, userMsg, { maxTokens: 2048, isolated: true })
       const planResult = await planBuild(
-        description, queryLLM, buildDesignPrompt, validateBlueprint,
+        description, isolatedQueryLLM, buildDesignPrompt, validateBlueprint,
         { x: Math.round(pos.x), y: Math.round(pos.y), z: Math.round(pos.z) }
       )
       skillRunning = false
@@ -704,10 +717,9 @@ async function think(bot, context) {
       }
     }
 
-    // No back-to-back chat: must do a game action between chat messages
-    if (result.command === 'chat' && _lastCommandWasChat) {
-      console.log('[mind] suppressed back-to-back chat — do an action first')
-      _lastCommandWasChat = false  // reset so next think() can chat after doing an action
+    // Anti-spam cooldown: don't send chat too rapidly (prevents ping-pong loops)
+    if (result.command === 'chat' && Date.now() - _lastChatTimestamp < CHAT_COOLDOWN_MS) {
+      console.log('[mind] chat cooldown active — skipping to avoid spam')
       lastActionTime = Date.now()
       return
     }
@@ -725,8 +737,6 @@ async function think(bot, context) {
       })
       if (isDupe) {
         console.log('[mind] suppressed duplicate chat:', result.args.message.slice(0, 60))
-        // Force next think() to do a game action, not retry the same chat
-        _lastCommandWasChat = true
         clearConversation()
         lastActionTime = Date.now()
         return
@@ -735,7 +745,7 @@ async function think(bot, context) {
       if (_recentSentMessages.length > CHAT_DEDUP_WINDOW) _recentSentMessages.shift()
     }
 
-    _lastCommandWasChat = (result.command === 'chat')
+    if (result.command === 'chat') _lastChatTimestamp = Date.now()
 
     // Stuck loop detection: if the same command+args failed MAX_REPEAT_FAILURES times,
     // force the agent to do something else (explore) to break out of the loop
@@ -779,6 +789,13 @@ async function think(bot, context) {
     try {
       broadcastActivity(result.command, result.args || {}, 'running')
     } catch { /* non-fatal — partner visibility is best-effort */ }
+
+    // Guard: if a skill is already running (from respondToChat dispatch), wait for it
+    if (skillRunning) {
+      console.log('[mind] dispatch deferred — skill already running from chat response')
+      lastActionTime = Date.now()
+      return
+    }
 
     // Dispatch a real command to the body
     console.log('[mind] dispatching:', result.command, result.args)
@@ -977,7 +994,7 @@ export async function designAndBuild(bot, description) {
   // ── 4. Dedicated LLM call ──
   let result
   try {
-    result = await queryLLM(designPrompt, 'Generate the blueprint now.')
+    result = await queryLLM(designPrompt, 'Generate the blueprint now.', { maxTokens: 2048, isolated: true })
   } catch (err) {
     return { success: false, reason: `LLM call failed: ${err.message}` }
   }

@@ -9,7 +9,7 @@ const BASE_TEMPERATURE = parseFloat(process.env.TEMPERATURE || '0.6')
 const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '384', 10)
 const MAX_RETRIES = 3
 const RETRY_BASE_MS = 1000
-const MAX_HISTORY_MESSAGES = 120  // 60 turns — deep memory for sustained multi-step tasks (matched to 24K context window)
+const MAX_HISTORY_MESSAGES = 20  // 10 turns — matched to 8192 token context window (system prompt ~3500 + user ~800 + output 512 = 4812, leaving ~3380 for history)
 
 // NO OAuth detection — v2 uses direct vLLM, not Anthropic SDK
 const client = new OpenAI({
@@ -180,7 +180,21 @@ function parseCommand(text) {
 //
 // On context overflow: trims 25% of history and retries (up to MAX_RETRIES).
 // On all retries exhausted: trims 50% then throws.
-export async function queryLLM(systemPrompt, userMessage, image = null) {
+// opts: { image?: string, maxTokens?: number, isolated?: boolean }
+//   image: base64 JPEG for multimodal calls
+//   maxTokens: override MAX_TOKENS (e.g. 2048 for !design blueprint generation)
+//   isolated: if true, don't read or write conversation history (for design/wiki calls)
+export async function queryLLM(systemPrompt, userMessage, imageOrOpts = null) {
+  // Backwards compat: if third arg is a string, treat as image (old call signature)
+  let image = null, maxTokens = MAX_TOKENS, isolated = false
+  if (typeof imageOrOpts === 'string') {
+    image = imageOrOpts
+  } else if (imageOrOpts && typeof imageOrOpts === 'object') {
+    image = imageOrOpts.image || null
+    maxTokens = imageOrOpts.maxTokens || MAX_TOKENS
+    isolated = imageOrOpts.isolated || false
+  }
+
   let lastError
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -196,9 +210,10 @@ export async function queryLLM(systemPrompt, userMessage, image = null) {
         userContent = userMessage
       }
 
+      const historyToUse = isolated ? [] : conversationHistory
       const messages = [
         { role: 'system', content: systemPrompt },
-        ...conversationHistory,
+        ...historyToUse,
         { role: 'user', content: userContent },
       ]
 
@@ -206,10 +221,7 @@ export async function queryLLM(systemPrompt, userMessage, image = null) {
         model: MODEL_NAME,
         messages,
         temperature: BASE_TEMPERATURE,
-        max_tokens: MAX_TOKENS,
-        // Thinking ON — with 1536 MAX_TOKENS there's plenty of room for <think> reasoning
-        // plus a !command. Thinking quality drives better decisions about city building,
-        // coordination, and planning. The <think> tags are stripped before command parsing.
+        max_tokens: maxTokens,
       })
 
       const msg = response.choices?.[0]?.message
@@ -232,11 +244,14 @@ export async function queryLLM(systemPrompt, userMessage, image = null) {
 
       // Push user + assistant to conversation history, then trim to cap.
       // Always store text-only in history — images are per-tick and would bloat context.
-      conversationHistory.push(
-        { role: 'user', content: userMessage },
-        { role: 'assistant', content: rawContent },
-      )
-      trimHistory()
+      // Isolated calls (design, wiki) don't touch history — they have their own context.
+      if (!isolated) {
+        conversationHistory.push(
+          { role: 'user', content: userMessage },
+          { role: 'assistant', content: rawContent },
+        )
+        trimHistory()
+      }
 
       return { reasoning, command, args, raw: rawContent }
 

@@ -17,6 +17,16 @@ const { goals } = mpf
  * @returns {Promise<{success: boolean, reason?: string}>}
  */
 export async function navigateTo(bot, x, y, z, range = 1, timeoutMs = 30000) {
+  // Dedup: if already within range, skip pathfinding entirely
+  const pos = bot.entity?.position
+  if (pos) {
+    const dx = pos.x - x, dy = pos.y - y, dz = pos.z - z
+    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+    if (dist <= range + 1) {
+      return { success: true, reason: 'already_near' }
+    }
+  }
+
   const goal = new goals.GoalNear(x, y, z, range)
 
   // Promise.race with wall-clock timeout — the only reliable defense against
