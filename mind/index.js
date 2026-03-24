@@ -833,10 +833,20 @@ export async function initMind(bot, config) {
   // ── Trigger 1: Chat received ──
   // Fire think() when a player sends a chat message.
   // Filters:
-  //   - Messages with no sender (system/server messages) are ignored
   //   - The bot's own messages echoed back are filtered by username match
+  //   - System messages (death, join/leave) have sender=null — pass through for awareness
   bot.on('messagestr', (msgStr, position, jsonMsg, sender) => {
-    if (!sender) return
+    // System messages (deaths, server announcements) — inject as context, don't trigger chat response
+    if (!sender) {
+      // Death messages contain "was slain", "was killed", "drowned", "blew up", "fell", etc.
+      const isDeathMsg = /was (slain|killed|shot|blown|pummeled)|drowned|fell|burned|died|went off|hit the ground|experienced kinetic/.test(msgStr)
+      if (isDeathMsg) {
+        console.log('[mind] death message:', msgStr)
+        // Inject into conversation so agents are aware, but don't trigger think()
+        addToHistory('user', `[server] ${msgStr}`)
+      }
+      return
+    }
 
     // Resolve sender UUID to username — bot.players is keyed by USERNAME, not UUID.
     // The 'sender' parameter in messagestr is a UUID string (MC 1.16+),
