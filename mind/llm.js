@@ -110,6 +110,12 @@ function parseCommand(text) {
     args[k] = quoted !== undefined ? quoted : unquoted
   }
 
+  // Chat special case: everything after !chat is the message
+  if (name === 'chat' && Object.keys(args).length === 0 && argStr.trim()) {
+    args.message = argStr.trim()
+    return { command: name, args }
+  }
+
   // Positional fallback: !gather oak_log 10 → { item: 'oak_log', count: 10 }
   if (Object.keys(args).length === 0) {
     const parts = argStr.trim().split(/\s+/).filter(Boolean)
