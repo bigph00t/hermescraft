@@ -150,7 +150,9 @@ async function respondToChat(bot, sender, message) {
       const msg = result.args?.message || ''
       if (msg) {
         bot.chat(msg)
-        _lastCommandWasChat = true
+        // Don't set _lastCommandWasChat here — respondToChat is a direct player reply,
+        // not a think() cycle. Setting the flag here blocks the next think() from chatting
+        // even when the agent has something new to say.
         console.log('[mind] chat reply sent:', msg.slice(0, 80))
       }
     }
@@ -464,6 +466,7 @@ async function think(bot, context) {
     // Explicit idle command — the LLM decided to wait.
     if (result.command === 'idle') {
       console.log('[mind] idle command received')
+      _lastCommandWasChat = false  // idle counts as "did something else" — unblock chat
       lastActionTime = Date.now()
       return
     }
@@ -589,8 +592,9 @@ async function think(bot, context) {
     // No back-to-back chat: must do a game action between chat messages
     if (result.command === 'chat' && _lastCommandWasChat) {
       console.log('[mind] suppressed back-to-back chat — do an action first')
+      _lastCommandWasChat = false  // reset so next think() can chat after doing an action
       lastActionTime = Date.now()
-      return  // let idle timer fire a fresh think() that picks a game action
+      return
     }
     _lastCommandWasChat = (result.command === 'chat')
 
