@@ -9,14 +9,14 @@ import { logEvent } from './memoryDB.js'
 
 // ── Environment Variables ──
 
-const BACKGROUND_BRAIN_URL = process.env.BACKGROUND_BRAIN_URL || 'http://localhost:8001/v1'
-const BACKGROUND_MODEL = process.env.BACKGROUND_MODEL_NAME || 'qwen3'
+const BACKGROUND_BRAIN_URL = process.env.VLLM_URL || 'http://localhost:8000/v1'
+const BACKGROUND_MODEL = process.env.BACKGROUND_MODEL_NAME || process.env.MODEL_NAME || 'Qwen3.5-35B-A3B'
 const BACKGROUND_MAX_TOKENS = parseInt(process.env.BACKGROUND_MAX_TOKENS || '1024', 10)
 const BACKGROUND_INTERVAL_MS = parseInt(process.env.BACKGROUND_INTERVAL_MS || '30000', 10)
 const STARTUP_DELAY_MS = 10000  // wait 10s before first cycle — gives main brain time for first tick
 const REFLECTION_INTERVAL_MS = 30 * 60 * 1000  // 30 minutes between reflection journals
 
-// ── Secondary OpenAI Client (port 8001 — Qwen3.5-9B) ──
+// ── Background Brain OpenAI Client (same endpoint as main brain — Qwen3.5-35B-A3B MoE) ──
 
 const bgClient = new OpenAI({
   baseURL: BACKGROUND_BRAIN_URL,

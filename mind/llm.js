@@ -1,10 +1,10 @@
 // llm.js — LLM client with conversation memory, graduated trimming, and !command parser
-// Targets Qwen3.5-27B (heretic fine-tune) via llama-server; compatible with any OpenAI-compat endpoint
+// Targets Qwen3.5-35B-A3B MoE via llama-server; compatible with any OpenAI-compat endpoint
 
 import OpenAI from 'openai'
 
 const VLLM_URL = process.env.VLLM_URL || 'http://localhost:8000/v1'
-const MODEL_NAME = process.env.MODEL_NAME || 'hermes'
+const MODEL_NAME = process.env.MODEL_NAME || 'Qwen3.5-35B-A3B'
 const BASE_TEMPERATURE = parseFloat(process.env.TEMPERATURE || '0.6')
 const MAX_TOKENS = parseInt(process.env.MAX_TOKENS || '128', 10)
 const MAX_RETRIES = 3

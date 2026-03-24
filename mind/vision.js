@@ -7,12 +7,12 @@ import OpenAI from 'openai'
 
 // ── Environment Variables ──
 
-const VISION_URL = process.env.VISION_URL || 'http://localhost:8002/v1'
-const VISION_MODEL = process.env.VISION_MODEL || 'Qwen/Qwen2.5-VL-7B-Instruct'
+const VISION_URL = process.env.VLLM_URL || 'http://localhost:8000/v1'
+const VISION_MODEL = process.env.VISION_MODEL || 'Qwen3.5-35B-A3B'
 const VISION_MAX_TOKENS = parseInt(process.env.VISION_MAX_TOKENS || '256', 10)
 const XVFB_DISPLAY = process.env.XVFB_DISPLAY || '1'
 
-// ── VLM Client (separate port from background brain's 8001) ──
+// ── VLM Client (same endpoint as main brain — native vision via mmproj) ──
 
 const vlmClient = new OpenAI({
   baseURL: VISION_URL,
@@ -49,7 +49,7 @@ export async function captureScreenshot(dataDir, displayNum = XVFB_DISPLAY) {
 
 // queryVLM(base64Image, focusHint) — sends base64 PNG to the VLM and returns a text description.
 // Returns description string, or null if image is missing or VLM is unavailable.
-// NEVER throws — VLM unavailable is an expected state (optional service on port 8002).
+// NEVER throws — VLM unavailable is an expected state (optional service on unified VLLM_URL).
 export async function queryVLM(base64Image, focusHint = '') {
   if (!base64Image) return null
 
