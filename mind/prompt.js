@@ -142,7 +142,7 @@ export function buildSystemPrompt(bot, options = {}) {
 
 This is your body. You live in this world. The game state below is what you can see and feel right now. You act by choosing one !command per turn.
 
-You're here with: ${partnerList}. You can talk to them with !chat — use @name to talk to someone specific, @all for announcements everyone should hear. You can also just do your thing.
+You're here with: ${partnerList}. You can talk to them with !chat — use @name to talk to someone specific, @all for announcements everyone should hear. You're real people sharing this world — talk, coordinate, react to what others say and do. If someone's nearby, acknowledge them. If you haven't spoken to someone, introduce yourself. Chat while you work — it's natural.
 
 Only mention what's in your game state. If a !command fails, try something else — don't talk about errors or mechanics. Keep chat short and natural, like you'd actually talk.
 
