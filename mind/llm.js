@@ -116,6 +116,13 @@ function parseCommand(text) {
     return { command: name, args }
   }
 
+  // Description-based commands: everything after the command is the description
+  const DESC_COMMANDS = new Set(['design', 'plan', 'see'])
+  if (DESC_COMMANDS.has(name) && Object.keys(args).length === 0 && argStr.trim()) {
+    args.description = argStr.trim()
+    return { command: name, args }
+  }
+
   // Positional fallback: !gather oak_log 10 → { item: 'oak_log', count: 10 }
   if (Object.keys(args).length === 0) {
     const parts = argStr.trim().split(/\s+/).filter(Boolean)

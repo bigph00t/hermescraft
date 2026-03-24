@@ -38,6 +38,8 @@ let _config = null
 let _pendingChat = null  // queued chat that arrived during think()
 let _lastFailure = null  // { command, args } from previous failed dispatch — consumed by next think()
 let _lastDeath = null    // death message string — consumed by next think() for recovery RAG
+let _repeatTracker = { key: null, count: 0 }  // detects same action failing repeatedly
+const MAX_REPEAT_FAILURES = 3  // after this many identical failures, force a different action
 let _lastVisionResult = null  // consume-once VLM description — cleared after injection into prompt
 let _postBuildScan = null     // consume-once post-build scan result
 const _chatCountByPartner = new Map()  // COO-02 (Phase 24): per-partner chat loop prevention
@@ -559,7 +561,7 @@ async function think(bot, context) {
     // Handled here (before dispatch) like !design because it requires async VLM calls
     // and a consume-once result variable.
     if (result.command === 'see') {
-      const focus = result.args?.focus || ''
+      const focus = result.args?.focus || result.args?.description || ''
       console.log('[mind] !see triggered — capturing screenshot')
       skillRunning = true
       const displayNum = process.env.XVFB_DISPLAY || '1'
@@ -598,6 +600,16 @@ async function think(bot, context) {
     }
     _lastCommandWasChat = (result.command === 'chat')
 
+    // Stuck loop detection: if the same command+args failed MAX_REPEAT_FAILURES times,
+    // force the agent to do something else (explore) to break out of the loop
+    const repeatKey = `${result.command}:${JSON.stringify(result.args || {})}`
+    if (_repeatTracker.key === repeatKey && _repeatTracker.count >= MAX_REPEAT_FAILURES) {
+      console.log(`[mind] stuck loop detected — ${result.command} failed ${_repeatTracker.count}x, forcing explore`)
+      _repeatTracker = { key: null, count: 0 }
+      result.command = 'explore'
+      result.args = {}
+    }
+
     // COO-04: Broadcast activity start before dispatch
     try {
       broadcastActivity(result.command, result.args || {}, 'running')
@@ -630,6 +642,15 @@ async function think(bot, context) {
     // RAG-08: Track failures for auto-lookup on next think() cycle
     if (!skillResult.success) {
       _lastFailure = { command: result.command, args: result.args || {} }
+      // Track repeated identical failures for stuck loop detection
+      if (_repeatTracker.key === repeatKey) {
+        _repeatTracker.count++
+      } else {
+        _repeatTracker = { key: repeatKey, count: 1 }
+      }
+    } else {
+      // Success clears the repeat tracker
+      _repeatTracker = { key: null, count: 0 }
     }
 
     // Log successful dispatches to the SQLite event log (Phase 17 — MEM-01/MEM-03/SPA-03)
