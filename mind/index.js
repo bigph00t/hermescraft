@@ -57,7 +57,8 @@ const VISION_TICK_INTERVAL = 1  // include composite render EVERY tick — agent
 const _chatCountByPartner = new Map()  // COO-02 (Phase 24): per-partner chat loop prevention
 let _lastChatSender = null              // tracks who triggered the current chat response
 let _lastChatTimestamp = 0               // timestamp of last outgoing chat — used for anti-spam cooldown
-const CHAT_COOLDOWN_MS = 3000           // minimum 3s between outgoing chat messages (prevents ping-pong)
+const CHAT_COOLDOWN_MS = 8000           // 8s between chat responses — forces game actions between messages
+let _chatResponseCount = 0              // consecutive chat responses without a game action
 
 // Two-agent setup: no proximity filter, no @name tagging required.
 // Every message from the other agent triggers a response.
@@ -75,6 +76,12 @@ async function respondToChat(bot, sender, message) {
   // Anti-spam cooldown — don't respond too fast (prevents ping-pong loops)
   if (Date.now() - _lastChatTimestamp < CHAT_COOLDOWN_MS) {
     console.log('[mind] chat cooldown — waiting before responding')
+    return
+  }
+  // After 2 consecutive chat responses without a game action, stop responding to chat
+  // This forces the agent to actually DO something instead of endlessly discussing
+  if (_chatResponseCount >= 2) {
+    console.log('[mind] chat limit — do a game action before responding again')
     return
   }
   _chatResponseInFlight = true
@@ -161,7 +168,8 @@ async function respondToChat(bot, sender, message) {
           _recentSentMessages.push(normMsg)
           if (_recentSentMessages.length > CHAT_DEDUP_WINDOW) _recentSentMessages.shift()
           _lastChatTimestamp = Date.now()  // cooldown timer instead of hard block
-          console.log('[mind] chat reply sent:', msg.slice(0, 80))
+          _chatResponseCount++  // track consecutive chats
+          console.log('[mind] chat reply sent (' + _chatResponseCount + '/2):', msg.slice(0, 80))
         }
       }
     }
@@ -724,7 +732,12 @@ async function think(bot, context) {
       if (_recentSentMessages.length > CHAT_DEDUP_WINDOW) _recentSentMessages.shift()
     }
 
-    if (result.command === 'chat') _lastChatTimestamp = Date.now()
+    if (result.command === 'chat') {
+      _lastChatTimestamp = Date.now()
+      _chatResponseCount++
+    } else {
+      _chatResponseCount = 0  // game action resets chat counter — can chat again after doing something
+    }
 
     // Stuck loop detection: if the same command+args failed MAX_REPEAT_FAILURES times,
     // force the agent to do something else (explore) to break out of the loop
