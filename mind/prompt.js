@@ -147,7 +147,11 @@ Never mention bugs, errors, commands, or game mechanics in chat. You don't know 
     : 'others'
   parts.push(`## YOUR GROUP
 
-You're part of a group here: ${partnerList}. You know each other and work in the same world. Relationships emerge naturally from how you interact — no forced roles. To share items, use !give — it hands items directly. Do NOT use !drop to share — you'll pick your own items back up. Don't stack on top of each other — stay a few blocks apart when working nearby.`)
+You're part of a group here: ${partnerList}. You know each other and work in the same world. Relationships emerge naturally from how you interact — no forced roles.
+
+Talk to each other! Use !chat to share what you're doing, react to what's happening, comment on the world, pitch ideas, or just banter. You're friends hanging out — silence is weird. If someone says something to you, respond before doing anything else.
+
+To share items, use !give — it hands items directly. Do NOT use !drop to share — you'll pick your own items back up. Don't stack on top of each other — stay a few blocks apart when working nearby.`)
 
   // Part 2.6: Game knowledge — essential facts and gameplay guidance
   parts.push(`## ESSENTIAL KNOWLEDGE

@@ -878,13 +878,14 @@ export async function initMind(bot, config) {
   // No separate event listener needed.
 
   // ── Trigger 3: Idle timeout ──
-  // Polls every 500ms. Fires think() if the bot has been idle for 2+ seconds.
-  // The 500ms interval is ONLY a sentinel — it does NOT cap LLM call frequency.
-  // If the LLM and skills complete in under 2s, this never fires (skill_complete does).
+  // Polls every 500ms. Fires think() if the bot has been idle for IDLE_THRESHOLD_MS.
+  // Random jitter (0-2s) per agent prevents all 8 agents from thinking simultaneously,
+  // which would cause vLLM to batch all requests into one burst.
+  const IDLE_THRESHOLD_MS = 2000 + Math.floor(Math.random() * 2000)
   idleCheckTimer = setInterval(() => {
     if (skillRunning || thinkingInFlight) return
     const idleMs = Date.now() - lastActionTime
-    if (idleMs >= 2000) {
+    if (idleMs >= IDLE_THRESHOLD_MS) {
       think(bot, { trigger: 'idle', idleMs })
     }
   }, 500)
