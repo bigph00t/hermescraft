@@ -62,32 +62,38 @@ let _lastChatTimestamp = 0               // timestamp of last outgoing chat — 
 const CHAT_COOLDOWN_MS = 8000           // 8s between chat responses — forces game actions between messages
 let _chatResponseCount = 0              // consecutive chat responses without a game action
 
-// Two-agent setup: no proximity filter, no @name tagging required.
-// Every message from the other agent triggers a response.
+// Agent names — used to distinguish real players (Creators) from AI agents
+const AGENT_NAMES = new Set(['luna', 'john'])
 
 // ── Async Chat Response (bypasses skill queue) ──
 
 // respondToChat fires immediately when someone talks, even during active skills.
 // It makes its own LLM call with a focused "someone just said X, respond" prompt.
-// If the LLM response contains a !command, it interrupts the running skill and queues it.
 let _chatResponseInFlight = false
 
 async function respondToChat(bot, sender, message) {
-  // Don't stack chat responses — drop if busy
-  if (_chatResponseInFlight) return
-  // Anti-spam cooldown — don't respond too fast (prevents ping-pong loops)
-  if (Date.now() - _lastChatTimestamp < CHAT_COOLDOWN_MS) {
+  const isRealPlayer = !AGENT_NAMES.has(sender.toLowerCase())
+
+  // Don't stack chat responses — drop if busy (but always process real players)
+  if (_chatResponseInFlight && !isRealPlayer) return
+  if (_chatResponseInFlight && isRealPlayer) {
+    // Queue real player message for next cycle
+    _pendingChat = { trigger: 'chat', sender, message }
+    return
+  }
+
+  // Anti-spam cooldown — only applies to agent-to-agent chat, not real players
+  if (!isRealPlayer && Date.now() - _lastChatTimestamp < CHAT_COOLDOWN_MS) {
     console.log('[mind] chat cooldown — waiting before responding')
     return
   }
-  // After 2 consecutive chat responses without a game action, stop responding to chat
-  // This forces the agent to actually DO something instead of endlessly discussing
-  if (_chatResponseCount >= 2) {
+  // Chat limit — only applies to agent-to-agent, real players always get a response
+  if (!isRealPlayer && _chatResponseCount >= 2) {
     console.log('[mind] chat limit — do a game action before responding again')
     return
   }
   _chatResponseInFlight = true
-  _lastChatSender = sender  // Track who we're chatting with for per-partner counter
+  _lastChatSender = sender
 
   try {
     // ── !wiki command (RAG-07) ──
@@ -186,9 +192,16 @@ async function respondToChat(bot, sender, message) {
         }
       }
     }
-    // Non-chat action from respondToChat — dispatch if safe, resets chat counter
+    // Non-chat action from respondToChat
     else if (result.command && result.command !== 'idle') {
       _chatResponseCount = 0  // game action resets chat counter
+      // If a real player spoke and the LLM chose a game action instead of replying,
+      // send a brief acknowledgment so they don't feel ignored
+      if (isRealPlayer) {
+        const ack = result.reasoning?.split('\n')[0]?.slice(0, 80) || `Got it, ${sender}!`
+        bot.chat(ack)
+        console.log('[mind] auto-ack to real player:', ack)
+      }
       if (skillRunning || thinkingInFlight) {
         console.log('[mind] chat triggered action:', result.command, '— deferred (skill/think active)')
       } else {
@@ -206,6 +219,10 @@ async function respondToChat(bot, sender, message) {
       }
     }
     else if (!result.command) {
+      // No command at all — if real player, acknowledge anyway
+      if (isRealPlayer) {
+        bot.chat(`Got it, ${sender}!`)
+      }
       console.log('[mind] chat response: no command produced')
     }
   } catch (err) {
