@@ -269,7 +269,7 @@ export async function build(bot, blueprintName, originX, originY, originZ, bluep
     // Atomic build: place maxBlocks then return with progress so agent can think/chat
     if (maxBlocks > 0 && blocksThisCall >= maxBlocks) {
       _activeBuild.completedIndex = totalPlaced
-      _activeBuild.paused = false
+      _activeBuild.paused = true  // MUST be true so next call resumes instead of clearing
       _saveState()
       const pct = Math.round(100 * totalPlaced / queue.length)
       return { success: true, placed: totalPlaced, total: queue.length, partial: true, reason: `placed ${blocksThisCall} blocks (${totalPlaced}/${queue.length} = ${pct}%) — use !build to continue` }
