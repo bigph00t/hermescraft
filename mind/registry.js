@@ -6,6 +6,7 @@ import { mine } from '../body/skills/mine.js'
 import { craft } from '../body/skills/craft.js'
 import { smelt } from '../body/skills/smelt.js'
 import { navigateTo } from '../body/navigate.js'
+import { Vec3 } from 'vec3'
 import { requestInterrupt, clearInterrupt } from '../body/interrupt.js'
 import { combatLoop, HOSTILE_MOBS } from '../body/skills/combat.js'
 import { build, updatePalette } from '../body/skills/build.js'
@@ -56,6 +57,27 @@ const REGISTRY = new Map([
     // If item specified, gather it. Otherwise gather dirt (digging out)
     const item = args.item || args.block || args.direction || 'dirt'
     return gather(bot, item, 1, { maxCycles: 1 })
+  }],
+  ['place',    async (bot, args) => {
+    // Place a block from inventory at current position or specified location
+    const itemName = args.item || args.block
+    if (!itemName) return { success: false, reason: 'specify item to place. Usage: !place item:torch' }
+    const item = bot.inventory.items().find(i => i.name.includes(itemName))
+    if (!item) return { success: false, reason: `no ${itemName} in inventory` }
+    try {
+      await bot.equip(item, 'hand')
+      // Place on the block below feet
+      const feetPos = bot.entity.position.floored()
+      const belowBlock = bot.blockAt(feetPos.offset(0, -1, 0))
+      if (!belowBlock || belowBlock.name === 'air') {
+        return { success: false, reason: 'no solid block below to place on' }
+      }
+      await bot.placeBlock(belowBlock, new Vec3(0, 1, 0))
+      console.log(`[place] placed ${item.name}`)
+      return { success: true, reason: `placed ${item.name}` }
+    } catch (err) {
+      return { success: false, reason: err.message }
+    }
   }],
   ['idle',     (_bot, _args) => Promise.resolve({ success: true, reason: 'idle' })],
   ['combat',   (bot, _args) => {

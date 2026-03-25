@@ -300,6 +300,7 @@ Quick actions (2-10s):
 !give player:name item:name count:N — hand items to partner
 !drop item:name count:N — drop items
 !eat — eat food
+!place item:name — place a block from inventory (torch, planks, etc.)
 !equip item:name — equip tool/weapon
 !sethome — save current location as home
 !look target:chest — see what's inside a nearby chest
