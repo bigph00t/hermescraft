@@ -295,11 +295,14 @@ Quick actions (2-10s):
 !combat — fight nearest hostile mob
 !farm seed:name — till and plant 1 plot
 !harvest crop:name — harvest 1 mature crop
+!withdraw item:name count:N — take items FROM a nearby chest into your inventory
+!deposit item:name count:N — put items from your inventory INTO a nearby chest
 !give player:name item:name count:N — hand items to partner
 !drop item:name count:N — drop items
 !eat — eat food
 !equip item:name — equip tool/weapon
 !sethome — save current location as home
+!look target:chest — see what's inside a nearby chest
 
 Building (runs until done):
 !design description:"detailed text" — design + auto-build a structure
