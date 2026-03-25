@@ -34,6 +34,16 @@ const CONTAINER_BLOCKS = new Set([
 const PASSABLE = new Set([
   'air', 'cave_air', 'void_air', 'tall_grass', 'short_grass',
   'fern', 'large_fern', 'dead_bush', 'water',
+  // Leaves and vegetation — NOT solid walls, don't report as "blocked"
+  'oak_leaves', 'spruce_leaves', 'birch_leaves', 'jungle_leaves',
+  'acacia_leaves', 'dark_oak_leaves', 'cherry_leaves', 'mangrove_leaves',
+  'azalea_leaves', 'flowering_azalea_leaves',
+  'vine', 'glow_lichen', 'moss_carpet', 'snow',
+  'torch', 'wall_torch', 'lantern', 'soul_torch', 'soul_lantern',
+  'flower_pot', 'dandelion', 'poppy', 'blue_orchid', 'allium',
+  'azure_bluet', 'red_tulip', 'orange_tulip', 'white_tulip', 'pink_tulip',
+  'oxeye_daisy', 'cornflower', 'lily_of_the_valley', 'sunflower',
+  'lilac', 'rose_bush', 'peony', 'sweet_berry_bush',
 ])
 
 const INTERESTING = new Set([...HAZARD_BLOCKS, ...ORE_BLOCKS, ...TREE_LOGS, ...WATER_BLOCKS, ...CONTAINER_BLOCKS])
