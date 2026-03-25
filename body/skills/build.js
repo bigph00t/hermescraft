@@ -238,6 +238,15 @@ export async function build(bot, blueprintName, originX, originY, originZ, bluep
     return !existing || existing.name === 'air'
   })
 
+  // If nothing left to place after filtering, build is COMPLETE
+  if (remainingQueue.length === 0) {
+    _activeBuild = null
+    _buildQueue = []
+    try { if (existsSync(_stateFile)) unlinkSync(_stateFile) } catch {}
+    console.log(`[build] all ${queue.length} blocks already placed — build complete!`)
+    return { success: true, placed: queue.length, total: queue.length, blueprintName }
+  }
+
   // ── Save Initial State ──
   _activeBuild = {
     blueprintName,
