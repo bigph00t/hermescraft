@@ -119,7 +119,8 @@ export async function build(bot, blueprintName, originX, originY, originZ, bluep
   // options.skipOnMissing: boolean  — skip blocks with missing materials instead of stopping
   // options.onBlockPlaced: (x, y, z, block, builder) => void  — callback after each successful placement
   // options.getPlacedBlocks: () => Set<string>  — returns "x,y,z" keys already placed (for ledger resume)
-  const { skipOnMissing = false, onBlockPlaced = null, getPlacedBlocks = null } = options
+  // options.maxBlocks: number — max blocks to place per call (0 = unlimited). Enables atomic build loop.
+  const { skipOnMissing = false, onBlockPlaced = null, getPlacedBlocks = null, maxBlocks = 0 } = options
   // ── Resume check ──
   // If there's an active paused build, resume it instead of starting fresh.
   // Prevents building the same structure multiple times at different offsets.
@@ -257,12 +258,21 @@ export async function build(bot, blueprintName, originX, originY, originZ, bluep
   const failedPlacements = []
   const skippedBlocks = []  // blocks skipped due to missing materials
 
+  let blocksThisCall = 0
   for (let i = 0; i < remainingQueue.length; i++) {
     // Check interrupt before every block
     if (isInterrupted(bot)) {
       _activeBuild.completedIndex = totalPlaced
       _saveState()
       return { success: false, reason: 'interrupted', placed: totalPlaced, total: queue.length }
+    }
+    // Atomic build: place maxBlocks then return with progress so agent can think/chat
+    if (maxBlocks > 0 && blocksThisCall >= maxBlocks) {
+      _activeBuild.completedIndex = totalPlaced
+      _activeBuild.paused = false
+      _saveState()
+      const pct = Math.round(100 * totalPlaced / queue.length)
+      return { success: true, placed: totalPlaced, total: queue.length, partial: true, reason: `placed ${blocksThisCall} blocks (${totalPlaced}/${queue.length} = ${pct}%) — use !build to continue` }
     }
 
     const entry = remainingQueue[i]
@@ -375,6 +385,7 @@ export async function build(bot, blueprintName, originX, originY, originZ, bluep
 
     if (placed.success) {
       totalPlaced++
+      blocksThisCall++
       _activeBuild.completedIndex = totalPlaced
       saveCounter++
       // Save state every 5 blocks to reduce disk writes

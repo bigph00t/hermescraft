@@ -571,6 +571,7 @@ async function think(bot, context) {
       const buildResult = await build(bot, '_generated', project.origin.x, project.origin.y, project.origin.z,
         null, {
           skipOnMissing: true,
+          maxBlocks: 5,  // place 5 blocks then return — agent can think/chat between batches
           onBlockPlaced: (x, y, z, block) => recordPlacement(projectId, x, y, z, block, bot.username),
           getPlacedBlocks: () => new Set(Object.keys(getProject(projectId)?.placedBlocks || {})),
         })
@@ -1021,18 +1022,16 @@ export async function designAndBuild(bot, description) {
   )
   console.log('[mind] created build project:', project.id, project.name)
 
-  // ── 7. Auto-execute incremental build with ledger callbacks ──
-  const buildResult = await build(bot, '_generated', originX, originY, originZ, null, {
-    skipOnMissing: true,
-    onBlockPlaced: (x, y, z, block) => recordPlacement(project.id, x, y, z, block, bot.username),
-    getPlacedBlocks: () => new Set(Object.keys(getProject(project.id)?.placedBlocks || {})),
-  })
-
-  // Check if fully complete
+  // Don't auto-build — return the project so the agent can chat/plan first, then !build when ready.
+  // This keeps !design to ~15s (survey + LLM + validate) instead of minutes.
   const remaining = getRemaining(project.id)
-  if (remaining.length === 0) completeProject(project.id)
-
-  return { ...buildResult, projectId: project.id }
+  return {
+    success: true,
+    projectId: project.id,
+    name: blueprint.name || description,
+    totalBlocks: remaining.length,
+    reason: `Designed "${blueprint.name || description}" (${remaining.length} blocks). Use !build id:${project.id} to start building.`,
+  }
 }
 
 // ── Exported Init Function ──

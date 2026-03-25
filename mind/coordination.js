@@ -57,14 +57,16 @@ export function getPartnerActivityForPrompt() {
     }
 
     // Flag long-running operations so the other agent knows not to expect a reply
-    const LONG_OPS = new Set(['design', 'build', 'plan', 'road', 'clear'])
+    const LONG_OPS = new Set(['build', 'plan', 'road', 'clear'])
     const isBusy = LONG_OPS.has(data.command) && data.status === 'running'
-    const busyNote = isBusy ? ' — busy building, won\'t respond to chat for ~30s' : ''
+    const busyNote = isBusy ? ' — busy building, won\'t respond to chat until done' : ''
+    const isDesigning = data.command === 'design' && data.status === 'running'
+    const designNote = isDesigning ? ' — designing a blueprint (~15s), will respond after' : ''
 
     if (data.buildProject) {
-      return `${partner} is ${data.status}: ${data.command} — working on "${data.buildProject.name}" (${data.buildProject.progress || 0}%)${busyNote} (${ageS}s ago)`
+      return `${partner} is ${data.status}: ${data.command} — working on "${data.buildProject.name}" (${data.buildProject.progress || 0}%)${busyNote}${designNote} (${ageS}s ago)`
     }
-    return `${partner} is ${data.status}: ${data.command}${truncatedArgs}${busyNote} (${ageS}s ago)`
+    return `${partner} is ${data.status}: ${data.command}${truncatedArgs}${busyNote}${designNote} (${ageS}s ago)`
   } catch {
     // ENOENT (partner not yet active), or JSON parse error — return null
     return null
