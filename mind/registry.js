@@ -33,7 +33,12 @@ const REGISTRY = new Map([
   ['smelt',    (bot, args) => smelt(bot, args.item, args.fuel || 'coal', parseInt(args.count) || 1)],
   ['navigate', (bot, args) => navigateTo(bot, parseInt(args.x), parseInt(args.y), parseInt(args.z))],
   ['chat',     (bot, args) => {
-    const msg = args.message || ''
+    let msg = args.message || ''
+    // Strip any <think> tags that leaked into the chat message
+    msg = msg.replace(/<\/?think>/g, '').replace(/<think>[\s\S]*?<\/think>/g, '').trim()
+    // Strip reasoning-like prefixes
+    msg = msg.replace(/^(okay|let me|i need to|first,|looking at|the user|i should|let's see|my situation)[^.!?]*[.!?]\s*/i, '').trim()
+    if (!msg) return { success: false, reason: 'empty message after filtering' }
     bot.chat(msg)
     return { success: true }
   }],
