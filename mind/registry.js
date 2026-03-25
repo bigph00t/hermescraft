@@ -51,6 +51,12 @@ const REGISTRY = new Map([
       return { success: false, reason: err.message }
     }
   }],
+  ['dig',      (bot, args) => {
+    // !dig is an alias — the LLM often hallucinates this command
+    // If item specified, gather it. Otherwise gather dirt (digging out)
+    const item = args.item || args.block || args.direction || 'dirt'
+    return gather(bot, item, 1, { maxCycles: 1 })
+  }],
   ['idle',     (_bot, _args) => Promise.resolve({ success: true, reason: 'idle' })],
   ['combat',   (bot, _args) => {
     const target = bot.nearestEntity(e =>
@@ -195,7 +201,7 @@ export async function dispatch(bot, command, args) {
   const resolved = ALIASES[command] || command
   const fn = REGISTRY.get(resolved)
   if (!fn) {
-    return { success: false, reason: `unknown command: !${command}` }
+    return { success: false, reason: `unknown command: !${command}. Use !gather to collect blocks, !mine for ores, !craft to make items, !navigate to move, !chat to talk.` }
   }
 
   try {
