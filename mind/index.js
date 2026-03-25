@@ -680,6 +680,15 @@ async function think(bot, context) {
       }
       joinProject(projectId, bot.username)
       console.log('[mind] resuming ledger project:', projectId, project.name)
+      // Write blueprint from ledger to _generated.json so build() can read it
+      // This enables ANY agent to build ANY project, not just the designer
+      if (project.blueprint) {
+        try {
+          writeFileSync(join(BLUEPRINTS_DIR, '_generated.json'), JSON.stringify(project.blueprint))
+        } catch (err) {
+          console.log('[mind] failed to write blueprint for build:', err.message)
+        }
+      }
       skillRunning = true
       broadcastActivity('build', { id: projectId, name: project.name }, 'running')
       const buildResult = await build(bot, '_generated', project.origin.x, project.origin.y, project.origin.z,
