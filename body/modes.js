@@ -281,12 +281,33 @@ async function checkIdleLook(bot) {
  * @returns {Promise<boolean>} true if a torch was placed
  */
 let _lastTorchTime = 0
+let _lastTorchPos = null  // track where we last placed a torch to avoid duplicates
 async function checkTorchPlacement(bot) {
-  if (Date.now() - _lastTorchTime < 10000) return false
+  if (Date.now() - _lastTorchTime < 30000) return false  // 30s cooldown (was 10s — too frequent)
 
-  const feetPos = bot.entity.position.floored()
+  const rawPos = bot.entity.position
+  const feetPos = typeof rawPos.floored === 'function'
+    ? rawPos.floored()
+    : new Vec3(Math.floor(rawPos.x), Math.floor(rawPos.y), Math.floor(rawPos.z))
   const block = bot.blockAt(feetPos)
   if (!block || block.light >= 7) return false  // bright enough
+
+  // Don't place torch if there's already one nearby (within 3 blocks)
+  for (let dx = -3; dx <= 3; dx++) {
+    for (let dz = -3; dz <= 3; dz++) {
+      for (let dy = -1; dy <= 2; dy++) {
+        const nearby = bot.blockAt(feetPos.offset(dx, dy, dz))
+        if (nearby && (nearby.name === 'torch' || nearby.name === 'wall_torch' || nearby.name === 'soul_torch')) {
+          return false  // torch already nearby
+        }
+      }
+    }
+  }
+
+  // Don't place at the same position twice
+  const posKey = `${feetPos.x},${feetPos.y},${feetPos.z}`
+  if (_lastTorchPos === posKey) return false
+  _lastTorchPos = posKey
 
   const torch = bot.inventory.items().find(i => i.name === 'torch' || i.name === 'soul_torch')
   if (!torch) return false
