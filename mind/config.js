@@ -13,7 +13,7 @@ export function loadAgentConfig() {
   const mcUsername = process.env.MC_USERNAME || name
 
   // All 8 agent names — used for partner detection and coordination file paths
-  const ALL_AGENTS = ['luna', 'max', 'ivy', 'rust', 'ember', 'flint', 'sage', 'wren']
+  const ALL_AGENTS = ['luna', 'john', 'max', 'ivy', 'rust', 'ember', 'flint', 'sage']
   // Full partner list (all agents except self) for group prompt injection
   const partnerNames = ALL_AGENTS.filter(a => a !== name.toLowerCase())
   const partnerName = partnerNames[0] || null  // compat shim for social module

@@ -9,7 +9,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ── Agent roster ──
-AGENT_NAMES=(luna john)
+AGENT_NAMES=(luna john max ivy rust ember flint sage)
 
 # ── Arguments ──
 NUM_AGENTS="${1:-2}"
@@ -44,11 +44,11 @@ fi
 # ── Env var defaults ──
 # Qwen3.5-35B-A3B is natively multimodal — one model handles text + vision + background brain.
 # No separate VLM process needed. All endpoints point at the same vLLM instance.
-VLLM_URL="${VLLM_URL:-http://localhost:8000/v1}"
+VLLM_URL="${VLLM_URL:-https://api.minimax.io/v1}"
 VLLM_API_KEY="${VLLM_API_KEY:-not-needed}"
-MODEL_NAME="${MODEL_NAME:-Qwen3.5-35B-A3B}"
+MODEL_NAME="${MODEL_NAME:-MiniMax-M2.7}"
 BACKGROUND_BRAIN_URL="${BACKGROUND_BRAIN_URL:-$VLLM_URL}"
-BACKGROUND_MODEL_NAME="${BACKGROUND_MODEL_NAME:-$MODEL_NAME}"
+BACKGROUND_MODEL_NAME="${BACKGROUND_MODEL_NAME:-MiniMax-M2}"
 TICK_MS="${TICK_MS:-6000}"
 TEMPERATURE="${TEMPERATURE:-0.6}"
 MAX_TOKENS="${MAX_TOKENS:-1536}"

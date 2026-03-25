@@ -63,7 +63,32 @@ const CHAT_COOLDOWN_MS = 8000           // 8s between chat responses — forces 
 let _chatResponseCount = 0              // consecutive chat responses without a game action
 
 // Agent names — used to distinguish real players (Creators) from AI agents
-const AGENT_NAMES = new Set(['luna', 'john'])
+const AGENT_NAMES = new Set(['luna', 'john', 'max', 'ivy', 'rust', 'ember', 'flint', 'sage'])
+
+// Smart chat routing for multi-agent: determines if THIS agent should respond to a message
+function shouldRespondToChat(botUsername, sender, message) {
+  const myName = botUsername.toLowerCase()
+  const msgLower = message.toLowerCase()
+  const isRealPlayer = !AGENT_NAMES.has(sender.toLowerCase())
+
+  // Real players (Creators): always respond
+  if (isRealPlayer) return true
+
+  // My name mentioned in the message: respond
+  if (msgLower.includes(myName)) return true
+
+  // Luna is the natural leader — she hears everything and can coordinate
+  if (myName === 'luna') return true
+
+  // @all or "everyone" or "guys" — respond (but cooldown will throttle)
+  if (msgLower.includes('@all') || msgLower.includes('everyone') || msgLower.includes('guys')) return true
+
+  // General messages without a specific name: only respond ~30% of the time
+  // This prevents all 8 agents from replying to "I found iron!"
+  // Use a hash of message + bot name for deterministic but distributed responses
+  const hash = [...(message + myName)].reduce((h, c) => ((h << 5) - h + c.charCodeAt(0)) | 0, 0)
+  return (Math.abs(hash) % 10) < 3  // ~30% chance
+}
 
 // ── Async Chat Response (bypasses skill queue) ──
 
@@ -526,11 +551,14 @@ async function think(bot, context) {
     const isAfterDeath = hadDeath  // saved before _lastDeath was consumed for RAG query
     const isChatTrigger = context.trigger === 'chat'
 
-    if (!isChatTrigger && (isSpatialTrigger || hasActiveBuild || isBaselineTick || isAfterDeath)) {
-      try {
-        tickImage = renderCompositeViewSync(bot, _config?.dataDir || '')
-      } catch { /* vision render failure is non-fatal */ }
-    }
+    // Vision disabled — using MiniMax API (text-only, no VLM).
+    // Text spatial awareness from spatial.js + minimap summary provides equivalent info.
+    // To re-enable: uncomment and ensure model supports vision.
+    // if (!isChatTrigger && (isSpatialTrigger || hasActiveBuild || isBaselineTick || isAfterDeath)) {
+    //   try {
+    //     tickImage = renderCompositeViewSync(bot, _config?.dataDir || '')
+    //   } catch { /* vision render failure is non-fatal */ }
+    // }
 
     console.log('[mind] thinking...', context.trigger, tickImage ? '(+image)' : '(text-only)')
 
@@ -1151,13 +1179,17 @@ export async function initMind(bot, config) {
     // Filter bot's own messages echoed back
     if (username === bot.username) return
 
-    console.log('[mind] chat from', username, ':', msgStr)
-
-    // Track player interaction for social module
+    // Track player interaction for social module (always, even if we don't respond)
     trackPlayer(username, { type: 'chat', detail: msgStr })
 
-    // Two-agent mode: every message from the other person triggers a response
-    respondToChat(bot, username, msgStr)
+    // Smart chat routing — not every agent responds to every message
+    if (shouldRespondToChat(bot.username, username, msgStr)) {
+      console.log('[mind] chat from', username, '(responding):', msgStr.slice(0, 80))
+      respondToChat(bot, username, msgStr)
+    } else {
+      console.log('[mind] chat from', username, '(passive):', msgStr.slice(0, 60))
+      // Still inject into next think() as context via partnerChat
+    }
   })
 
   // ── Trigger 2: Skill complete ──

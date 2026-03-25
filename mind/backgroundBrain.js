@@ -340,17 +340,17 @@ async function runBackgroundCycle(bot, config) {
       writeBrainState(mergedState)  // persist the timestamp
     }
 
-    // Dedicated vision analysis — renders composite view and gets focused VLM description.
-    // This produces a text summary for the main brain's prompt injection (visionNote in brain-state.json).
-    try {
-      const visionResult = await captureAndAnalyze(bot, DATA_DIR, 'terrain, structures, threats, and surroundings')
-      if (visionResult?.description) {
-        mergedState.visionNote = { text: visionResult.description, ts: Date.now() }
-        writeBrainState(mergedState)
-        _cachedState = null
-        _cacheTime = 0
-      }
-    } catch { /* vision failure is non-fatal */ }
+    // Vision disabled — using MiniMax API (text-only, no VLM).
+    // To re-enable: uncomment the captureAndAnalyze call below.
+    // try {
+    //   const visionResult = await captureAndAnalyze(bot, DATA_DIR, 'terrain, structures, threats, and surroundings')
+    //   if (visionResult?.description) {
+    //     mergedState.visionNote = { text: visionResult.description, ts: Date.now() }
+    //     writeBrainState(mergedState)
+    //     _cachedState = null
+    //     _cacheTime = 0
+    //   }
+    // } catch { /* vision failure is non-fatal */ }
 
     console.log('[background-brain] cycle complete')
   } catch (err) {

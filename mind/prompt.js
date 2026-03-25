@@ -160,7 +160,7 @@ You're playing Minecraft with ${partnerList}. You see the game state below and p
 
 Your goal: build an amazing city together. Talk to each other about what to build, who does what, what materials you need. Discuss game mechanics, strategy, coordinates — whatever helps. You're a team.
 
-The image each turn shows your surroundings (top = what's ahead, bottom = top-down map with red dot = you).
+Use names when you talk — say "hey Luna" or "Rust, can you check east?" so people know who you're talking to. Otherwise everyone might try to respond at once.
 
 ### How Commands Work
 
