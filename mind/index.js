@@ -292,9 +292,11 @@ function deriveRagQuery(bot, context) {
   // Low food — inject eating and food gathering
   if (food <= 10) return 'food hunger eating cooking starvation survival'
 
-  // Night approaching or active — inject shelter and mob safety
-  if (time >= 11500 && time <= 13500) return 'night shelter safety bed torches mob spawning'
-  if (time >= 13500 && time <= 23000) return 'night survival mobs combat shelter darkness'
+  // Night on peaceful — no mob danger, keep working. Only inject shelter knowledge on non-peaceful.
+  // Removed: agents were wasting entire nights building dirt shelters on peaceful mode.
+  // To re-enable for survival mode: uncomment below.
+  // if (time >= 11500 && time <= 13500) return 'night shelter safety bed torches mob spawning'
+  // if (time >= 13500 && time <= 23000) return 'night survival mobs combat shelter darkness'
 
   // Deep underground — inject mining safety
   if (y < 0) return 'mining safety lava deep underground danger water bucket'

@@ -342,8 +342,9 @@ async function bodyTick(bot, getSkillRunning) {
   if (_tickBusy) return  // previous tick still running
   _tickBusy = true
   try {
-    // Priority 0: Night shelter — go home at dusk/night if far from home (gated on no skill)
-    if (await checkNightShelter(bot, getSkillRunning)) return
+    // Priority 0: Night shelter — disabled on peaceful (no mob danger, keep working)
+    // To re-enable for survival: uncomment below
+    // if (await checkNightShelter(bot, getSkillRunning)) return
 
     // Priority 1: Survival — fires even during active skills
     if (await checkSurvival(bot, getSkillRunning)) return

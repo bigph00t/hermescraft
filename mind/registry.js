@@ -177,7 +177,7 @@ const REGISTRY = new Map([
 
 // Command aliases — map common LLM hallucinations to real commands
 const ALIASES = {
-  dig: 'mine',
+  // dig: 'mine',  // removed — !dig is now a real registry command (alias for gather)
   flatten: 'clear',
   path: 'road',
   break: 'mine',
@@ -196,7 +196,7 @@ const ALIASES = {
   talk: 'chat',
   cook: 'smelt',
   make: 'craft',
-  place: 'build',
+  // place: 'build',  // removed — !place is now a real registry command for manual block placement
   store: 'deposit',
   take: 'withdraw',
   sleep: 'idle',
