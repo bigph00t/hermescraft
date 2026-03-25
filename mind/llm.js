@@ -112,7 +112,9 @@ function parseCommand(text) {
     const k = m[1]
     const quoted = m[3]
     const unquoted = m[4]
-    args[k] = quoted !== undefined ? quoted : unquoted
+    // Strip trailing punctuation from unquoted values (LLM writes count:2. or item:oak_log,)
+    const raw = quoted !== undefined ? quoted : unquoted
+    args[k] = raw ? raw.replace(/[.,;!?]+$/, '') : raw
     namedSpans.push([m.index, m.index + m[0].length])
   }
 
@@ -240,15 +242,7 @@ export async function queryLLM(systemPrompt, userMessage, imageOrOpts = null) {
 
       let parsed = parseCommand(strippedText)
 
-      // Fallback: if no !command found but the text starts with a greeting/name directed at partner,
-      // convert to !chat. Very strict — only matches clear conversational openers.
-      if (!parsed && strippedText) {
-        const firstLine = strippedText.split('\n')[0]?.trim() || ''
-        // Only match: "Hey John...", "Luna, ...", "@john ...", direct greetings
-        if (/^(hey |hi |yo |luna|john|@\w)/i.test(firstLine) && firstLine.length > 10 && firstLine.length < 200) {
-          parsed = { command: 'chat', args: { message: firstLine } }
-        }
-      }
+      // No chat-text fallback — agents use !chat explicitly. Fallback caused reasoning leaks.
 
       const command = parsed ? parsed.command : null
       const args = parsed ? parsed.args : {}

@@ -151,33 +151,44 @@ async function respondToChat(bot, sender, message) {
       console.log('[mind] chat reasoning:', result.reasoning.slice(0, 150))
     }
 
-    // If LLM wants to chat back, send it immediately (with dedup)
+    // If LLM wants to chat back, send it (with dedup + reasoning leak filter)
     if (result.command === 'chat') {
       const msg = result.args?.message || ''
-      if (msg) {
-        const normMsg = msg.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim()
-        const isDupe = _recentSentMessages.some(prev => {
-          if (normMsg === prev) return true
-          const words = new Set(normMsg.split(/\s+/))
-          const prevWords = prev.split(/\s+/)
-          const overlap = prevWords.filter(w => words.has(w)).length
-          return prevWords.length > 2 && overlap / prevWords.length > 0.8
-        })
-        if (isDupe) {
-          console.log('[mind] suppressed duplicate chat reply:', msg.slice(0, 60))
+      if (!msg || msg.length < 3) {
+        console.log('[mind] empty chat response — skipping')
+      } else if (_chatResponseCount >= 2) {
+        // Already hit chat limit — don't send, force game action
+        console.log('[mind] chat limit reached in respondToChat — skipping')
+      } else {
+        // Filter reasoning leaks — if message looks like internal thought, don't send
+        const looksLikeReasoning = /^(okay|let me|i need to|first|looking at|the user|i should|let's see|my situation)/i.test(msg.trim())
+        if (looksLikeReasoning) {
+          console.log('[mind] filtered reasoning leak from chat:', msg.slice(0, 60))
         } else {
-          bot.chat(msg)
-          _recentSentMessages.push(normMsg)
-          if (_recentSentMessages.length > CHAT_DEDUP_WINDOW) _recentSentMessages.shift()
-          _lastChatTimestamp = Date.now()  // cooldown timer instead of hard block
-          _chatResponseCount++  // track consecutive chats
-          console.log('[mind] chat reply sent (' + _chatResponseCount + '/2):', msg.slice(0, 80))
+          const normMsg = msg.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim()
+          const isDupe = _recentSentMessages.some(prev => {
+            if (normMsg === prev) return true
+            const words = new Set(normMsg.split(/\s+/))
+            const prevWords = prev.split(/\s+/)
+            const overlap = prevWords.filter(w => words.has(w)).length
+            return prevWords.length > 2 && overlap / prevWords.length > 0.8
+          })
+          if (isDupe) {
+            console.log('[mind] suppressed duplicate chat reply:', msg.slice(0, 60))
+          } else {
+            bot.chat(msg)
+            _recentSentMessages.push(normMsg)
+            if (_recentSentMessages.length > CHAT_DEDUP_WINDOW) _recentSentMessages.shift()
+            _lastChatTimestamp = Date.now()
+            _chatResponseCount++
+            console.log('[mind] chat reply sent (' + _chatResponseCount + '/2):', msg.slice(0, 80))
+          }
         }
       }
     }
-    // If LLM produced a non-chat game action, dispatch it — the agent should act on chat context
-    // But only if no skill is already running (prevent concurrent mineflayer operations)
+    // Non-chat action from respondToChat — dispatch if safe, resets chat counter
     else if (result.command && result.command !== 'idle') {
+      _chatResponseCount = 0  // game action resets chat counter
       if (skillRunning || thinkingInFlight) {
         console.log('[mind] chat triggered action:', result.command, '— deferred (skill/think active)')
       } else {
