@@ -52,6 +52,8 @@ const _recentSentMessages = []   // ring buffer of last N outgoing chat message 
 const CHAT_DEDUP_WINDOW = 8      // how many recent messages to check for duplication
 let _lastVisionResult = null  // consume-once VLM description — cleared after injection into prompt
 let _postBuildScan = null     // consume-once post-build scan result
+let _pendingDesignNotification = null  // consume-once: set by background design worker when blueprint is ready
+let _designWorkerRunning = false       // guard against concurrent design workers
 let _thinkTickCount = 0       // counts think() calls — used for tiered vision (every Nth tick gets an image)
 const VISION_TICK_INTERVAL = 1  // include composite render EVERY tick — agents always see the world
 const _chatCountByPartner = new Map()  // COO-02 (Phase 24): per-partner chat loop prevention
@@ -468,7 +470,13 @@ async function think(bot, context) {
     const senderCount = _lastChatSender
       ? (_chatCountByPartner.get(_lastChatSender) || 0)
       : 0
-    const userMessage = buildUserMessage(bot, context.trigger, { ...context, partnerChat, chatLimitWarning: senderCount >= 3 ? senderCount : null })
+    // Check for async design completion notification
+    let designNotification = null
+    if (_pendingDesignNotification) {
+      designNotification = _pendingDesignNotification
+      _pendingDesignNotification = null  // consume once
+    }
+    const userMessage = buildUserMessage(bot, context.trigger, { ...context, partnerChat, chatLimitWarning: senderCount >= 3 ? senderCount : null, designNotification })
 
     // ── Tiered Vision: render composite image for spatial actions + every Nth tick ──
     // Qwen3.5 is natively multimodal — every think() call can include an image.
@@ -590,9 +598,8 @@ async function think(bot, context) {
       return
     }
 
-    // !design — generate a blueprint from natural language and auto-build it.
-    // Handled here (before dispatch) because it requires a separate LLM call and
-    // special result recording. The registry entry is only a fallback/help-text stub.
+    // !design — queue async blueprint generation, return immediately so agent keeps playing.
+    // The heavy LLM call runs in the background. Agent gets notified when blueprint is ready.
     if (result.command === 'design') {
       const description = result.args.description || ''
       if (!description) {
@@ -600,35 +607,19 @@ async function think(bot, context) {
         lastActionTime = Date.now()
         return
       }
-      console.log('[mind] designing:', description)
-      skillRunning = true
-      const designResult = await designAndBuild(bot, description)
-      skillRunning = false
-      console.log('[mind] design result:', designResult.success ? 'OK' : designResult.reason)
+      // Capture position NOW (agent might move while design is generating)
+      const pos = bot.entity.position
+      const designOrigin = { x: Math.round(pos.x), y: Math.round(pos.y), z: Math.round(pos.z) }
+
+      console.log('[mind] design queued:', description, 'at', designOrigin.x, designOrigin.y, designOrigin.z)
+
+      // Fire and forget — runs in background, doesn't block the agent
+      runDesignWorker(bot, description, designOrigin)
+
+      // Return immediately so agent can keep playing
       lastActionTime = Date.now()
-
-      // Record successful designs + builds in world knowledge, locations, and build history
-      if (designResult.success || designResult.partial) {
-        const pos = bot.entity.position
-        const pId = designResult.projectId || ''
-        const partialNote = designResult.partial ? ' (partial — needs more materials)' : ''
-        addWorldKnowledge(`Designed "${description}" at ${Math.round(pos.x)},${Math.round(pos.y)},${Math.round(pos.z)}${partialNote} [project:${pId}]`)
-        logEvent(bot, 'build', `design: ${description}`, { command: 'design', success: true, projectId: pId })
-        saveLocation(`custom_build`, Math.round(pos.x), Math.round(pos.y), Math.round(pos.z), 'build')
-        // Use blueprint dimensions from the project if available
-        const project = pId ? getProject(pId) : null
-        const dims = project?.blueprint?.size || { x: 0, y: 0, z: 0 }
-        recordBuild({
-          name: description,
-          origin: { x: Math.round(pos.x), y: Math.round(pos.y), z: Math.round(pos.z) },
-          dimensions: dims,
-          blockCount: designResult.placed || designResult.total || 0,
-          builder: bot.username,
-          projectId: pId,
-        })
-      }
-
-      setTimeout(() => think(bot, { trigger: 'skill_complete', skillName: 'design', skillResult: designResult }), 0)
+      setTimeout(() => think(bot, { trigger: 'skill_complete', skillName: 'design',
+        skillResult: { success: true, reason: `Design queued: "${description}". I'll keep working while the blueprint generates. I'll be notified when it's ready.` } }), 0)
       return
     }
 
@@ -938,6 +929,57 @@ async function think(bot, context) {
 
 // ── Design + Build Pipeline ──
 
+// runDesignWorker — async background design worker. Runs the full design pipeline
+// without blocking the main think loop. Sets _pendingDesignNotification when done.
+async function runDesignWorker(bot, description, origin) {
+  if (_designWorkerRunning) {
+    console.log('[design-worker] already running, rejecting:', description)
+    _pendingDesignNotification = `Design rejected — another design is already in progress. Wait for it to finish.`
+    return
+  }
+  _designWorkerRunning = true
+  console.log('[design-worker] starting:', description)
+  broadcastActivity('design', { description }, 'running')
+
+  try {
+    const designResult = await designAndBuild(bot, description, origin)
+
+    if (designResult.success) {
+      const pId = designResult.projectId || ''
+      _pendingDesignNotification = `"${designResult.name}" designed! ${designResult.totalBlocks} blocks. Use !build id:${pId} to start building.`
+
+      // Record in memory systems
+      addWorldKnowledge(`Designed "${description}" at ${origin.x},${origin.y},${origin.z} [project:${pId}]`)
+      logEvent(bot, 'build', `design: ${description}`, { command: 'design', success: true, projectId: pId })
+      saveLocation('custom_build', origin.x, origin.y, origin.z, 'build')
+      const project = pId ? getProject(pId) : null
+      const dims = project?.blueprint?.size || { x: 0, y: 0, z: 0 }
+      recordBuild({
+        name: description,
+        origin,
+        dimensions: dims,
+        blockCount: designResult.totalBlocks || 0,
+        builder: bot.username,
+        projectId: pId,
+      })
+
+      // Tell partner via chat
+      bot.chat(`Blueprint ready: "${designResult.name}" (${designResult.totalBlocks} blocks) at ${origin.x},${origin.y},${origin.z}`)
+
+      console.log('[design-worker] complete:', pId, designResult.name, designResult.totalBlocks, 'blocks')
+    } else {
+      _pendingDesignNotification = `Design failed: ${designResult.reason}. Try again with a simpler description.`
+      console.log('[design-worker] failed:', designResult.reason)
+    }
+  } catch (err) {
+    _pendingDesignNotification = `Design error: ${err.message}. Try again.`
+    console.error('[design-worker] error:', err.message)
+  } finally {
+    _designWorkerRunning = false
+    broadcastActivity('design', { description }, 'complete')
+  }
+}
+
 // designAndBuild(bot, description) — orchestrates the full !design pipeline:
 //   1. Survey terrain at build site
 //   2. Select reference blueprints from BLUEPRINTS_DIR
@@ -948,11 +990,10 @@ async function think(bot, context) {
 //   7. Auto-execute incremental build with ledger callbacks
 //
 // Returns the build result { success, projectId, ... } or { success: false, reason }.
-export async function designAndBuild(bot, description) {
-  const pos = bot.entity.position
-  const originX = Math.round(pos.x)
-  const originY = Math.round(pos.y)
-  const originZ = Math.round(pos.z)
+export async function designAndBuild(bot, description, origin = null) {
+  const originX = origin ? origin.x : Math.round(bot.entity.position.x)
+  const originY = origin ? origin.y : Math.round(bot.entity.position.y)
+  const originZ = origin ? origin.z : Math.round(bot.entity.position.z)
 
   // ── 1. Survey terrain at build site ──
   const survey = surveyBuildSite(bot, originX, originZ, 16, 16)

@@ -459,6 +459,11 @@ export function buildUserMessage(bot, trigger, options = {}) {
     parts.push(`[idle for ${idleMs}ms]`)
   }
 
+  // Design completion notification — async blueprint worker finished
+  if (options.designNotification) {
+    parts.push(`[BLUEPRINT READY: ${options.designNotification}]`)
+  }
+
   // Partner chat context — inject partner's last message if available
   if (options.partnerChat) {
     parts.push(`[${options.partnerChat.sender} said: "${options.partnerChat.message}"]`)
