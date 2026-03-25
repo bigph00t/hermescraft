@@ -470,13 +470,14 @@ async function think(bot, context) {
     const senderCount = _lastChatSender
       ? (_chatCountByPartner.get(_lastChatSender) || 0)
       : 0
-    // Check for async design completion notification
+    // Check for async design status
     let designNotification = null
+    const designInProgress = _designWorkerRunning
     if (_pendingDesignNotification) {
       designNotification = _pendingDesignNotification
       _pendingDesignNotification = null  // consume once
     }
-    const userMessage = buildUserMessage(bot, context.trigger, { ...context, partnerChat, chatLimitWarning: senderCount >= 3 ? senderCount : null, designNotification })
+    const userMessage = buildUserMessage(bot, context.trigger, { ...context, partnerChat, chatLimitWarning: senderCount >= 3 ? senderCount : null, designNotification, designInProgress })
 
     // ── Tiered Vision: render composite image for spatial actions + every Nth tick ──
     // Qwen3.5 is natively multimodal — every think() call can include an image.

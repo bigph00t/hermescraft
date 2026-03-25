@@ -459,9 +459,11 @@ export function buildUserMessage(bot, trigger, options = {}) {
     parts.push(`[idle for ${idleMs}ms]`)
   }
 
-  // Design completion notification — async blueprint worker finished
+  // Design status — async blueprint worker
   if (options.designNotification) {
     parts.push(`[BLUEPRINT READY: ${options.designNotification}]`)
+  } else if (options.designInProgress) {
+    parts.push(`[A blueprint is being designed in the background. Do NOT use !design again — gather materials, chat, or explore while waiting.]`)
   }
 
   // Partner chat context — inject partner's last message if available
