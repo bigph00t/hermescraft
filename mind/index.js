@@ -474,6 +474,36 @@ async function think(bot, context) {
         // Memory retrieval is synchronous — safe to call alongside async RAG
         memoryContext = retrieveMemoryContext(memQuery)
         const chunks = await retrieveKnowledge(ragQuery, topK)
+
+        // Creative inspiration: every ~5th cycle, also retrieve a random building idea
+        // This introduces variety — glass, stone bricks, bridges, gardens, etc.
+        if (_thinkTickCount % 5 === 0) {
+          const inspirationQueries = [
+            'glass windows sand smelt building design',
+            'stone bricks cobblestone craft walls foundation',
+            'bridge road path connecting structures layout',
+            'garden flowers water decoration landscaping',
+            'marketplace stalls shops trading district',
+            'lighthouse tower tall narrow lookout',
+            'brick clay river smelt warm building material',
+            'library bookshelves windows reading room',
+            'dock pier water boats harbor',
+            'fountain town square plaza center',
+            'roof stairs slabs peaked overhang style',
+            'mix materials variety oak stone glass aesthetic',
+            'smooth stone polished granite decorative blocks',
+            'lantern campfire chimney lighting atmosphere',
+          ]
+          const inspirationQuery = inspirationQueries[_thinkTickCount % inspirationQueries.length]
+          try {
+            const inspirationChunks = await retrieveKnowledge(inspirationQuery, 1)
+            if (inspirationChunks.length > 0) {
+              chunks.push(...inspirationChunks)
+              console.log('[mind] creative spark:', inspirationQuery.slice(0, 40))
+            }
+          } catch { /* non-fatal */ }
+        }
+
         ragContext = formatRagContext(chunks)
         if (ragContext) {
           console.log('[mind] RAG injected:', ragQuery, `(${chunks.length} chunks)`)

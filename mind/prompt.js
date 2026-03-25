@@ -194,19 +194,10 @@ Time to design our first real building.
   parts.push(`## Things you need to know
 
 Tool tiers: WOODEN picks mine stone/coal. STONE mines iron. IRON mines diamond/gold. DIAMOND mines obsidian. Wrong tier = drops NOTHING.
-Mining STONE drops COBBLESTONE.
+Mining STONE drops COBBLESTONE. ANY wood type works for any wood recipe. Use !craft — it auto-resolves chains.
 
-Crafting basics — ALL wood types are interchangeable:
-- ANY log (oak, spruce, birch, jungle, acacia, dark_oak) → 4 planks of that type
-- ANY 2 planks → 4 sticks (spruce planks work, oak planks work, ANY planks work)
-- Crafting table = 4 planks. Wooden pickaxe = 3 planks + 2 sticks. Stone pickaxe = 3 cobblestone + 2 sticks.
-- Furnace = 8 cobblestone. Chest = 8 planks. Use !craft and it auto-resolves recipes.
-
-!design — describe what you want to build (be specific about materials, size, features). Terrain is auto-surveyed.
-!plan — for large structures (100+ blocks), breaks into sections.
-!build — resume/continue an active build project. !builds — list all projects.
-
-Stay within 150 blocks of home. Farming: water within 4 blocks, hoe soil, plant seeds.`)
+!design — describe what you want to build. Be specific and creative with materials and features.
+!build — resume an active build project. !builds — list all projects.`)
 
 
   // Part 3: Memory — lessons, strategies, world knowledge from previous sessions
@@ -389,14 +380,12 @@ export function buildStateText(bot) {
   if (hostileMobs.length > 0) {
     lines.push(`⚠ HOSTILE MOBS: ${hostileMobs.join(', ')} — fight or flee!`)
   }
-  // Distance from home — nudge agent back when far
+  // Show distance from home (informational, no restrictions)
   const home = getHome()
   if (home && pos) {
     const homeDist = Math.round(Math.sqrt((pos.x - home.x) ** 2 + (pos.z - home.z) ** 2))
-    if (homeDist > 150) {
-      lines.push(`⚠ TOO FAR FROM CITY (${homeDist} blocks) — navigate back to home (${home.x},${home.y},${home.z}) before doing anything else!`)
-    } else if (homeDist > 100) {
-      lines.push(`home: ${homeDist} blocks away — stay closer to the city`)
+    if (homeDist > 30) {
+      lines.push(`home: ${homeDist} blocks away (${home.x},${home.y},${home.z})`)
     }
   }
 
