@@ -119,8 +119,8 @@ function resolveIngredients(itemId, visited) {
     if (candNames.length < bestNames.length) return candidate
     if (candNames.length === bestNames.length) {
       // Tiebreak: prefer recipes that use a "preferred" base material
-      const candScore = PREFERRED_INGREDIENTS.filter(p => candNames.some(n => n && n.includes(p))).length
-      const bestScore = PREFERRED_INGREDIENTS.filter(p => bestNames.some(n => n && n.includes(p))).length
+      const candScore = PREFERRED_INGREDIENTS.filter(p => candNames.some(n => n === p)).length
+      const bestScore = PREFERRED_INGREDIENTS.filter(p => bestNames.some(n => n === p)).length
       if (candScore > bestScore) return candidate
     }
     return best
@@ -139,6 +139,62 @@ function resolveIngredients(itemId, visited) {
   return `${name} (craft from: ${ingNames.join(', ')}) -- ${subChains.join('; ')}`
 }
 
+// WOOD_TYPES — all overworld wood families. Used to detect "any wood works" variants.
+const WOOD_TYPES = ['oak', 'spruce', 'birch', 'jungle', 'acacia', 'dark_oak', 'cherry', 'mangrove', 'bamboo', 'crimson', 'warped']
+
+// detectVariantSummary — given all recipes for an item, detect if variants only differ by wood/stone type.
+// Returns a human-readable summary string or null if no meaningful variants exist.
+function detectVariantSummary(recipes) {
+  if (!recipes || recipes.length <= 1) return null
+
+  // Collect all unique ingredient names per recipe
+  const recipeIngSets = recipes.map(r => {
+    const ids = flattenRecipe(r)
+    return [...new Set(ids.map(id => mcData.items[id]?.name).filter(Boolean))]
+  })
+
+  // Collect ALL unique ingredients across all variants
+  const allIngredients = new Set()
+  for (const ingSet of recipeIngSets) {
+    for (const name of ingSet) allIngredients.add(name)
+  }
+
+  // Check if variants are just wood type swaps
+  const plankVariants = [...allIngredients].filter(n => n.endsWith('_planks'))
+  const logVariants = [...allIngredients].filter(n => n.endsWith('_log'))
+  const nonWood = [...allIngredients].filter(n => !n.endsWith('_planks') && !n.endsWith('_log') && !WOOD_TYPES.some(w => n.includes(w)))
+
+  const parts = []
+  if (plankVariants.length >= 3) {
+    parts.push(`ANY planks work (${plankVariants.slice(0, 3).join(', ')}, etc.)`)
+  } else if (plankVariants.length > 1) {
+    parts.push(`Multiple plank types work: ${plankVariants.join(', ')}`)
+  }
+  if (logVariants.length >= 3) {
+    parts.push(`ANY logs work (${logVariants.slice(0, 3).join(', ')}, etc.)`)
+  } else if (logVariants.length > 1) {
+    parts.push(`Multiple log types work: ${logVariants.join(', ')}`)
+  }
+
+  // Check stone variants
+  const stoneVariants = [...allIngredients].filter(n =>
+    ['cobblestone', 'blackstone', 'cobbled_deepslate'].includes(n))
+  if (stoneVariants.length > 1) {
+    parts.push(`Stone alternatives: ${stoneVariants.join(', ')}`)
+  }
+
+  if (parts.length === 0) {
+    // Generic: list all unique ingredients that aren't in the primary recipe
+    const primaryIngs = recipeIngSets[0] || []
+    const extras = [...allIngredients].filter(n => !primaryIngs.includes(n))
+    if (extras.length > 0 && extras.length <= 10) {
+      parts.push(`Also accepts: ${extras.join(', ')}`)
+    }
+  }
+
+  return parts.length > 0 ? parts.join('. ') : null
+}
+
 export function buildRecipeChunks() {
   const result = []
 
@@ -150,8 +206,18 @@ export function buildRecipeChunks() {
     const chainText = resolveIngredients(itemId, new Set())
     if (!chainText) continue
 
-    // Cap chain text to ~600 chars (~150 tokens) to fit embedding model window
-    const text = `Recipe: ${item.displayName}\n${chainText.length > 600 ? chainText.substring(0, 600) + '...' : chainText}`
+    // Detect variant summary (e.g., "ANY planks work")
+    const recipes = mcData.recipes[itemId]
+    const variantSummary = detectVariantSummary(recipes)
+
+    // Build chunk text with primary recipe + variant info
+    let text = `Recipe: ${item.displayName}\n${chainText}`
+    if (variantSummary) {
+      text += `\nAlternatives: ${variantSummary}`
+    }
+
+    // Cap at 1200 chars (increased from 600 to accommodate variant lists)
+    if (text.length > 1200) text = text.substring(0, 1200) + '...'
 
     result.push({
       id: `recipe_${item.name}`,
@@ -190,7 +256,9 @@ function buildBlockChunks() {
       const dropNames = (b.drops || []).map(id => mcData.items[id]?.name).filter(Boolean)
       let text = `Block: ${b.displayName}\nName: ${b.name}\nHardness: ${b.hardness}`
       if (toolNames.length > 0) text += `\nRequires: ${toolNames.join(' or ')}`
-      if (dropNames.length > 0 && dropNames[0] !== b.name) text += `\nDrops: ${dropNames.join(', ')}`
+      if (dropNames.length > 0 && dropNames[0] !== b.name) {
+        text += `\nMining ${b.name} gives you: ${dropNames.join(', ')} (NOT ${b.name} itself)`
+      }
       if (b.transparent) text += `\nTransparent: yes`
       if (b.emitLight > 0) text += `\nLight level: ${b.emitLight}`
       return {

@@ -2,6 +2,24 @@
 
 ---
 
+### CRITICAL: Wood Type Interchangeability
+
+ALL wood types are interchangeable in crafting recipes. There is NO requirement for a specific wood type:
+- Logs: oak_log, spruce_log, birch_log, jungle_log, acacia_log, dark_oak_log, cherry_log, mangrove_log
+- Planks: oak_planks, spruce_planks, birch_planks, jungle_planks, acacia_planks, dark_oak_planks, cherry_planks, mangrove_planks
+- ANY log → 4 planks of that type (e.g., spruce_log → 4 spruce_planks)
+- ANY 2 planks → 4 sticks (spruce_planks work, oak_planks work, ANY planks work for sticks)
+- Wooden tools (pickaxe, axe, sword, shovel, hoe) accept ANY combination of planks + sticks
+- Crafting table = ANY 4 planks
+- Chest = ANY 8 planks
+- Boat, door, fence, sign, trapdoor — wood-type-specific output but ALL types craft correctly
+
+If you have spruce logs, you can make spruce planks, then sticks, then ANY wooden tool. You do NOT need oak specifically.
+
+Similarly: Stone tools accept cobblestone, blackstone, OR cobbled_deepslate.
+
+---
+
 ### Crafting Grid: 2×2 vs 3×3
 
 The player's inventory has a 2×2 crafting grid. Use it ONLY for:
