@@ -277,81 +277,98 @@ function formatRagContext(results) {
 
 // deriveRagQuery — construct a RAG query from bot state and trigger context.
 // Inspects health, hunger, time, position, surroundings, inventory, and recent activity
-// to generate the most relevant query. Returns null only when truly nothing is relevant.
+// Derive a RAG query based on the agent's actual situation — inventory, tools, context.
+// Drives WHAT knowledge gets injected. Must be situation-aware, not generic.
 function deriveRagQuery(bot, context) {
-  // ── Priority 1: Urgent survival state (always overrides other context) ──
   const health = bot.health || 20
   const food = bot.food || 20
-  const time = bot.time?.timeOfDay || 0
   const pos = bot.entity?.position
   const y = pos?.y || 64
+  const items = bot.inventory.items()
+  const itemNames = items.map(i => i.name)
+  const itemSet = new Set(itemNames)
 
-  // Low health — inject danger avoidance and recovery
+  // ── Survival urgency (always first) ──
   if (health <= 10) return 'danger health low healing food escape safety'
+  if (food <= 10) return 'food hunger eating cooking farming wheat bread'
 
-  // Low food — inject eating and food gathering
-  if (food <= 10) return 'food hunger eating cooking starvation survival'
+  // ── Detect gear tier ──
+  const hasDiamondTools = itemNames.some(n => n.includes('diamond_'))
+  const hasIronTools = itemNames.some(n => n.includes('iron_'))
+  const hasStoneTools = itemNames.some(n => n.includes('stone_'))
+  const hasWoodTools = itemNames.some(n => n.includes('wooden_'))
+  const hasNoTools = !hasDiamondTools && !hasIronTools && !hasStoneTools && !hasWoodTools
 
-  // Night on peaceful — no mob danger, keep working. Only inject shelter knowledge on non-peaceful.
-  // Removed: agents were wasting entire nights building dirt shelters on peaceful mode.
-  // To re-enable for survival mode: uncomment below.
-  // if (time >= 11500 && time <= 13500) return 'night shelter safety bed torches mob spawning'
-  // if (time >= 13500 && time <= 23000) return 'night survival mobs combat shelter darkness'
+  // ── Detect what materials they already have ──
+  const totalItems = items.reduce((sum, i) => sum + i.count, 0)
+  const hasBuildingMaterials = totalItems > 20 && itemNames.some(n =>
+    n.includes('cobblestone') || n.includes('planks') || n.includes('stone_brick') ||
+    n.includes('brick') || n.includes('glass') || n.includes('log'))
+  const hasLots = totalItems > 64
 
-  // Deep underground — inject mining safety
-  if (y < 0) return 'mining safety lava deep underground danger water bucket'
-  if (y < 40 && y > 0) return 'mining ore depths tools cave safety torches'
-
-  // ── Priority 2: Skill-specific context ──
+  // ── Skill-specific context (when a skill just completed) ──
   if (context.trigger === 'skill_complete' && context.skillName) {
     const skill = context.skillName
-    const result = context.skillResult
-    const target = result?.item || result?.args?.item || ''
+    const target = context.skillResult?.item || context.skillResult?.args?.item || ''
 
-    // Mining — include safety + tool equipping
-    if (skill === 'mine') return `mine ${target} equip pickaxe tool tier safety lava never dig straight down`
-    // Building — include placement rules
-    if (skill === 'build' || skill === 'design') return `build place blocks placement distance materials ${target}`
-    // Navigation — include movement and traversal
-    if (skill === 'navigate') return `navigate movement traversal getting around terrain`
-    // Gathering — include what's nearby and alternatives
-    if (skill === 'gather') return `gather ${target} finding nearby biome location`
-    // Crafting — include recipe chain
-    if (skill === 'craft') return `craft ${target} recipe ingredients`
-    // Combat — include mob-specific tactics
-    if (skill === 'combat') return `combat fighting mobs damage armor weapons tactics`
-    // Harvest — include crop maturity and replanting
-    if (skill === 'harvest') return 'harvest mature crops wheat carrot potato replant farm bone meal'
-    // Hunt — include mob drops and combat
-    if (skill === 'hunt') return 'hunt hostile mobs drops bones string gunpowder ender pearl combat'
-    // Explore — include biomes and structures
-    if (skill === 'explore') return 'exploration biomes village temple discoveries waypoints navigation'
-    // Breed — include animal farming
-    if (skill === 'breed') return 'breed animals farming cows sheep pigs chickens food pen'
-    // Farm — include soil preparation
-    if (skill === 'farm') return 'farm hoe farmland water seeds planting crops'
-
+    if (skill === 'craft') return `craft ${target} recipe ingredients alternatives`
+    if (skill === 'build' || skill === 'design') return 'building design architecture materials mix variety city layout'
+    if (skill === 'mine') return `mine ${target} tool tier drops smelting`
+    if (skill === 'gather') return `gather ${target} location biome alternatives`
+    if (skill === 'explore') return 'exploration discoveries terrain biome resources building site'
+    if (skill === 'navigate') {
+      // After arriving somewhere — what should they do here?
+      if (hasBuildingMaterials) return 'building design architecture city layout structure ideas'
+      return 'exploration resources gathering what to do building site'
+    }
+    if (skill === 'farm' || skill === 'harvest') return 'farming crops food wheat carrot potato bread'
+    if (skill === 'smelt') return 'smelting products glass stone_brick smooth_stone iron ingot'
     if (target) return `${skill} ${target}`
-    return skill
   }
 
-  // ── Priority 3: Inventory-based activity inference ──
-  const items = bot.inventory.items().map(i => i.name)
-  if (items.some(n => n.includes('_ore') || n === 'raw_iron' || n === 'raw_gold' || n === 'raw_copper')) {
-    return 'smelting raw ore furnace ingots progression'
-  }
-  if (items.some(n => n.includes('planks') || n.includes('log'))) {
-    return 'crafting tools wooden planks sticks early game progression'
-  }
-  if (items.length === 0) {
-    return 'early game start first day punch tree wood tools survival'
+  // ── Chat — inject cooperation but also building ideas ──
+  if (context.trigger === 'chat') {
+    if (hasBuildingMaterials) return 'city building coordination design architecture teamwork'
+    return 'cooperation coordination plan city building teamwork sharing'
   }
 
-  // ── Priority 4: Chat trigger — inject cooperation and social rules ──
-  if (context.trigger === 'chat') return 'cooperation coordination sharing resources building together'
+  // ── Inventory-aware progression (the key fix) ──
+  // Diamond/iron tools + lots of materials = STOP GATHERING, START BUILDING
+  if ((hasDiamondTools || hasIronTools) && hasLots) {
+    return 'city building design architecture layout marketplace tower library bridge road'
+  }
+  if ((hasDiamondTools || hasIronTools) && hasBuildingMaterials) {
+    return 'building design structure house workshop storage glass stone_brick variety'
+  }
+  if (hasDiamondTools || hasIronTools) {
+    // Good tools but low materials — gather building materials, not basic stuff
+    return 'gather building materials sand glass clay brick stone_brick decorative blocks'
+  }
+  if (hasStoneTools) {
+    // Mid-game — push toward iron and building
+    return 'mine iron ore smelt upgrade tools start building shelter city planning'
+  }
+  if (hasWoodTools) {
+    // Early mid — need stone
+    return 'mine stone cobblestone upgrade stone pickaxe crafting table furnace'
+  }
 
-  // ── Priority 5: General idle — inject creative/exploration ideas ──
-  return 'what to do next objectives building exploration creative ideas settlement'
+  // ── Underground ──
+  if (y < 0) return 'deep mining lava safety diamonds ancient debris water bucket'
+  if (y < 40 && y > 0) return 'mining iron gold diamond ore depths cave safety torch'
+
+  // ── True early game (empty inventory, no tools) ──
+  if (hasNoTools && totalItems < 5) {
+    return 'early game punch tree craft planks sticks wooden pickaxe crafting table'
+  }
+
+  // ── Idle with materials — nudge toward building ──
+  if (hasBuildingMaterials) {
+    return 'what to build next city design architecture creative ideas marketplace garden tower'
+  }
+
+  // ── General idle ──
+  return 'city building exploration gathering resources creative ideas what to do next'
 }
 
 // deriveFailureQuery — precise query for a failed skill to retrieve recovery info.

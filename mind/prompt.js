@@ -112,24 +112,28 @@ function timeLabel(timeOfDay) {
 export function buildProgressionHint(bot) {
   const items = bot.inventory?.items() || []
   const names = new Set(items.map(i => i.name))
+  const totalCount = items.reduce((sum, i) => sum + i.count, 0)
 
-  // Check tiers from best to worst
-  if (names.has('netherite_pickaxe') || names.has('netherite_sword')) {
-    return 'Gear: NETHERITE — you have endgame gear. Focus on building, enchanting, and exploring.'
+  // Detect best tool tier
+  const hasDiamond = names.has('diamond_pickaxe') || names.has('diamond_sword') || names.has('diamond_axe')
+  const hasIron = names.has('iron_pickaxe') || names.has('iron_sword') || names.has('iron_axe')
+  const hasStone = names.has('stone_pickaxe') || names.has('stone_sword')
+  const hasWood = names.has('wooden_pickaxe') || names.has('wooden_sword')
+
+  // High-tier tools = focus on BUILDING, not gathering
+  if (hasDiamond || hasIron) {
+    if (totalCount > 64) {
+      return 'You have great tools and plenty of materials. FOCUS ON BUILDING — design structures, place blocks, build the city. Don\'t waste time gathering basic resources.'
+    }
+    return 'You have good tools. Gather specific building materials you need (sand for glass, clay for bricks, stone for stone_bricks) then BUILD.'
   }
-  if (names.has('diamond_pickaxe') || names.has('diamond_sword')) {
-    return 'Gear: DIAMOND — pursue enchanting (need enchanting table + 15 bookshelves + lapis). Consider nether expedition for netherite.'
+  if (hasStone) {
+    return 'Stone tools — mine iron ore to upgrade. Smelt raw_iron → iron_ingot → iron pickaxe.'
   }
-  if (names.has('iron_pickaxe') || names.has('iron_sword')) {
-    return 'Gear: IRON — mine below Y=16 for diamonds (need 3 for pickaxe, 2 for sword). Craft iron armor if you have 24+ iron ingots.'
+  if (hasWood) {
+    return 'Wooden tools — mine stone to upgrade. 3 cobblestone + 2 sticks = stone pickaxe.'
   }
-  if (names.has('stone_pickaxe') || names.has('stone_sword')) {
-    return 'Gear: STONE — mine at Y=16-64 for iron ore. Smelt raw_iron with !smelt. Craft iron pickaxe + iron sword.'
-  }
-  if (names.has('wooden_pickaxe') || names.has('wooden_sword')) {
-    return 'Gear: WOOD — mine cobblestone immediately. Craft stone pickaxe (3 cobblestone + 2 sticks).'
-  }
-  return 'Gear: NONE — craft a wooden pickaxe immediately (3 planks + 2 sticks). Punch a tree first for logs.'
+  return 'No tools — punch a tree for logs, craft planks, craft sticks, craft wooden pickaxe.'
 }
 
 // ── System Prompt ──
