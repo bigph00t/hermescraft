@@ -192,14 +192,28 @@ export async function withdrawFromChest(bot, chestBlock, itemName, count) {
     ? await bot.openContainer(chestBlock)
     : await bot.openChest(chestBlock)
   try {
-    // Check chest actually has the item before attempting withdraw
-    const available = chest.count(itemId, null)
+    // Log chest contents for debugging
+    const chestItems = chest.items()
+    console.log(`[chest] contents: ${chestItems.map(i => `${i.count}x ${i.name}`).join(', ') || 'empty'}`)
+
+    // Try exact match first, then fuzzy match by name substring
+    let available = chest.count(itemId, null)
+    let withdrawId = itemId
+    if (available === 0) {
+      // Fuzzy: find any item in chest whose name contains the requested name
+      const fuzzyMatch = chestItems.find(i => i.name.includes(normalized) || normalized.includes(i.name))
+      if (fuzzyMatch) {
+        withdrawId = fuzzyMatch.type
+        available = chest.count(withdrawId, null)
+        console.log(`[chest] fuzzy match: ${normalized} → ${fuzzyMatch.name} (${available} available)`)
+      }
+    }
     const toWithdraw = Math.min(count, available)
     if (toWithdraw === 0) {
-      return { success: false, reason: 'item_not_in_chest', item: normalized }
+      return { success: false, reason: `item_not_in_chest (have: ${chestItems.map(i => i.name).join(', ') || 'nothing'})`, item: normalized }
     }
 
-    await chest.withdraw(itemId, null, toWithdraw)
+    await chest.withdraw(withdrawId, null, toWithdraw)
 
     if (isInterrupted(bot)) {
       return { success: false, reason: 'interrupted', item: normalized }

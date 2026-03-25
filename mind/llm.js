@@ -15,7 +15,7 @@ const MAX_HISTORY_MESSAGES = 40  // 20 turns — matched to 16K context window w
 const client = new OpenAI({
   baseURL: VLLM_URL,
   apiKey: process.env.VLLM_API_KEY || 'not-needed',
-  timeout: 120000,  // 120s — first call has no cache; large models can be slow on cold start
+  timeout: 30000,  // 30s — fail fast so bot stays responsive to MC server keepalives
 })
 
 // ── Conversation Memory (L1 — Session Memory) ──
@@ -198,6 +198,10 @@ export async function queryLLM(systemPrompt, userMessage, imageOrOpts = null) {
   }
 
   let lastError
+
+  // Jitter: random 0-500ms delay before each call to spread 8 agents across time
+  // Prevents all agents hitting the API simultaneously and getting queued/rate-limited
+  await sleep(Math.floor(Math.random() * 500))
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
