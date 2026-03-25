@@ -194,7 +194,13 @@ Time to design our first real building.
   parts.push(`## Things you need to know
 
 Tool tiers: WOODEN picks mine stone/coal. STONE mines iron. IRON mines diamond/gold. DIAMOND mines obsidian. Wrong tier = drops NOTHING.
-Logs → planks → sticks. Pickaxe before mining. Cook meat before eating. Mining STONE drops COBBLESTONE.
+Mining STONE drops COBBLESTONE.
+
+Crafting basics — ALL wood types are interchangeable:
+- ANY log (oak, spruce, birch, jungle, acacia, dark_oak) → 4 planks of that type
+- ANY 2 planks → 4 sticks (spruce planks work, oak planks work, ANY planks work)
+- Crafting table = 4 planks. Wooden pickaxe = 3 planks + 2 sticks. Stone pickaxe = 3 cobblestone + 2 sticks.
+- Furnace = 8 cobblestone. Chest = 8 planks. Use !craft and it auto-resolves recipes.
 
 !design — describe what you want to build (be specific about materials, size, features). Terrain is auto-surveyed.
 !plan — for large structures (100+ blocks), breaks into sections.
