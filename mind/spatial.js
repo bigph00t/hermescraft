@@ -126,16 +126,16 @@ function getImmediate(bot) {
   // Count open directions (passable blocks at foot level)
   const openCount = cardinals.filter(c => !isSolid(c.block)).length
 
+  // Only report TRULY trapped — literally buried inside a solid block.
+  // Walls, ceilings, corners are NORMAL in a city. Don't alarm the LLM.
   let trapped = null
   if (feet && isSolid(feet) && feet.name !== 'water') {
-    trapped = 'buried in solid block — dig ANY direction immediately'
-  } else if (wallCount >= 4 && ceilingBlocked && floorSolid) {
-    trapped = 'walled in on all sides — dig sideways or pillar up'
-  } else if (wallCount >= 3 && openCount === 1) {
-    // One open direction = tunnel or dead end, not trapped — just turn around
-    trapped = null  // not trapped, just in a tunnel — walk back the open direction
-  } else if (wallCount >= 3 && ceilingBlocked) {
-    trapped = 'cornered — turn around or dig through a wall'
+    trapped = 'inside a solid block — dig to get out'
+  }
+  // wallCount >= 4 + ceiling + floor = fully entombed (not just in a room)
+  // Only trigger if ALL 6 directions are solid AND there are zero openings
+  if (!trapped && wallCount >= 4 && ceilingBlocked && floorSolid && openCount === 0) {
+    trapped = 'fully enclosed — dig any direction'
   }
 
   // Pit detection: check for drops in open directions
@@ -173,8 +173,7 @@ function getImmediate(bot) {
   const lightLevel = feet?.light ?? head?.light ?? 0
   const headroom = bot.entity.isInWater ? 'water'
     : (head && HAZARD_BLOCKS.has(head.name)) ? head.name
-    : (isSolid(head) || isSolid(ceiling)) ? 'blocked'
-    : 'clear'
+    : 'clear'  // Don't report "blocked" for normal ceilings/roofs — it causes false trapped panics
 
   return {
     ground: ground?.name || 'air',
