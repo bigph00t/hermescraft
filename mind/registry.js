@@ -77,22 +77,40 @@ const REGISTRY = new Map([
     return gather(bot, item, 1, { maxCycles: 1 })
   }],
   ['place',    async (bot, args) => {
-    // Place a block from inventory at current position or specified location
     const itemName = args.item || args.block
-    if (!itemName) return { success: false, reason: 'specify item to place. Usage: !place item:torch' }
+    if (!itemName) return { success: false, reason: 'specify item to place. Usage: !place item:cobblestone' }
     const item = bot.inventory.items().find(i => i.name.includes(itemName))
     if (!item) return { success: false, reason: `no ${itemName} in inventory` }
     try {
       await bot.equip(item, 'hand')
-      // Place on the block below feet
-      const feetPos = bot.entity.position.floored()
-      const belowBlock = bot.blockAt(feetPos.offset(0, -1, 0))
-      if (!belowBlock || belowBlock.name === 'air') {
-        return { success: false, reason: 'no solid block below to place on' }
+      const pos = bot.entity.position
+      const feetPos = new Vec3(Math.floor(pos.x), Math.floor(pos.y), Math.floor(pos.z))
+
+      // Try multiple placement targets: below feet, then each cardinal direction
+      const targets = [
+        { ref: feetPos.offset(0, -1, 0), face: new Vec3(0, 1, 0) },   // on top of ground
+        { ref: feetPos.offset(1, -1, 0), face: new Vec3(0, 1, 0) },   // east ground
+        { ref: feetPos.offset(-1, -1, 0), face: new Vec3(0, 1, 0) },  // west ground
+        { ref: feetPos.offset(0, -1, 1), face: new Vec3(0, 1, 0) },   // south ground
+        { ref: feetPos.offset(0, -1, -1), face: new Vec3(0, 1, 0) },  // north ground
+        { ref: feetPos.offset(0, 0, 1), face: new Vec3(0, 0, -1) },   // against south wall
+        { ref: feetPos.offset(0, 0, -1), face: new Vec3(0, 0, 1) },   // against north wall
+      ]
+
+      for (const t of targets) {
+        const refBlock = bot.blockAt(t.ref)
+        if (!refBlock || refBlock.name === 'air' || refBlock.name === 'water') continue
+        // Check target position is air
+        const targetPos = t.ref.plus(t.face)
+        const targetBlock = bot.blockAt(targetPos)
+        if (targetBlock && targetBlock.name !== 'air') continue
+        try {
+          await bot.placeBlock(refBlock, t.face)
+          console.log(`[place] placed ${item.name} at ${targetPos}`)
+          return { success: true, reason: `placed ${item.name}` }
+        } catch { continue }
       }
-      await bot.placeBlock(belowBlock, new Vec3(0, 1, 0))
-      console.log(`[place] placed ${item.name}`)
-      return { success: true, reason: `placed ${item.name}` }
+      return { success: false, reason: 'no valid placement spot nearby — try moving first' }
     } catch (err) {
       return { success: false, reason: err.message }
     }
