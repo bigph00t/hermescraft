@@ -5,7 +5,7 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { queryLLM, clearConversation } from './llm.js'
 import { buildSystemPrompt, buildUserMessage, getBuildContextForPrompt, buildDesignPrompt } from './prompt.js'
-import { dispatch } from './registry.js'
+import { dispatch, cleanChatMessage } from './registry.js'
 import { getMemoryForPrompt, addWorldKnowledge, recordDeath, writeSessionEntry } from './memory.js'
 import { trackPlayer, getPlayersForPrompt, getPartnerLastChat, savePlayers } from './social.js'
 import { getLocationsForPrompt, saveLocation, setHome, getHome } from './locations.js'
@@ -184,7 +184,7 @@ async function respondToChat(bot, sender, message) {
 
     // If LLM wants to chat back, send it (with dedup + reasoning leak filter)
     if (result.command === 'chat') {
-      const msg = result.args?.message || ''
+      const msg = cleanChatMessage(result.args?.message || '')
       if (!msg || msg.length < 3) {
         console.log('[mind] empty chat response — skipping')
       } else if (_chatResponseCount >= 2) {

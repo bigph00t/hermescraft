@@ -23,6 +23,23 @@ import { give } from '../body/skills/give.js'
 import { clear } from '../body/skills/clear.js'
 import { buildRoad } from '../body/skills/road.js'
 
+// cleanChatMessage — strip ALL thinking/reasoning artifacts from chat before sending
+// Handles: <think> blocks, unclosed tags, reasoning prefixes, thinking-out-loud text
+export function cleanChatMessage(raw) {
+  let msg = raw || ''
+  // Strip complete <think>...</think> blocks (greedy — catches nested/multiline)
+  msg = msg.replace(/<think>[\s\S]*?<\/think>/g, '')
+  // Strip unclosed <think> to end of string (model started thinking, never closed)
+  msg = msg.replace(/<think>[\s\S]*/g, '')
+  // Strip any remaining standalone tags
+  msg = msg.replace(/<\/?think>/g, '')
+  // Strip </think> at start (model closed a think block that started before the message)
+  msg = msg.replace(/^[\s\S]*?<\/think>/g, '')
+  // Strip reasoning-like prefixes that aren't actual chat
+  msg = msg.replace(/^(okay|let me|i need to|first,|looking at|the user|i should|let's see|my situation|the player|analyzing|current state)[^.!?]*[.!?]\s*/i, '')
+  return msg.trim()
+}
+
 // REGISTRY maps !command names to async handler functions.
 // Args come in as strings from parseCommand — registry must parseInt() numeric args.
 // The body/ skills handle their own item name normalization internally.
@@ -33,11 +50,7 @@ const REGISTRY = new Map([
   ['smelt',    (bot, args) => smelt(bot, args.item, args.fuel || 'coal', parseInt(args.count) || 1)],
   ['navigate', (bot, args) => navigateTo(bot, parseInt(args.x), parseInt(args.y), parseInt(args.z))],
   ['chat',     (bot, args) => {
-    let msg = args.message || ''
-    // Strip any <think> tags that leaked into the chat message
-    msg = msg.replace(/<\/?think>/g, '').replace(/<think>[\s\S]*?<\/think>/g, '').trim()
-    // Strip reasoning-like prefixes
-    msg = msg.replace(/^(okay|let me|i need to|first,|looking at|the user|i should|let's see|my situation)[^.!?]*[.!?]\s*/i, '').trim()
+    let msg = cleanChatMessage(args.message || '')
     if (!msg) return { success: false, reason: 'empty message after filtering' }
     bot.chat(msg)
     return { success: true }
